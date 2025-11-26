@@ -1,0 +1,55 @@
+# Dependências do Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+
+# Variáveis de ambiente - NUNCA commitar
+.env
+.env.local
+.env.*.local
+
+# Arquivos de configuração sensíveis
+token.txt
+pdfseculum.txt
+
+# Backups
+*.backup.html
+*_backup.*
+server_broken_backup.js
+
+# Banco de dados local
+*.db
+*.sqlite
+*.sqlite3
+
+# Arquivos de sistema
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+logs/
+*.log
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Temporários
+temp/
+tmp/
+*.tmp
+
+# Capturas de tela (remover se necessário)
+*.png
+*.jpg
+*.jpeg
+
+# Arquivos de teste
+teste.*
+test.*

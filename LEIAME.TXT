@@ -1,0 +1,69 @@
+🔐 Autenticação
+{
+  "url": "https://autenticador.secullum.com.br/Token",
+  "method": "POST",
+  "params": {
+    "grant_type": "password",
+    "username": "<usuario>",
+    "password": "<senha>"
+  },
+  "headers": {
+    "Content-Type": "application/x-www-form-urlencoded"
+  },
+  "returns": {
+    "access_token": "string",
+    "token_type": "Bearer",
+    "expires_in": "int"
+  }
+}
+
+
+Todas as requisições seguintes exigem:
+
+{
+  "Authorization": "Bearer <access_token>",
+  "secullumidbancoselecionado": "<id_banco>"
+}
+
+🏢 Cadastros e Estruturas
+Recurso	Endpoint	Método	Principais Parâmetros
+Empresas	/IntegracaoExterna/Empresas	GET / POST	Nome, CNPJ, Código
+Departamentos	/IntegracaoExterna/Departamentos	GET / POST	Código, Descrição
+Funções	/IntegracaoExterna/Funcoes	GET / POST	Código, Nome
+Estruturas	/IntegracaoExterna/Estruturas	GET / POST	Código, Nome, Hierarquia
+Funcionários	/IntegracaoExterna/Funcionarios	GET / POST / PUT	Nome, CPF, PIS, Empresa, Departamento, Função
+Afastamentos	/IntegracaoExterna/FuncionariosAfastamentos	GET / POST	Data início/fim, Motivo
+Justificativas	/IntegracaoExterna/Justificativas	GET / POST	Código, Descrição, Tipo
+Motivos de Demissão	/IntegracaoExterna/MotivosDemissao	GET / POST	Código, Descrição
+⏱️ Controle de Ponto
+Ação	Endpoint	Método	Parâmetros / Observações
+Consultar batidas	/IntegracaoExterna/Batidas	GET	CPF, DataInicial, DataFinal
+Incluir batida manual	/IntegracaoExterna/CartaoPonto/Manual	POST	IDFuncionário, Data, Hora, Tipo
+Justificar batida	/IntegracaoExterna/CartaoPonto/Justificativa	POST	IDFuncionário, Data, Motivo
+Trocar batida de dia	/IntegracaoExterna/CartaoPonto/TrocaDia	POST	IDBatida, DataNova
+Corrigir entrada/saída	/IntegracaoExterna/CartaoPonto/Troca	POST	IDBatida, ColunaOrigem, ColunaDestino
+Excluir batida	/IntegracaoExterna/CartaoPonto	DELETE	IDBatida
+Calcular jornada	/IntegracaoExterna/Calcular	GET	DataInicial, DataFinal, IDFuncionário
+🖥️ Equipamentos
+Ação	Endpoint	Método	Retorno
+Listar equipamentos	/IntegracaoExterna/Equipamentos	GET	ID, Número de série, Modelo, Último envio, Status
+
+Pode ser usado para detectar máquinas inativas (sem comunicação recente).
+
+📊 Relatórios e Pendências
+Ação	Endpoint	Método	Descrição
+Consultar pendências	/IntegracaoExterna/Pendencias	GET	Lista itens aguardando sincronização
+Fonte de dados	/IntegracaoExterna/FonteDados	GET	Fontes conectadas (biometria, web etc.)
+Lançar atividades	/IntegracaoExterna/LancamentoAtividades	POST	IDFuncionário, CódigoAtividade, Data, Duração
+💾 Formato geral de resposta
+
+As APIs retornam dados em JSON:
+
+{
+  "Sucesso": true,
+  "Mensagem": "Operação realizada com sucesso",
+  "Dados": [...]
+}
+
+
+Quer que eu te gere agora um arquivo .json pronto pra usar no Copilot (com todos esses endpoints formatados como referência de API)? Assim você cola direto no projeto e pode chamar cada rota facilmente.

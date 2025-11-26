@@ -1,0 +1,898 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monitor de Relógios de Ponto - Secullum</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%);
+            min-height: 100vh;
+            color: #e2e8f0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        /* HEADER COM CONTROLES */
+        .header {
+            background: rgba(30, 41, 59, 0.8);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(148, 163, 184, 0.1);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        .header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .header-icon {
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            border-radius: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            box-shadow: 0 8px 20px rgba(59, 130, 246, 0.3);
+        }
+
+        .header h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #60a5fa, #a78bfa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        /* FORMULÁRIO DE FILTROS */
+        .filters-form {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr auto;
+            gap: 15px;
+            align-items: end;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .form-group label {
+            color: #94a3b8;
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .form-group select,
+        .form-group input {
+            padding: 12px 16px;
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            border-radius: 10px;
+            color: #e2e8f0;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .form-group select:focus,
+        .form-group input:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .form-group select option {
+            background: #1e293b;
+            color: #e2e8f0;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            justify-content: center;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            color: white;
+            box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* ESTATÍSTICAS */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: rgba(30, 41, 59, 0.8);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(148, 163, 184, 0.1);
+            border-radius: 16px;
+            padding: 24px;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            transition: all 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.4);
+        }
+
+        .stat-icon {
+            width: 60px;
+            height: 60px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            flex-shrink: 0;
+        }
+
+        .stat-icon.total {
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            color: #dbeafe;
+        }
+
+        .stat-icon.online {
+            background: linear-gradient(135deg, #22c55e, #16a34a);
+            color: #dcfce7;
+        }
+
+        .stat-icon.warning {
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+            color: #fef3c7;
+        }
+
+        .stat-icon.offline {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            color: #fee2e2;
+        }
+
+        .stat-content {
+            flex: 1;
+        }
+
+        .stat-label {
+            color: #94a3b8;
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #e2e8f0;
+        }
+
+        /* GRID DE MÁQUINAS */
+        .machines-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 20px;
+        }
+
+        .machine-card {
+            background: rgba(30, 41, 59, 0.8);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(148, 163, 184, 0.1);
+            border-radius: 16px;
+            padding: 24px;
+            transition: all 0.3s ease;
+        }
+
+        .machine-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.4);
+        }
+
+        .machine-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 16px;
+            gap: 12px;
+        }
+
+        .machine-name {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #e2e8f0;
+            line-height: 1.3;
+            flex: 1;
+        }
+
+        .status-badge {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .status-online {
+            background: rgba(34, 197, 94, 0.15);
+            color: #4ade80;
+            border: 1px solid rgba(74, 222, 128, 0.3);
+        }
+
+        .status-online .status-dot {
+            background: #4ade80;
+            box-shadow: 0 0 10px rgba(74, 222, 128, 0.5);
+        }
+
+        .status-warning {
+            background: rgba(251, 146, 60, 0.15);
+            color: #fb923c;
+            border: 1px solid rgba(251, 146, 60, 0.3);
+        }
+
+        .status-warning .status-dot {
+            background: #fb923c;
+            box-shadow: 0 0 10px rgba(251, 146, 60, 0.5);
+        }
+
+        .status-offline {
+            background: rgba(239, 68, 68, 0.15);
+            color: #f87171;
+            border: 1px solid rgba(248, 113, 113, 0.3);
+        }
+
+        .status-offline .status-dot {
+            background: #f87171;
+            box-shadow: 0 0 10px rgba(248, 113, 113, 0.5);
+        }
+
+        .machine-info {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+        }
+
+        .info-row:last-child {
+            border-bottom: none;
+        }
+
+        .info-label {
+            color: #94a3b8;
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .info-label i {
+            width: 16px;
+        }
+
+        .info-value {
+            color: #e2e8f0;
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+
+        .time-badge {
+            padding: 4px 10px;
+            background: rgba(59, 130, 246, 0.15);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            border-radius: 8px;
+            color: #60a5fa;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        /* LOADING */
+        .loading {
+            text-align: center;
+            padding: 60px 20px;
+            color: #94a3b8;
+        }
+
+        .loading i {
+            font-size: 48px;
+            animation: spin 1s linear infinite;
+            color: #3b82f6;
+            margin-bottom: 20px;
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        /* EMPTY STATE */
+        .empty-state {
+            text-align: center;
+            padding: 80px 20px;
+            color: #94a3b8;
+        }
+
+        .empty-state i {
+            font-size: 64px;
+            color: #475569;
+            margin-bottom: 20px;
+        }
+
+        .empty-state h3 {
+            font-size: 1.5rem;
+            color: #cbd5e1;
+            margin-bottom: 10px;
+        }
+
+        .empty-state p {
+            font-size: 1rem;
+            color: #64748b;
+        }
+
+        /* RESPONSIVO */
+        @media (max-width: 768px) {
+            .filters-form {
+                grid-template-columns: 1fr;
+            }
+
+            .header h1 {
+                font-size: 1.5rem;
+            }
+
+            .machines-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- HEADER COM FILTROS -->
+        <div class="header">
+            <div class="header-top">
+                <div class="header-left">
+                    <div class="header-icon">
+                        <i class="fas fa-desktop"></i>
+                    </div>
+                    <h1>Monitor de Relógios de Ponto</h1>
+                </div>
+            </div>
+
+            <!-- FORMULÁRIO DE FILTROS -->
+            <form class="filters-form" id="filtersForm" onsubmit="return false;">
+                <div class="form-group">
+                    <label for="empresaSelect">
+                        <i class="fas fa-building"></i> Empresa Secullum
+                    </label>
+                    <select id="empresaSelect" required>
+                        <option value="">Carregando empresas...</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="dataInicio">
+                        <i class="fas fa-calendar-day"></i> Data Início
+                    </label>
+                    <input type="date" id="dataInicio" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="dataFim">
+                        <i class="fas fa-calendar-day"></i> Data Fim
+                    </label>
+                    <input type="date" id="dataFim" required>
+                </div>
+
+                <button type="button" class="btn btn-primary" id="btnBuscar" onclick="loadMachines()">
+                    <i class="fas fa-search"></i>
+                    Buscar
+                </button>
+            </form>
+        </div>
+
+        <!-- ESTATÍSTICAS -->
+        <div class="stats-grid" id="statsGrid" style="display: none;">
+            <div class="stat-card">
+                <div class="stat-icon total">
+                    <i class="fas fa-desktop"></i>
+                </div>
+                <div class="stat-content">
+                    <div class="stat-label">Total</div>
+                    <div class="stat-value" id="statTotal">0</div>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-icon online">
+                    <i class="fas fa-check-circle"></i>
+                </div>
+                <div class="stat-content">
+                    <div class="stat-label">Online</div>
+                    <div class="stat-value" id="statOnline">0</div>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-icon warning">
+                    <i class="fas fa-exclamation-triangle"></i>
+                </div>
+                <div class="stat-content">
+                    <div class="stat-label">Atenção</div>
+                    <div class="stat-value" id="statWarning">0</div>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-icon offline">
+                    <i class="fas fa-times-circle"></i>
+                </div>
+                <div class="stat-content">
+                    <div class="stat-label">Offline</div>
+                    <div class="stat-value" id="statOffline">0</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- GRID DE MÁQUINAS -->
+        <div class="machines-grid" id="machinesGrid">
+            <div class="empty-state">
+                <i class="fas fa-search"></i>
+                <h3>Nenhuma busca realizada</h3>
+                <p>Selecione uma empresa e o período para visualizar os equipamentos</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let allMachines = [];
+        let SECULLUM_TOKEN = null;
+        let EMPRESAS = [];
+
+        // Configurar datas padrão (últimos 90 dias)
+        window.addEventListener('DOMContentLoaded', async () => {
+            const hoje = new Date();
+            const dataFim = hoje.toISOString().split('T')[0];
+            const dataInicio = new Date(hoje.getTime() - 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+            
+            document.getElementById('dataInicio').value = dataInicio;
+            document.getElementById('dataFim').value = dataFim;
+
+            // Autenticar e buscar empresas automaticamente
+            const authenticated = await authenticateSecullum();
+            if (authenticated) {
+                await loadCompanies();
+            }
+        });
+
+        // Autenticar na API Secullum
+        async function authenticateSecullum() {
+            try {
+                console.log('🔑 Autenticando na API Secullum...');
+                
+                const response = await fetch('https://autenticador.secullum.com.br/Token', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    },
+                    body: new URLSearchParams({
+                        grant_type: 'password',
+                        username: 'ferreira.eduardo@larsil.com.br',
+                        password: 'larsil123@',
+                        client_id: '3'
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Autenticação falhou: ${response.status}`);
+                }
+
+                const data = await response.json();
+                SECULLUM_TOKEN = data.access_token;
+                console.log('✅ Token Secullum obtido com sucesso');
+                
+                return true;
+            } catch (err) {
+                console.error('❌ Erro ao autenticar:', err);
+                alert('Erro ao autenticar na API Secullum. Recarregue a página.');
+                return false;
+            }
+        }
+
+        // Buscar empresas disponíveis
+        async function loadCompanies() {
+            try {
+                console.log('🏢 Buscando empresas disponíveis...');
+                
+                const response = await fetch('https://autenticador.secullum.com.br/ContasSecullumExterno/ListarBancos', {
+                    headers: {
+                        'Authorization': `Bearer ${SECULLUM_TOKEN}`
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Erro ao buscar empresas: ${response.status}`);
+                }
+
+                const bancos = await response.json();
+                EMPRESAS = bancos;
+                console.log(`✅ ${bancos.length} empresas encontradas`);
+
+                // Preencher select de empresas
+                const select = document.getElementById('empresaSelect');
+                select.innerHTML = '<option value="">Selecione uma empresa...</option>';
+                
+                bancos.forEach(banco => {
+                    const option = document.createElement('option');
+                    option.value = banco.id;
+                    option.textContent = banco.nome || banco.razaoSocial || `Empresa ${banco.id}`;
+                    select.appendChild(option);
+                });
+
+            } catch (err) {
+                console.error('❌ Erro ao buscar empresas:', err);
+                alert('Erro ao buscar lista de empresas.');
+            }
+        }
+
+        async function loadMachines() {
+            const empresaSelect = document.getElementById('empresaSelect');
+            const dataInicio = document.getElementById('dataInicio').value;
+            const dataFim = document.getElementById('dataFim').value;
+            const btnBuscar = document.getElementById('btnBuscar');
+            const machinesGrid = document.getElementById('machinesGrid');
+            const statsGrid = document.getElementById('statsGrid');
+
+            // Validar
+            if (!empresaSelect.value) {
+                alert('Selecione uma empresa');
+                return;
+            }
+
+            if (!dataInicio || !dataFim) {
+                alert('Selecione o período');
+                return;
+            }
+
+            if (!SECULLUM_TOKEN) {
+                alert('Token não disponível. Recarregue a página.');
+                return;
+            }
+
+            // Loading
+            btnBuscar.disabled = true;
+            btnBuscar.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Buscando...';
+            
+            machinesGrid.innerHTML = `
+                <div class="loading">
+                    <i class="fas fa-spinner"></i>
+                    <h3>Carregando equipamentos...</h3>
+                    <p>Aguarde, consultando dados da Secullum</p>
+                </div>
+            `;
+
+            try {
+                const bancoid = empresaSelect.value;
+                const empresaNome = empresaSelect.options[empresaSelect.selectedIndex].text;
+                
+                console.log(`🔍 Buscando equipamentos - Empresa: ${empresaNome} (${bancoid}) | Período: ${dataInicio} a ${dataFim}`);
+
+                // PASSO 1: Buscar lista de equipamentos
+                const equipResponse = await fetch('https://pontowebintegracaoexterna.secullum.com.br/IntegracaoExterna/Equipamentos', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${SECULLUM_TOKEN}`,
+                        'secullumidbancoselecionado': bancoid
+                    }
+                });
+
+                if (!equipResponse.ok) {
+                    throw new Error(`Erro ao buscar equipamentos: HTTP ${equipResponse.status}`);
+                }
+
+                const equipamentos = await equipResponse.json();
+                console.log(`✅ ${equipamentos.length} equipamentos encontrados`);
+
+                if (!equipamentos || equipamentos.length === 0) {
+                    allMachines = [];
+                    renderMachines(allMachines);
+                    updateStats(allMachines);
+                    statsGrid.style.display = 'grid';
+                    return;
+                }
+
+                // PASSO 2: Buscar batidas de cada equipamento no período
+                const machines = await Promise.all(equipamentos.map(async (equip) => {
+                    try {
+                        const equipId = equip.Id || equip.EquipamentoId || equip.id;
+                        const equipNome = equip.Descricao || equip.Nome || `Equipamento ${equipId}`;
+                        const equipIP = equip.EnderecoIP || 'N/A';
+
+                        // Buscar batidas no período selecionado
+                        const fontUrl = `https://pontowebintegracaoexterna.secullum.com.br/IntegracaoExterna/FonteDados?equipamentoId=${equipId}&dataInicio=${dataInicio}&dataFim=${dataFim}`;
+                        
+                        const fontResponse = await fetch(fontUrl, {
+                            method: 'GET',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${SECULLUM_TOKEN}`,
+                                'secullumidbancoselecionado': bancoid
+                            }
+                        });
+
+                        let lastSync = null;
+                        let totalBatidas = 0;
+                        let lastSyncCount = 0;
+
+                        if (fontResponse.ok) {
+                            const batidas = await fontResponse.json();
+                            totalBatidas = Array.isArray(batidas) ? batidas.length : 0;
+
+                            if (totalBatidas > 0) {
+                                // Ordenar por data DESC
+                                batidas.sort((a, b) => new Date(b.Data || b.data) - new Date(a.Data || a.data));
+                                lastSync = batidas[0].Data || batidas[0].data;
+
+                                // Contar batidas do mesmo dia da última sync
+                                const lastSyncDate = new Date(lastSync).toISOString().split('T')[0];
+                                lastSyncCount = batidas.filter(b => {
+                                    const bData = (b.Data || b.data || '').split('T')[0];
+                                    return bData === lastSyncDate;
+                                }).length;
+                            }
+                        }
+
+                        return {
+                            id: equipId,
+                            name: equipNome,
+                            lastSync: lastSync || null,
+                            totalBatidas: totalBatidas,
+                            lastSyncCount: lastSyncCount,
+                            ip: equipIP,
+                            banco: empresaNome
+                        };
+                    } catch (err) {
+                        console.error(`⚠️ Erro ao buscar dados do equipamento:`, err);
+                        return null;
+                    }
+                }));
+
+                // Filtrar nulls
+                allMachines = machines.filter(m => m !== null);
+                console.log(`✅ Dados coletados para ${allMachines.length} máquinas`);
+
+                renderMachines(allMachines);
+                updateStats(allMachines);
+                statsGrid.style.display = 'grid';
+
+            } catch (err) {
+                console.error('❌ Erro ao buscar equipamentos:', err);
+                machinesGrid.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-exclamation-circle" style="color: #ef4444;"></i>
+                        <h3>Erro ao buscar dados</h3>
+                        <p>${err.message}</p>
+                    </div>
+                `;
+                statsGrid.style.display = 'none';
+            } finally {
+                btnBuscar.disabled = false;
+                btnBuscar.innerHTML = '<i class="fas fa-search"></i> Buscar';
+            }
+        }
+
+        function renderMachines(machines) {
+            const grid = document.getElementById('machinesGrid');
+
+            if (!machines || machines.length === 0) {
+                grid.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-desktop"></i>
+                        <h3>Nenhum equipamento encontrado</h3>
+                        <p>Não há equipamentos cadastrados para esta empresa</p>
+                    </div>
+                `;
+                return;
+            }
+
+            grid.innerHTML = machines.map(machine => {
+                const status = getStatus(machine.lastSync);
+                const timeSince = getTimeSince(machine.lastSync);
+
+                return `
+                    <div class="machine-card">
+                        <div class="machine-header">
+                            <div class="machine-name">
+                                <i class="fas fa-desktop"></i> ${machine.name}
+                            </div>
+                            <div class="status-badge status-${status.class}">
+                                <span class="status-dot"></span>
+                                ${status.label}
+                            </div>
+                        </div>
+                        
+                        <div class="machine-info">
+                            <div class="info-row">
+                                <span class="info-label">
+                                    <i class="fas fa-building"></i> Empresa
+                                </span>
+                                <span class="info-value">${machine.banco}</span>
+                            </div>
+                            
+                            <div class="info-row">
+                                <span class="info-label">
+                                    <i class="fas fa-network-wired"></i> IP
+                                </span>
+                                <span class="info-value">${machine.ip || 'N/A'}</span>
+                            </div>
+                            
+                            <div class="info-row">
+                                <span class="info-label">
+                                    <i class="fas fa-clock"></i> Última Comunicação
+                                </span>
+                                <span class="time-badge">${timeSince}</span>
+                            </div>
+                            
+                            <div class="info-row">
+                                <span class="info-label">
+                                    <i class="fas fa-fingerprint"></i> Batidas (Período)
+                                </span>
+                                <span class="info-value">${machine.totalBatidas || 0}</span>
+                            </div>
+                            
+                            ${machine.lastSyncCount > 0 ? `
+                            <div class="info-row">
+                                <span class="info-label">
+                                    <i class="fas fa-calendar-day"></i> Batidas (Último Dia)
+                                </span>
+                                <span class="info-value">${machine.lastSyncCount}</span>
+                            </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function updateStats(machines) {
+            const total = machines.length;
+            let online = 0, warning = 0, offline = 0;
+
+            machines.forEach(m => {
+                const status = getStatus(m.lastSync);
+                if (status.class === 'online') online++;
+                else if (status.class === 'warning') warning++;
+                else offline++;
+            });
+
+            document.getElementById('statTotal').textContent = total;
+            document.getElementById('statOnline').textContent = online;
+            document.getElementById('statWarning').textContent = warning;
+            document.getElementById('statOffline').textContent = offline;
+        }
+
+        function getStatus(lastSync) {
+            if (!lastSync) {
+                return { class: 'offline', label: 'Offline' };
+            }
+
+            const now = new Date();
+            const last = new Date(lastSync);
+            const hoursDiff = (now - last) / (1000 * 60 * 60);
+
+            if (hoursDiff < 24) {
+                return { class: 'online', label: 'Online' };
+            } else if (hoursDiff < 72) {
+                return { class: 'warning', label: 'Atenção' };
+            } else {
+                return { class: 'offline', label: 'Offline' };
+            }
+        }
+
+        function getTimeSince(lastSync) {
+            if (!lastSync) return 'Nunca';
+
+            const now = new Date();
+            const last = new Date(lastSync);
+            const diffMs = now - last;
+            const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+            const diffDays = Math.floor(diffHours / 24);
+
+            if (diffHours < 1) {
+                const diffMins = Math.floor(diffMs / (1000 * 60));
+                return `${diffMins}min atrás`;
+            } else if (diffHours < 24) {
+                return `${diffHours}h atrás`;
+            } else if (diffDays === 1) {
+                return 'Ontem';
+            } else if (diffDays < 7) {
+                return `${diffDays} dias atrás`;
+            } else {
+                const weeks = Math.floor(diffDays / 7);
+                return `${weeks} semana${weeks > 1 ? 's' : ''} atrás`;
+            }
+        }
+    </script>
+</body>
+</html>

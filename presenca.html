@@ -1,0 +1,1019 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel de Presença - Gestão de Ponto</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%);
+            min-height: 100vh;
+            color: #e2e8f0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1800px;
+            margin: 0 auto;
+        }
+
+        /* HEADER */
+        .header {
+            background: rgba(30, 41, 59, 0.8);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(148, 163, 184, 0.1);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        .header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .header-icon {
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, #10b981, #059669);
+            border-radius: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            box-shadow: 0 8px 20px rgba(16, 185, 129, 0.3);
+        }
+
+        .header h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #34d399, #10b981);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        /* FORMULÁRIO */
+        .filters-form {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr auto;
+            gap: 15px;
+            align-items: end;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .form-group label {
+            color: #94a3b8;
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .form-group select,
+        .form-group input {
+            padding: 12px 16px;
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            border-radius: 10px;
+            color: #e2e8f0;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .form-group select:focus,
+        .form-group input:focus {
+            outline: none;
+            border-color: #10b981;
+            box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+        }
+
+        .form-group select option {
+            background: #1e293b;
+            color: #e2e8f0;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            justify-content: center;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* CARDS DE MÉTRICAS */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .metric-card {
+            background: rgba(30, 41, 59, 0.8);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(148, 163, 184, 0.1);
+            border-radius: 16px;
+            padding: 24px;
+            transition: all 0.3s ease;
+        }
+
+        .metric-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.4);
+        }
+
+        .metric-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .metric-label {
+            color: #94a3b8;
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .metric-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+
+        .metric-icon.total {
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            color: #dbeafe;
+        }
+
+        .metric-icon.present {
+            background: linear-gradient(135deg, #22c55e, #16a34a);
+            color: #dcfce7;
+        }
+
+        .metric-icon.absent {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            color: #fee2e2;
+        }
+
+        .metric-icon.partial {
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+            color: #fef3c7;
+        }
+
+        .metric-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #e2e8f0;
+            margin-bottom: 8px;
+        }
+
+        .metric-subtitle {
+            color: #64748b;
+            font-size: 0.9rem;
+        }
+
+        .metric-percentage {
+            display: inline-block;
+            padding: 4px 10px;
+            background: rgba(16, 185, 129, 0.15);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            border-radius: 8px;
+            color: #10b981;
+            font-weight: 600;
+            font-size: 0.85rem;
+            margin-top: 8px;
+        }
+
+        .metric-percentage.red {
+            background: rgba(239, 68, 68, 0.15);
+            border-color: rgba(239, 68, 68, 0.3);
+            color: #ef4444;
+        }
+
+        /* GRÁFICOS */
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .chart-card {
+            background: rgba(30, 41, 59, 0.8);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(148, 163, 184, 0.1);
+            border-radius: 16px;
+            padding: 24px;
+        }
+
+        .chart-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #e2e8f0;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 300px;
+        }
+
+        /* TABELA DE ORIGEM */
+        .origin-table {
+            background: rgba(30, 41, 59, 0.8);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(148, 163, 184, 0.1);
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 30px;
+        }
+
+        .table-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #e2e8f0;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        thead th {
+            padding: 12px;
+            background: rgba(15, 23, 42, 0.6);
+            color: #94a3b8;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.85rem;
+            text-align: left;
+            border-bottom: 2px solid rgba(148, 163, 184, 0.2);
+        }
+
+        tbody td {
+            padding: 12px;
+            color: #e2e8f0;
+            border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+        }
+
+        tbody tr:hover {
+            background: rgba(59, 130, 246, 0.1);
+        }
+
+        .origin-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 10px;
+            font-size: 14px;
+        }
+
+        .origin-icon.relogio {
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            color: #dbeafe;
+        }
+
+        .origin-icon.mobile {
+            background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+            color: #ede9fe;
+        }
+
+        .origin-icon.web {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: #dcfce7;
+        }
+
+        .origin-icon.manual {
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+            color: #fef3c7;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: rgba(148, 163, 184, 0.2);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 8px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #10b981, #059669);
+            border-radius: 4px;
+            transition: width 0.5s ease;
+        }
+
+        /* LOADING */
+        .loading {
+            text-align: center;
+            padding: 60px 20px;
+            color: #94a3b8;
+        }
+
+        .loading i {
+            font-size: 48px;
+            animation: spin 1s linear infinite;
+            color: #10b981;
+            margin-bottom: 20px;
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        /* EMPTY STATE */
+        .empty-state {
+            text-align: center;
+            padding: 80px 20px;
+            color: #94a3b8;
+        }
+
+        .empty-state i {
+            font-size: 64px;
+            color: #475569;
+            margin-bottom: 20px;
+        }
+
+        .empty-state h3 {
+            font-size: 1.5rem;
+            color: #cbd5e1;
+            margin-bottom: 10px;
+        }
+
+        /* RESPONSIVO */
+        @media (max-width: 1200px) {
+            .charts-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .filters-form {
+                grid-template-columns: 1fr;
+            }
+
+            .header h1 {
+                font-size: 1.5rem;
+            }
+
+            .metrics-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- HEADER -->
+        <div class="header">
+            <div class="header-top">
+                <div class="header-left">
+                    <div class="header-icon">
+                        <i class="fas fa-user-check"></i>
+                    </div>
+                    <h1>Painel de Presença - Gestão de Ponto</h1>
+                </div>
+            </div>
+
+            <!-- FILTROS -->
+            <form class="filters-form" onsubmit="return false;">
+                <div class="form-group">
+                    <label for="empresaSelect">
+                        <i class="fas fa-building"></i> Empresa
+                    </label>
+                    <select id="empresaSelect" required>
+                        <option value="">Carregando empresas...</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="dataInicio">
+                        <i class="fas fa-calendar-day"></i> Data Início
+                    </label>
+                    <input type="date" id="dataInicio" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="dataFim">
+                        <i class="fas fa-calendar-day"></i> Data Fim
+                    </label>
+                    <input type="date" id="dataFim" required>
+                </div>
+
+                <button type="button" class="btn btn-primary" id="btnBuscar" onclick="loadAttendanceData()">
+                    <i class="fas fa-search"></i>
+                    Buscar
+                </button>
+            </form>
+        </div>
+
+        <!-- MÉTRICAS -->
+        <div class="metrics-grid" id="metricsGrid" style="display: none;"></div>
+
+        <!-- GRÁFICOS -->
+        <div class="charts-grid" id="chartsGrid" style="display: none;">
+            <div class="chart-card">
+                <div class="chart-title">
+                    <i class="fas fa-chart-pie"></i>
+                    Presença vs Ausência
+                </div>
+                <div class="chart-container">
+                    <canvas id="presenceChart"></canvas>
+                </div>
+            </div>
+
+            <div class="chart-card">
+                <div class="chart-title">
+                    <i class="fas fa-chart-bar"></i>
+                    Origem das Batidas
+                </div>
+                <div class="chart-container">
+                    <canvas id="originChart"></canvas>
+                </div>
+            </div>
+
+            <div class="chart-card" style="grid-column: 1 / -1;">
+                <div class="chart-title">
+                    <i class="fas fa-sitemap"></i>
+                    Origem de Batidas por Departamento
+                </div>
+                <div class="chart-container">
+                    <canvas id="departmentOriginChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- TABELA DE ORIGEM -->
+        <div class="origin-table" id="originTable" style="display: none;">
+            <div class="table-title">
+                <i class="fas fa-table"></i>
+                Detalhamento por Origem
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Origem</th>
+                        <th>Quantidade</th>
+                        <th>Percentual</th>
+                        <th>Distribuição</th>
+                    </tr>
+                </thead>
+                <tbody id="originTableBody"></tbody>
+            </table>
+        </div>
+
+        <!-- EMPTY STATE -->
+        <div id="emptyState">
+            <div class="empty-state">
+                <i class="fas fa-search"></i>
+                <h3>Selecione os filtros</h3>
+                <p>Escolha a empresa e o período para visualizar o painel de presença</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let SECULLUM_TOKEN = null;
+        let EMPRESAS = [];
+        let presenceChart = null;
+        let originChart = null;
+        let departmentOriginChart = null;
+
+        // Inicialização
+        window.addEventListener('DOMContentLoaded', async () => {
+            // Configurar datas padrão (últimos 7 dias)
+            const hoje = new Date();
+            const dataFim = hoje.toISOString().split('T')[0];
+            const dataInicio = new Date(hoje.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+            
+            document.getElementById('dataInicio').value = dataInicio;
+            document.getElementById('dataFim').value = dataFim;
+
+            // Autenticar e buscar empresas
+            const authenticated = await authenticateSecullum();
+            if (authenticated) {
+                await loadCompanies();
+            }
+        });
+
+        // Autenticar
+        async function authenticateSecullum() {
+            try {
+                console.log('🔑 Autenticando na API Secullum...');
+                
+                const response = await fetch('https://autenticador.secullum.com.br/Token', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: new URLSearchParams({
+                        grant_type: 'password',
+                        username: 'ferreira.eduardo@larsil.com.br',
+                        password: 'larsil123@',
+                        client_id: '3'
+                    })
+                });
+
+                if (!response.ok) throw new Error(`Autenticação falhou: ${response.status}`);
+
+                const data = await response.json();
+                SECULLUM_TOKEN = data.access_token;
+                console.log('✅ Token obtido');
+                
+                return true;
+            } catch (err) {
+                console.error('❌ Erro ao autenticar:', err);
+                alert('Erro ao autenticar. Recarregue a página.');
+                return false;
+            }
+        }
+
+        // Buscar empresas
+        async function loadCompanies() {
+            try {
+                console.log('🏢 Buscando empresas...');
+                
+                const response = await fetch('https://autenticador.secullum.com.br/ContasSecullumExterno/ListarBancos', {
+                    headers: { 'Authorization': `Bearer ${SECULLUM_TOKEN}` }
+                });
+
+                if (!response.ok) throw new Error(`Erro: ${response.status}`);
+
+                const bancos = await response.json();
+                EMPRESAS = bancos;
+                console.log(`✅ ${bancos.length} empresas encontradas`);
+
+                const select = document.getElementById('empresaSelect');
+                select.innerHTML = '<option value="">Selecione uma empresa...</option>';
+                
+                bancos.forEach(banco => {
+                    const option = document.createElement('option');
+                    option.value = banco.id;
+                    option.textContent = banco.nome || banco.razaoSocial || `Empresa ${banco.id}`;
+                    select.appendChild(option);
+                });
+
+            } catch (err) {
+                console.error('❌ Erro ao buscar empresas:', err);
+            }
+        }
+
+        // Buscar dados de presença
+        async function loadAttendanceData() {
+            const empresaSelect = document.getElementById('empresaSelect');
+            const dataInicio = document.getElementById('dataInicio').value;
+            const dataFim = document.getElementById('dataFim').value;
+            const btnBuscar = document.getElementById('btnBuscar');
+
+            if (!empresaSelect.value || !dataInicio || !dataFim) {
+                alert('Preencha todos os campos');
+                return;
+            }
+
+            btnBuscar.disabled = true;
+            btnBuscar.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Buscando...';
+            
+            document.getElementById('emptyState').innerHTML = `
+                <div class="loading">
+                    <i class="fas fa-spinner"></i>
+                    <h3>Carregando dados...</h3>
+                    <p>Consultando registros de ponto</p>
+                </div>
+            `;
+
+            try {
+                const bancoid = empresaSelect.value;
+                const empresaNome = empresaSelect.options[empresaSelect.selectedIndex].text;
+                
+                console.log(`🔍 Buscando dados - ${empresaNome} | ${dataInicio} a ${dataFim}`);
+
+                // PASSO 1: Buscar funcionários ativos
+                const funcResponse = await fetch('https://pontowebintegracaoexterna.secullum.com.br/IntegracaoExterna/Funcionarios', {
+                    headers: {
+                        'Authorization': `Bearer ${SECULLUM_TOKEN}`,
+                        'secullumidbancoselecionado': bancoid
+                    }
+                });
+
+                if (!funcResponse.ok) throw new Error(`Erro ao buscar funcionários: ${funcResponse.status}`);
+                
+                const funcionarios = await funcResponse.json();
+                const funcionariosAtivos = funcionarios.filter(f => !f.DataDemissao || new Date(f.DataDemissao) > new Date(dataFim));
+                
+                console.log(`✅ ${funcionariosAtivos.length} funcionários ativos`);
+
+                // PASSO 2: Buscar FonteDados (batidas brutas com origem) do período
+                const fonteDadosResponse = await fetch(`https://pontowebintegracaoexterna.secullum.com.br/IntegracaoExterna/FonteDados?dataInicio=${dataInicio}&dataFim=${dataFim}`, {
+                    headers: {
+                        'Authorization': `Bearer ${SECULLUM_TOKEN}`,
+                        'secullumidbancoselecionado': bancoid
+                    }
+                });
+
+                if (!fonteDadosResponse.ok) throw new Error(`Erro ao buscar batidas: ${fonteDadosResponse.status}`);
+                
+                const batidas = await fonteDadosResponse.json();
+                console.log(`✅ ${batidas.length} batidas (FonteDados) encontradas`);
+                
+                // DEBUG: Ver estrutura completa das batidas
+                if (batidas.length > 0) {
+                    console.log('🔍 Primeira batida COMPLETA:', JSON.stringify(batidas[0], null, 2));
+                    console.log('🔍 Todas as chaves da batida:', Object.keys(batidas[0]));
+                }
+
+                // Processar dados
+                processAttendanceData(funcionariosAtivos, batidas, dataInicio, dataFim);
+
+            } catch (err) {
+                console.error('❌ Erro:', err);
+                document.getElementById('emptyState').innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-exclamation-circle" style="color: #ef4444;"></i>
+                        <h3>Erro ao buscar dados</h3>
+                        <p>${err.message}</p>
+                    </div>
+                `;
+            } finally {
+                btnBuscar.disabled = false;
+                btnBuscar.innerHTML = '<i class="fas fa-search"></i> Buscar';
+            }
+        }
+
+        // Processar dados
+        function processAttendanceData(funcionarios, batidas, dataInicio, dataFim) {
+            // Mapear funcionários que bateram ponto (usar FuncionarioId da FonteDados)
+            const funcionariosIdsComBatidas = new Set(batidas.map(b => b.FuncionarioId));
+            
+            const totalFuncionarios = funcionarios.length;
+            const presentes = Array.from(funcionariosIdsComBatidas).filter(id => 
+                funcionarios.some(f => f.Id === id)
+            ).length;
+            const ausentes = totalFuncionarios - presentes;
+
+            // Origem das batidas (agora sim vem no campo Origem da FonteDados)
+            const origemMap = {
+                0: { nome: 'Desconhecido', icon: 'question', class: 'manual' },
+                1: { nome: 'Relógio de Ponto', icon: 'clock', class: 'relogio' },
+                2: { nome: 'Inclusão Manual', icon: 'keyboard', class: 'manual' },
+                3: { nome: 'Pré-assinalado', icon: 'calendar-check', class: 'manual' },
+                4: { nome: 'Check-in', icon: 'map-marker-alt', class: 'mobile' },
+                5: { nome: 'Central Web', icon: 'globe', class: 'web' },
+                6: { nome: 'App Mobile', icon: 'mobile-alt', class: 'mobile' },
+                7: { nome: 'App Offline', icon: 'mobile', class: 'mobile' },
+                8: { nome: 'Integração Externa', icon: 'code', class: 'web' }
+            };
+
+            const origemCount = {};
+            batidas.forEach(b => {
+                const origem = b.Origem ?? 0;
+                origemCount[origem] = (origemCount[origem] || 0) + 1;
+            });
+
+            console.log('📊 Origem das batidas:', origemCount);
+            console.log('📊 Exemplo de batida:', batidas[0]);
+
+            // Renderizar
+            renderMetrics(totalFuncionarios, presentes, ausentes, batidas.length);
+            renderCharts(presentes, ausentes, origemCount, origemMap);
+            renderDepartmentOriginChart(funcionarios, batidas, origemMap);
+            renderOriginTable(origemCount, origemMap, batidas.length);
+
+            document.getElementById('emptyState').style.display = 'none';
+        }
+
+        // Renderizar métricas
+        function renderMetrics(total, presentes, ausentes, totalBatidas) {
+            const percentPresentes = total > 0 ? ((presentes / total) * 100).toFixed(1) : 0;
+            const percentAusentes = total > 0 ? ((ausentes / total) * 100).toFixed(1) : 0;
+
+            document.getElementById('metricsGrid').innerHTML = `
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <span class="metric-label">Total Funcionários</span>
+                        <div class="metric-icon total">
+                            <i class="fas fa-users"></i>
+                        </div>
+                    </div>
+                    <div class="metric-value">${total}</div>
+                    <div class="metric-subtitle">Funcionários ativos</div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <span class="metric-label">Presentes</span>
+                        <div class="metric-icon present">
+                            <i class="fas fa-user-check"></i>
+                        </div>
+                    </div>
+                    <div class="metric-value">${presentes}</div>
+                    <div class="metric-subtitle">Bateram ponto no período</div>
+                    <div class="metric-percentage">${percentPresentes}%</div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <span class="metric-label">Ausentes</span>
+                        <div class="metric-icon absent">
+                            <i class="fas fa-user-times"></i>
+                        </div>
+                    </div>
+                    <div class="metric-value">${ausentes}</div>
+                    <div class="metric-subtitle">Não bateram ponto</div>
+                    <div class="metric-percentage red">${percentAusentes}%</div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <span class="metric-label">Total Batidas</span>
+                        <div class="metric-icon partial">
+                            <i class="fas fa-fingerprint"></i>
+                        </div>
+                    </div>
+                    <div class="metric-value">${totalBatidas}</div>
+                    <div class="metric-subtitle">Registros de ponto</div>
+                </div>
+            `;
+
+            document.getElementById('metricsGrid').style.display = 'grid';
+        }
+
+        // Renderizar gráficos
+        function renderCharts(presentes, ausentes, origemCount, origemMap) {
+            // Gráfico de Presença
+            const ctxPresence = document.getElementById('presenceChart').getContext('2d');
+            if (presenceChart) presenceChart.destroy();
+            
+            presenceChart = new Chart(ctxPresence, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Presentes', 'Ausentes'],
+                    datasets: [{
+                        data: [presentes, ausentes],
+                        backgroundColor: ['#10b981', '#ef4444'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: { color: '#e2e8f0', font: { size: 14 } }
+                        }
+                    }
+                }
+            });
+
+            // Gráfico de Origem
+            const origemLabels = Object.keys(origemCount).map(k => origemMap[k]?.nome || 'Desconhecido');
+            const origemData = Object.values(origemCount);
+            const origemColors = Object.keys(origemCount).map(k => {
+                const cls = origemMap[k]?.class || 'manual';
+                return cls === 'relogio' ? '#3b82f6' : cls === 'mobile' ? '#8b5cf6' : cls === 'web' ? '#10b981' : '#f59e0b';
+            });
+
+            const ctxOrigin = document.getElementById('originChart').getContext('2d');
+            if (originChart) originChart.destroy();
+            
+            originChart = new Chart(ctxOrigin, {
+                type: 'bar',
+                data: {
+                    labels: origemLabels,
+                    datasets: [{
+                        label: 'Batidas',
+                        data: origemData,
+                        backgroundColor: origemColors,
+                        borderRadius: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: { color: '#94a3b8' },
+                            grid: { color: 'rgba(148, 163, 184, 0.1)' }
+                        },
+                        x: {
+                            ticks: { color: '#94a3b8' },
+                            grid: { display: false }
+                        }
+                    }
+                }
+            });
+
+            document.getElementById('chartsGrid').style.display = 'grid';
+        }
+
+        // Renderizar gráfico de origem por departamento
+        function renderDepartmentOriginChart(funcionarios, batidas, origemMap) {
+            // Função auxiliar para extrair nome do departamento
+            function extractDepartmentName(dept) {
+                if (!dept) return 'Sem Departamento';
+                if (typeof dept === 'string') return dept;
+                return dept.Nome || dept.Descricao || dept.Codigo || dept.Id || 'Desconhecido';
+            }
+
+            // Criar mapa de funcionário ID -> departamento
+            const funcionarioMap = new Map();
+            funcionarios.forEach(func => {
+                funcionarioMap.set(func.Id, extractDepartmentName(func.Departamento));
+            });
+
+            // Agrupar batidas por departamento e origem
+            const deptOrigemCount = {};
+            batidas.forEach(batida => {
+                const dept = funcionarioMap.get(batida.FuncionarioId) || 'Sem Departamento';
+                const origem = batida.Origem ?? 0;
+
+                if (!deptOrigemCount[dept]) {
+                    deptOrigemCount[dept] = {};
+                }
+                
+                deptOrigemCount[dept][origem] = (deptOrigemCount[dept][origem] || 0) + 1;
+            });
+
+            // Preparar dados para gráfico empilhado
+            const departamentos = Object.keys(deptOrigemCount).sort();
+            const origensUsadas = [...new Set(batidas.map(b => b.Origem ?? 0))].sort((a, b) => a - b);
+
+            // Criar datasets (um por origem)
+            const datasets = origensUsadas.map(origem => {
+                const info = origemMap[origem] || { nome: 'Desconhecido', class: 'manual' };
+                const cls = info.class;
+                const color = cls === 'relogio' ? '#3b82f6' : 
+                             cls === 'mobile' ? '#8b5cf6' : 
+                             cls === 'web' ? '#10b981' : '#f59e0b';
+
+                return {
+                    label: info.nome,
+                    data: departamentos.map(dept => deptOrigemCount[dept][origem] || 0),
+                    backgroundColor: color,
+                    borderRadius: 8,
+                    borderSkipped: false
+                };
+            });
+
+            // Criar gráfico
+            const ctx = document.getElementById('departmentOriginChart').getContext('2d');
+            if (departmentOriginChart) departmentOriginChart.destroy();
+
+            departmentOriginChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: departamentos,
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: { 
+                                color: '#e2e8f0', 
+                                font: { size: 12 },
+                                padding: 15,
+                                usePointStyle: true
+                            }
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                            callbacks: {
+                                footer: function(tooltipItems) {
+                                    let total = 0;
+                                    tooltipItems.forEach(item => {
+                                        total += item.parsed.y;
+                                    });
+                                    return 'Total: ' + total + ' batidas';
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            stacked: false,
+                            ticks: { 
+                                color: '#94a3b8',
+                                maxRotation: 45,
+                                minRotation: 45
+                            },
+                            grid: { display: false }
+                        },
+                        y: {
+                            stacked: false,
+                            beginAtZero: true,
+                            ticks: { color: '#94a3b8' },
+                            grid: { color: 'rgba(148, 163, 184, 0.1)' }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Renderizar tabela de origem
+        function renderOriginTable(origemCount, origemMap, totalBatidas) {
+            const tbody = document.getElementById('originTableBody');
+            tbody.innerHTML = '';
+
+            Object.entries(origemCount)
+                .sort((a, b) => b[1] - a[1])
+                .forEach(([origem, count]) => {
+                    const info = origemMap[origem] || { nome: 'Desconhecido', icon: 'question', class: 'manual' };
+                    const percent = ((count / totalBatidas) * 100).toFixed(1);
+
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>
+                            <div class="origin-icon ${info.class}">
+                                <i class="fas fa-${info.icon}"></i>
+                            </div>
+                            ${info.nome}
+                        </td>
+                        <td><strong>${count}</strong> batidas</td>
+                        <td><strong>${percent}%</strong></td>
+                        <td>
+                            <div class="progress-bar">
+                                <div class="progress-fill" style="width: ${percent}%"></div>
+                            </div>
+                        </td>
+                    `;
+                    tbody.appendChild(row);
+                });
+
+            document.getElementById('originTable').style.display = 'block';
+        }
+    </script>
+</body>
+</html>
