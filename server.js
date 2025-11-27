@@ -263,6 +263,14 @@ app.get('/api/secullum-config', authenticateToken, (req, res) => {
     });
 });
 
+// GET - Obter configurações do Azure Vision (SEM autenticação - usado antes do login)
+app.get('/api/azure-vision-config', (req, res) => {
+    res.json({
+        apiKey: process.env.AZURE_VISION_KEY || '',
+        endpoint: process.env.AZURE_VISION_ENDPOINT || 'https://testedeocr123.cognitiveservices.azure.com/'
+    });
+});
+
 // ==========================================
 // ENDPOINTS - COLABORADORES (PROTEGIDOS)
 // ==========================================

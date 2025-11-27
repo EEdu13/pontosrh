@@ -2592,14 +2592,7 @@
                         const dataStr = d.toISOString().split('T')[0];
                         
                         try {
-                            const headers = getAuthHeaders();
-                            if (!headers) {
-                                continue; // Sem token, pular esta requisição
-                            }
-                            
-                            const response = await fetch(`${API_BASE_URL}/api/anexos/${dataStr}/${empresaId}`, {
-                                headers
-                            });
+                            const response = await fetch(`${API_BASE_URL}/api/anexos/${dataStr}/${empresaId}`);
                             
                             if (!response.ok) {
                                 continue; // Nenhum anexo nesta data
@@ -2866,15 +2859,11 @@
                 
                 if (registros.length === 0) return;
                 
-                const headers = getAuthHeaders();
-                if (!headers) {
-                    console.warn('⚠️ Sem token - IDs não podem ser carregados');
-                    return;
-                }
-                
                 const response = await fetch(`${API_BASE_URL}/api/justificativa/buscar-ids`, {
                     method: 'POST',
-                    headers,
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
                     body: JSON.stringify({ registros })
                 });
                 
@@ -3574,10 +3563,35 @@
         // ==========================================
         // AZURE COMPUTER VISION API - OCR Manuscrito
         // ==========================================
+        
+        // Cache da chave Azure Vision
+        let azureVisionConfig = null;
+        
+        async function getAzureVisionConfig() {
+            if (azureVisionConfig) return azureVisionConfig;
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/azure-vision-config`);
+                if (response.ok) {
+                    azureVisionConfig = await response.json();
+                    return azureVisionConfig;
+                }
+            } catch (err) {
+                console.warn('⚠️ Não foi possível obter config Azure Vision do servidor');
+            }
+            
+            // Fallback: valores vazios (vai falhar mas não expõe credenciais)
+            return { apiKey: '', endpoint: 'https://testedeocr123.cognitiveservices.azure.com/' };
+        }
+        
         async function extrairDadosComGoogleVision(imageBase64) {
-            // NOTA: Em produção, buscar credenciais via servidor
-            const API_KEY = process.env.AZURE_VISION_KEY || '';
-            const ENDPOINT = process.env.AZURE_VISION_ENDPOINT || 'https://testedeocr123.cognitiveservices.azure.com/';
+            const config = await getAzureVisionConfig();
+            const API_KEY = config.apiKey;
+            const ENDPOINT = config.endpoint;
+            
+            if (!API_KEY) {
+                throw new Error('Chave Azure Vision não configurada no servidor');
+            }
             
             
             
