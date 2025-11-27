@@ -1792,10 +1792,17 @@
         }
 
         // ==========================================
+        // CONFIGURAÇÃO GLOBAL DA API
+        // ==========================================
+        const API_BASE_URL = window.location.hostname === 'localhost' 
+            ? 'http://localhost:3000' 
+            : 'https://justificativas.up.railway.app';
+
+        // ==========================================
         // CONFIGURAÇÃO SQL AZURE (Node.js API)
         // ==========================================
         const SQL_API = {
-            baseURL: 'http://localhost:3000/api',
+            baseURL: `${API_BASE_URL}/api`,
             endpoints: {
                 colaboradores: '/colaboradores',
                 colaboradorByCPF: '/colaboradores/cpf',
@@ -2590,7 +2597,7 @@
                                 continue; // Sem token, pular esta requisição
                             }
                             
-                            const response = await fetch(`http://localhost:3000/api/anexos/${dataStr}/${empresaId}`, {
+                            const response = await fetch(`${API_BASE_URL}/api/anexos/${dataStr}/${empresaId}`, {
                                 headers
                             });
                             
@@ -2746,7 +2753,7 @@
                         const dataStr = d.toISOString().split('T')[0];
                         
                         try {
-                            const response = await fetch(`http://localhost:3000/api/anexos/${dataStr}/${empresaId}`, {
+                            const response = await fetch(`${API_BASE_URL}/api/anexos/${dataStr}/${empresaId}`, {
                                 headers: getAuthHeaders()
                             });
                             
@@ -2865,7 +2872,7 @@
                     return;
                 }
                 
-                const response = await fetch('http://localhost:3000/api/justificativa/buscar-ids', {
+                const response = await fetch(`${API_BASE_URL}/api/justificativa/buscar-ids`, {
                     method: 'POST',
                     headers,
                     body: JSON.stringify({ registros })
@@ -3415,7 +3422,7 @@
                 const dataFormatada = employee.rawData?.Data?.split('T')[0] || employee.date;
                 const empresaId = employee.empresaId || employee.companyId;
                 
-                const response = await fetch(`http://localhost:3000/api/anexos/${dataFormatada}/${employee.reg}`, {
+                const response = await fetch(`${API_BASE_URL}/api/anexos/${dataFormatada}/${employee.reg}`, {
                     headers: getAuthHeaders()
                 });
                 
@@ -5402,7 +5409,7 @@
                 
                 // Upload pro servidor (Azure Blob + SQL)
                 // O servidor fará UPDATE automaticamente se registro já existir (REG+DATA+EMPRESA_ID)
-                const response = await fetch('http://localhost:3000/api/anexos/upload', {
+                const response = await fetch(`${API_BASE_URL}/api/anexos/upload`, {
                     method: 'POST',
                     headers: getAuthHeaders(),
                     body: JSON.stringify(payload)
@@ -5703,7 +5710,7 @@
                 if (!employee) return;
                 
                 // Buscar ID do anexo no SQL
-                const response = await fetch(`http://localhost:3000/api/anexos/${reg}/${employee.rawData?.Data || date}`, {
+                const response = await fetch(`${API_BASE_URL}/api/anexos/${reg}/${employee.rawData?.Data || date}`, {
                     headers: getAuthHeaders()
                 });
                 const anexo = await response.json();
@@ -5713,7 +5720,7 @@
                 }
                 
                 // Deletar do servidor
-                const deleteResponse = await fetch(`http://localhost:3000/api/anexos/${anexo.id}`, {
+                const deleteResponse = await fetch(`${API_BASE_URL}/api/anexos/${anexo.id}`, {
                     method: 'DELETE',
                     headers: getAuthHeaders()
                 });
@@ -5981,7 +5988,7 @@
                 let existingData = {};
                 try {
                     const fetchResponse = await fetch(
-                        `http://localhost:3000/api/anexos/${dataFormatted}/${employee.empresaId || employee.rawData?.Empresa || 0}`,
+                        `${API_BASE_URL}/api/anexos/${dataFormatted}/${employee.empresaId || employee.rawData?.Empresa || 0}`,
                         { headers: getAuthHeaders() }
                     );
                     
@@ -6010,7 +6017,7 @@
                 
                 // 🔑 3. SALVAR
                 const response = await fetch(
-                    `http://localhost:3000/api/anexos/${employee.cpf}/${dataFormatted}/questions`,
+                    `${API_BASE_URL}/api/anexos/${employee.cpf}/${dataFormatted}/questions`,
                     {
                         method: 'PUT',
                         headers: getAuthHeaders(),
@@ -6060,7 +6067,7 @@
                 // 🔑 BUSCAR DADOS EXISTENTES DO BANCO PRIMEIRO
                 let existingData = {};
                 try {
-                    const fetchResponse = await fetch(`http://localhost:3000/api/anexos/${dataFormatted}/${employee.rawData?.Empresa || 0}`, {
+                    const fetchResponse = await fetch(`${API_BASE_URL}/api/anexos/${dataFormatted}/${employee.rawData?.Empresa || 0}`, {
                         headers: getAuthHeaders()
                     });
                     if (fetchResponse.ok) {
@@ -6088,7 +6095,7 @@
                 
                 console.log(`💾 Dados a salvar (mesclados):`, mergedData);
                 
-                const response = await fetch(`http://localhost:3000/api/anexos/${employee.cpf}/${dataFormatted}/questions`, {
+                const response = await fetch(`${API_BASE_URL}/api/anexos/${employee.cpf}/${dataFormatted}/questions`, {
                     method: 'PUT',
                     headers: getAuthHeaders(),
                     body: JSON.stringify({
@@ -6474,7 +6481,7 @@
                 
                 // Buscar máquinas de todas as empresas em paralelo (SEM AUTENTICAÇÃO)
                 const promises = bancosParaConsultar.map(bancoid => {
-                    return fetch(`http://localhost:3000/api/machine-monitor?bancoid=${bancoid}`)
+                    return fetch(`${API_BASE_URL}/api/machine-monitor?bancoid=${bancoid}`)
                         .then(async r => {
                             if (!r.ok) {
                                 console.warn(`⚠️ Erro ao consultar banco ${bancoid}: HTTP ${r.status}`);
@@ -7393,7 +7400,7 @@
                     
                     console.log(`📤 Salvando ${emp.name} (CPF: ${emp.cpf})`);
                     
-                    const response = await fetch('http://localhost:3000/api/justificativa/salvar', {
+                    const response = await fetch(`${API_BASE_URL}/api/justificativa/salvar`, {
                         method: 'POST',
                         headers: getAuthHeaders(),
                         body: JSON.stringify(payload)
