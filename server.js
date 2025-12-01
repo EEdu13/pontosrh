@@ -643,7 +643,7 @@ app.get('/api/anexos/:reg/:data', async (req, res) => {
 });
 
 // PUT - Atualizar APENAS as perguntas de um anexo (usando CPF + DATA) - PROTEGIDO
-app.put('/api/anexos/:cpf/:data/questions', authenticateToken, async (req, res) => {
+app.put('/api/anexos/:cpf/:data/questions', async (req, res) => {
     try {
         if (!sqlConnected || !poolPromise) {
             return res.status(503).json({ error: 'SQL não conectado' });
@@ -658,7 +658,7 @@ app.put('/api/anexos/:cpf/:data/questions', authenticateToken, async (req, res) 
         }
         
         const pool = await poolPromise;
-        const userName = req.user?.name || req.user?.username || 'Sistema';
+        const userName = 'Sistema'; // Sem autenticação
         
         // 🔑 UPSERT: Verificar se já existe registro
         const checkResult = await pool.request()

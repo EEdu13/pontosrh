@@ -3039,6 +3039,16 @@
                             emp.projeto = null;
                         }
                     }
+                    
+                    // Adicionar departamento Secullum como fallback para projeto
+                    if (!emp.projeto && emp.rawData?.Departamento) {
+                        const dept = emp.rawData.Departamento;
+                        if (typeof dept === 'object' && dept.Codigo) {
+                            emp.departamentoSecullum = dept.Codigo;
+                        } else if (typeof dept === 'string') {
+                            emp.departamentoSecullum = dept;
+                        }
+                    }
                 });
                 
                 // 🔥 CARREGAR ANEXOS E PERGUNTAS
@@ -3101,11 +3111,13 @@
                     );
                 }
                 
-                // Filtrar por projeto (se houver busca)
+                // Filtrar por projeto (se houver busca) - busca em SQL Azure E Secullum
                 if (searchProject) {
-                    displayedEmployees = displayedEmployees.filter(emp => 
-                        emp.projeto && String(emp.projeto).includes(searchProject)
-                    );
+                    displayedEmployees = displayedEmployees.filter(emp => {
+                        const projetoSQL = emp.projeto ? String(emp.projeto).includes(searchProject) : false;
+                        const deptSecullum = emp.departamentoSecullum ? String(emp.departamentoSecullum).includes(searchProject) : false;
+                        return projetoSQL || deptSecullum;
+                    });
                 }
                 
                 // ORDENAR ALFABETICAMENTE POR NOME
