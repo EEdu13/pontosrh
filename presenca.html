@@ -663,9 +663,12 @@
                 if (!funcResponse.ok) throw new Error(`Erro ao buscar funcionários: ${funcResponse.status}`);
                 
                 const funcionarios = await funcResponse.json();
-                const funcionariosAtivos = funcionarios.filter(f => !f.DataDemissao || new Date(f.DataDemissao) > new Date(dataFim));
+                // TAREFA 10: Contar apenas funcionários ativos HOJE (não até dataFim)
+                const hoje = new Date();
+                hoje.setHours(0, 0, 0, 0); // Zerar horas para comparação apenas de data
+                const funcionariosAtivos = funcionarios.filter(f => !f.DataDemissao || new Date(f.DataDemissao) > hoje);
                 
-                console.log(`✅ ${funcionariosAtivos.length} funcionários ativos`);
+                console.log(`✅ ${funcionariosAtivos.length} funcionários ativos HOJE (${hoje.toLocaleDateString('pt-BR')})`);
 
                 // PASSO 2: Buscar FonteDados (batidas brutas com origem) do período
                 const fonteDadosResponse = await fetch(`https://pontowebintegracaoexterna.secullum.com.br/IntegracaoExterna/FonteDados?dataInicio=${dataInicio}&dataFim=${dataFim}`, {
