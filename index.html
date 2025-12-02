@@ -1829,25 +1829,49 @@
         function getCachedDataByEmployee(dateStart, dateEnd) {
             const start = new Date(dateStart);
             const end = new Date(dateEnd);
-            const allData = [];
+            const allBatidas = [];
             
             const selectedCompanies = API_CONFIG.selectedCompanies.includes('all') 
                 ? API_CONFIG.companies 
                 : API_CONFIG.companies.filter(c => API_CONFIG.selectedCompanies.includes(c.id));
             
-            // Iterar pelo cache de funcionários
-            for (const [key, data] of SMART_CACHE.employees.entries()) {
-                const [reg, dateStr, empresaId] = key.split('_');
-                const date = new Date(dateStr);
+            console.log(`🔍 Buscando no cache: ${dateStart} até ${dateEnd}`);
+            console.log(`📦 Cache tem ${SMART_CACHE.employees.size} funcionários`);
+            
+            // ✅ NOVA ESTRUTURA: cache por funcionário (reg_empresaId)
+            // Cada entrada tem { data: { reg, nome, empresaId, empresaNome, batidas: [] }, timestamp, ttl }
+            for (const [key, cacheEntry] of SMART_CACHE.employees.entries()) {
+                const [reg, empresaId] = key.split('_');
                 
-                // Filtrar por período e empresa
-                if (date >= start && date <= end && 
-                    selectedCompanies.some(c => c.id === empresaId)) {
-                    allData.push(data);
+                // Filtrar por empresa selecionada
+                if (!selectedCompanies.some(c => String(c.id) === String(empresaId))) {
+                    continue;
                 }
+                
+                const funcionario = cacheEntry.data;
+                
+                if (!funcionario || !funcionario.batidas || !Array.isArray(funcionario.batidas)) {
+                    continue;
+                }
+                
+                // Filtrar batidas pelo período
+                funcionario.batidas.forEach(batida => {
+                    const dataBatida = batida.Data ? new Date(batida.Data.split('T')[0]) : null;
+                    
+                    if (dataBatida && dataBatida >= start && dataBatida <= end) {
+                        // Adicionar metadados da empresa se não existirem
+                        if (!batida._empresa) {
+                            batida._empresa = funcionario.empresaNome;
+                            batida._empresaId = funcionario.empresaId;
+                        }
+                        allBatidas.push(batida);
+                    }
+                });
             }
             
-            return allData;
+            console.log(`✅ ${allBatidas.length} batidas encontradas no cache`);
+            
+            return allBatidas;
         }
 
         // ==========================================
