@@ -3144,6 +3144,13 @@
                 
                 renderTable();
                 
+                // 🔧 WORKAROUND: Garantir renderização após processamento
+                setTimeout(() => {
+                    console.log('🔄 [FORÇADO] Chamando renderTable() novamente...');
+                    console.log('🔄 allEmployees.length:', allEmployees.length);
+                    renderTable();
+                }, 100);
+                
                 showAlert(
                     'Dados Carregados!',
                     `${apiData.length} registros carregados em ${timeElapsed}s`,
