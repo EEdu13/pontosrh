@@ -1788,6 +1788,7 @@
         };
 
         const SMART_CACHE = {
+            employees: new Map(),      // ✅ NOVO: cache por funcionário (REG_DATA_EMPRESA)
             historical: new Map(),
             recent: new Map(),
             today: new Map(),
@@ -1799,6 +1800,123 @@
         };
 
         let autoRefreshInterval = null;
+
+        // ==========================================
+        // 📦 CACHE POR FUNCIONÁRIO - GET/SET
+        // ==========================================
+        function getCachedEmployee(reg, date, empresaId) {
+            const key = `${reg}_${date}_${empresaId}`;
+            return SMART_CACHE.employees.get(key) || null;
+        }
+
+        function setCachedEmployee(reg, date, empresaId, data, timestamp = Date.now()) {
+            const key = `${reg}_${date}_${empresaId}`;
+            data._cacheTimestamp = timestamp;
+            SMART_CACHE.employees.set(key, data);
+        }
+
+        function getCachedDataByEmployee(dateStart, dateEnd) {
+            const start = new Date(dateStart);
+            const end = new Date(dateEnd);
+            const allData = [];
+            
+            const selectedCompanies = API_CONFIG.selectedCompanies.includes('all') 
+                ? API_CONFIG.companies 
+                : API_CONFIG.companies.filter(c => API_CONFIG.selectedCompanies.includes(c.id));
+            
+            // Iterar pelo cache de funcionários
+            for (const [key, data] of SMART_CACHE.employees.entries()) {
+                const [reg, dateStr, empresaId] = key.split('_');
+                const date = new Date(dateStr);
+                
+                // Filtrar por período e empresa
+                if (date >= start && date <= end && 
+                    selectedCompanies.some(c => c.id === empresaId)) {
+                    allData.push(data);
+                }
+            }
+            
+            return allData;
+        }
+
+        // ==========================================
+        // 🎯 INVALIDAÇÃO CIRÚRGICA - 1 FUNCIONÁRIO
+        // ==========================================
+        async function invalidateSingleEmployee(reg, date, empresaId) {
+            // Normalizar data
+            let dateStr = date;
+            if (date.includes('/')) {
+                const [dia, mes, ano] = date.split('/');
+                dateStr = `${ano}-${mes.padStart(2,'0')}-${dia.padStart(2,'0')}`;
+            } else if (date.includes('T')) {
+                dateStr = date.split('T')[0];
+            }
+            
+            const key = `${reg}_${dateStr}_${empresaId}`;
+            
+            // Remover do cache
+            SMART_CACHE.employees.delete(key);
+            
+            console.log(`🗑️ Cache invalidado: ${reg} em ${dateStr}`);
+            
+            // Recarregar APENAS este funcionário da API
+            return await reloadSingleEmployee(reg, dateStr, empresaId);
+        }
+
+        async function reloadSingleEmployee(reg, date, empresaId) {
+            const company = API_CONFIG.companies.find(c => c.id === empresaId);
+            if (!company) {
+                console.warn(`⚠️ Empresa ${empresaId} não encontrada`);
+                return null;
+            }
+            
+            console.log(`⚡ Recarregando ${reg} de ${date}...`);
+            
+            try {
+                const url = `${API_CONFIG.baseURL}/IntegracaoExterna/Batidas?dataInicio=${date}&dataFim=${date}`;
+                
+                const response = await fetch(url, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${API_CONFIG.token}`,
+                        'secullumidbancoselecionado': company.id,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (!response.ok) {
+                    console.warn(`⚠️ Erro ${response.status} ao recarregar ${reg}`);
+                    return null;
+                }
+                
+                const result = await response.json();
+                
+                // Filtrar APENAS o funcionário específico
+                const employeeData = result.find(batida => {
+                    const regBatida = batida.Funcionario?.NumeroIdentificador || 
+                                     batida.Funcionario?.NumeroFolha;
+                    return regBatida === reg;
+                });
+                
+                if (employeeData) {
+                    employeeData._empresa = company.name;
+                    employeeData._empresaId = company.id;
+                    
+                    // Salvar no cache
+                    setCachedEmployee(reg, date, empresaId, employeeData);
+                    
+                    console.log(`✅ ${reg} atualizado no cache`);
+                    return employeeData;
+                }
+                
+                console.warn(`⚠️ Funcionário ${reg} não encontrado nos dados`);
+                
+            } catch (err) {
+                console.error(`❌ Erro ao recarregar ${reg}:`, err);
+            }
+            
+            return null;
+        }
 
         // ==========================================
         // HELPER: Adicionar token de autenticação em todas as requisições
@@ -2132,55 +2250,74 @@
             const today = new Date();
             const startDate = new Date(today - CACHE_STRATEGY.DEFAULT_RANGE_DAYS * 24 * 60 * 60 * 1000);
             
-            showLoading('🔄 Carregando histórico (60 dias)... Aguarde 15-20s');
+            const dateStart = startDate.toISOString().split('T')[0];
+            const dateEnd = today.toISOString().split('T')[0];
+            
+            showLoading(`🔄 Carregando 60 dias (${API_CONFIG.companies.length} empresas)...`);
             
             const companies = API_CONFIG.companies;
-            const promises = [];
-            let completed = 0;
-            const total = CACHE_STRATEGY.DEFAULT_RANGE_DAYS * companies.length;
             
-            for (let d = new Date(startDate); d <= today; d.setDate(d.getDate() + 1)) {
-                const dateStr = d.toISOString().split('T')[0];
-                
-                companies.forEach(company => {
-                    promises.push(
-                        fetchDayData(company, dateStr).then(data => {
-                            completed++;
-                            if (completed % 10 === 0) {
-                                const progress = Math.round((completed / total) * 100);
-                                console.log(`📊 Progresso: ${progress}% (${completed}/${total})`);
-                            }
-                            return { date: dateStr, companyId: company.id, data };
-                        })
-                    );
-                });
-            }
+            // ✅ 1 REQUEST POR EMPRESA (range completo de 60 dias)
+            const promises = companies.map(async (company) => {
+                try {
+                    const url = `${API_CONFIG.baseURL}/IntegracaoExterna/Batidas?dataInicio=${dateStart}&dataFim=${dateEnd}`;
+                    
+                    const response = await fetch(url, {
+                        method: 'GET',
+                        headers: {
+                            'Authorization': `Bearer ${API_CONFIG.token}`,
+                            'secullumidbancoselecionado': company.id,
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                    
+                    if (!response.ok) {
+                        console.warn(`⚠️ ${company.name}: ${response.status}`);
+                        return [];
+                    }
+                    
+                    const result = await response.json();
+                    
+                    if (Array.isArray(result)) {
+                        console.log(`✅ ${company.name}: ${result.length} registros`);
+                        result.forEach(batida => {
+                            batida._empresa = company.name;
+                            batida._empresaId = company.id;
+                        });
+                        return result;
+                    }
+                    
+                    return [];
+                } catch (err) {
+                    console.error(`❌ ${company.name}:`, err);
+                    return [];
+                }
+            });
             
-            console.log(`🚀 Disparando ${promises.length} requests em paralelo...`);
+            console.log(`🚀 Disparando ${promises.length} requests (range 60 dias)...`);
             
             const results = await Promise.allSettled(promises);
+            const allData = results
+                .filter(r => r.status === 'fulfilled')
+                .flatMap(r => r.value);
             
-            results.forEach(result => {
-                if (result.status === 'fulfilled' && result.value.data.length > 0) {
-                    const { date, companyId, data } = result.value;
-                    const age = Math.floor((new Date() - new Date(date)) / (24*60*60*1000));
-                    
-                    const key = `${date}_${companyId}`;
-                    if (age > 7) {
-                        SMART_CACHE.historical.set(key, data);
-                    } else if (age > 1) {
-                        SMART_CACHE.recent.set(key, data);
-                    } else {
-                        SMART_CACHE.today.set(key, data);
-                    }
+            // ✅ CACHEAR POR FUNCIONÁRIO (REG_DATA_EMPRESA)
+            allData.forEach(batida => {
+                const reg = batida.Funcionario?.NumeroIdentificador || 
+                           batida.Funcionario?.NumeroFolha;
+                const date = batida.Data?.split('T')[0];
+                const empresaId = batida._empresaId;
+                
+                if (reg && date && empresaId) {
+                    setCachedEmployee(reg, date, empresaId, batida);
                 }
             });
             
             SMART_CACHE.metadata.lastFullLoad = Date.now();
             
             const elapsed = ((performance.now() - startTime) / 1000).toFixed(1);
-            console.log(`✅ Cache completo carregado em ${elapsed}s`);
-            console.log(`📊 Stats: Historical=${SMART_CACHE.historical.size}, Recent=${SMART_CACHE.recent.size}, Today=${SMART_CACHE.today.size}`);
+            console.log(`✅ Cache carregado em ${elapsed}s`);
+            console.log(`📊 Total: ${SMART_CACHE.employees.size} funcionários cacheados`);
             
             hideLoading();
         }
@@ -2224,40 +2361,6 @@
         }
 
         // 📊 PEGAR DADOS DO CACHE (INSTANTÂNEO)
-        function getCachedData(dateStart, dateEnd) {
-            const start = new Date(dateStart);
-            const end = new Date(dateEnd);
-            let allData = [];
-            
-            for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-                const dateStr = d.toISOString().split('T')[0];
-                const age = Math.floor((new Date() - d) / (24*60*60*1000));
-                
-                const selectedCompanies = API_CONFIG.selectedCompanies.includes('all') 
-                    ? API_CONFIG.companies 
-                    : API_CONFIG.companies.filter(c => API_CONFIG.selectedCompanies.includes(c.id));
-                
-                selectedCompanies.forEach(company => {
-                    const key = `${dateStr}_${company.id}`;
-                    
-                    let data = null;
-                    if (age > 7) {
-                        data = SMART_CACHE.historical.get(key);
-                    } else if (age > 1) {
-                        data = SMART_CACHE.recent.get(key);
-                    } else {
-                        data = SMART_CACHE.today.get(key);
-                    }
-                    
-                    if (data) {
-                        allData.push(...data);
-                    }
-                });
-            }
-            
-            return allData;
-        }
-
         // funçãoo para buscar batidas de todas as empresas selecionadas
         async function fetchEmployeesFromAPI(dateStart, dateEnd) {
             try {
@@ -2279,9 +2382,9 @@
                     await updateRecentData();
                 }
                 
-                // 📊 STEP 3: Montar resultado do cache
+                // 📊 STEP 3: Montar resultado do cache POR FUNCIONÁRIO
                 const startTime = performance.now();
-                let allBatidas = getCachedData(dateStart, dateEnd);
+                let allBatidas = getCachedDataByEmployee(dateStart, dateEnd);
                 const elapsed = ((performance.now() - startTime)).toFixed(2);
                 
                 console.log(`✅ ${allBatidas.length} registros prontos em ${elapsed}ms do cache`);
@@ -2333,6 +2436,7 @@
         
         // 🗑️ LIMPAR CACHE: Útil para forçar recarga completa
         function clearCache() {
+            SMART_CACHE.employees.clear();
             SMART_CACHE.historical.clear();
             SMART_CACHE.recent.clear();
             SMART_CACHE.today.clear();
@@ -2343,8 +2447,62 @@
             console.log('🗑️ Cache limpo - próxima busca fará carga completa');
         }
         
+        // 🔄 ATUALIZAR FUNCIONÁRIO INDIVIDUAL
+        async function refreshEmployee(reg, date, empresaId) {
+            try {
+                showLoading(`⚡ Atualizando ${reg}...`);
+                
+                // Invalidar e recarregar
+                const newData = await invalidateSingleEmployee(reg, date, empresaId);
+                
+                // Atualizar objeto em allEmployees
+                const employee = allEmployees.find(e => 
+                    e.reg === reg && e.date === date && e.empresaId === empresaId
+                );
+                
+                if (employee && newData) {
+                    // Atualizar punches com dados da API
+                    Object.assign(employee.punches, {
+                        ent1: newData.Entrada1 || '',
+                        sai1: newData.Saida1 || '',
+                        ent2: newData.Entrada2 || '',
+                        sai2: newData.Saida2 || '',
+                        ent3: newData.Entrada3 || '',
+                        sai3: newData.Saida3 || '',
+                        ent4: newData.Entrada4 || '',
+                        sai4: newData.Saida4 || '',
+                        ent5: newData.Entrada5 || '',
+                        sai5: newData.Saida5 || ''
+                    });
+                    
+                    // Atualizar rawData
+                    employee.rawData = newData;
+                    
+                    // Recalcular status
+                    updateEmployeeStatus(employee);
+                    
+                    // Re-renderizar tabela
+                    renderTable();
+                    
+                    hideLoading();
+                    console.log(`✅ ${reg} atualizado com sucesso!`);
+                    
+                } else {
+                    hideLoading();
+                    console.warn(`⚠️ Funcionário ${reg} não encontrado após atualização`);
+                    alert(`⚠️ Não foi possível atualizar os dados de ${reg}`);
+                }
+                
+            } catch (err) {
+                hideLoading();
+                console.error(`❌ Erro ao atualizar ${reg}:`, err);
+                alert(`❌ Erro ao atualizar funcionário:\n${err.message}`);
+            }
+        }
+        
         // Expor função globalmente para debug
         window.clearCache = clearCache;
+        window.refreshEmployee = refreshEmployee;
         window.cacheStats = () => {
             console.log('📊 CACHE STATS:');
             console.log(`  Historical: ${SMART_CACHE.historical.size} registros`);
@@ -3463,7 +3621,16 @@
                     <td class="center" style="font-weight: bold; color: #6b7280; width: 50px;">
                         ${emp.id ? `#${emp.id}` : '-'}
                     </td>
-                    <td style="font-family: 'Courier New', monospace; font-weight: 600; font-size: 12px; width: 80px;">${emp.reg}</td>
+                    <td style="font-family: 'Courier New', monospace; font-weight: 600; font-size: 12px; width: 80px;">
+                        ${emp.reg}
+                        <button onclick="refreshEmployee('${emp.reg}', '${emp.date}', ${emp.empresaId})" 
+                                style="background: none; border: none; cursor: pointer; font-size: 14px; margin-left: 4px; opacity: 0.6; transition: all 0.2s;"
+                                onmouseover="this.style.opacity='1'; this.style.transform='rotate(180deg)'"
+                                onmouseout="this.style.opacity='0.6'; this.style.transform='rotate(0deg)'"
+                                title="Atualizar este funcionário">
+                            🔄
+                        </button>
+                    </td>
                     <td style="font-weight: 600; font-size: 11px; min-width: 150px; max-width: 180px; color: #7c3aed;">${emp.nomeLider || '-'}</td>
                     <td style="font-weight: 600; font-size: 11px; min-width: 100px; max-width: 120px; color: #000; ${corDestaque}">${emp.projeto || '-'}</td>
                     <td style="font-weight: 600; font-size: 11px; min-width: 120px; max-width: 140px; color: #000; ${corDestaque}">${emp.projetoSecullum || '-'}</td>
@@ -6083,6 +6250,12 @@
                     erros = results.filter(r => !r.success).length;
                     periodoEncerrado = results.some(r => r.periodoEncerrado);
                     
+                    // ✅ INVALIDAÇÃO CIRÚRGICA: Se teve sucesso, recarregar funcionário
+                    if (sucessos > 0) {
+                        console.log('⚡ Invalidando cache após envio...');
+                        await invalidateSingleEmployee(empRef.reg, empRef.date, empRef.empresaId || empRef.companyId);
+                    }
+                    
                     // Remover flag pendingOCR
                     empRef.pendingOCR = false;
                 }
@@ -7484,6 +7657,10 @@
                 console.log(`?? Status da resposta: ${response.status}`);
 
                 if (response.ok) {
+                    // ✅ INVALIDAÇÃO CIRÚRGICA: Recarregar apenas este funcionário
+                    console.log('⚡ Invalidando cache do funcionário...');
+                    await invalidateSingleEmployee(reg, date, employee.empresaId || employee.companyId);
+                    
                     // Tenta ler como JSON, mas aceita resposta vazia
                     const responseText = await response.text();
                     console.log(`?? Resposta texto: "${responseText}"`);
