@@ -1386,7 +1386,7 @@
     <div class="custom-alert" id="machineMonitorModal">
         <div class="alert-content" style="min-width: 900px; max-width: 95vw;">
             <div class="alert-header" style="background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);">
-                <div class="alert-title">??? Monitor de Relégios de Ponto</div>
+                <div class="alert-title">📊 Monitor de Relógios de Ponto</div>
             </div>
             <div class="alert-body" style="max-height: 70vh; overflow-y: auto;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding: 16px; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(148, 163, 184, 0.1); border-radius: 8px;">
@@ -1405,7 +1405,7 @@
             </div>
             <div class="alert-footer">
                 <button class="alert-btn secondary" onclick="closeMachineMonitor()">Fechar</button>
-                <button class="alert-btn primary" onclick="exportMachineMonitor()">?? Exportar Print</button>
+                <button class="alert-btn primary" onclick="exportMachineMonitor()">📸 Exportar Print</button>
             </div>
         </div>
     </div>
@@ -1561,7 +1561,7 @@
         <div id="editModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); backdrop-filter: blur(10px); z-index: 9999; justify-content: center; align-items: center;">
             <div style="background: rgba(30, 41, 59, 0.95); backdrop-filter: blur(20px); border: 1px solid rgba(148, 163, 184, 0.1); border-radius: 12px; padding: 32px; max-width: 600px; width: 90%; box-shadow: 0 20px 60px rgba(0,0,0,0.5);">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
-                    <h2 style="font-size: 24px; font-weight: bold; background: linear-gradient(135deg, #60a5fa, #a78bfa); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; margin: 0;">?? Editar Batidas</h2>
+                    <h2 style="font-size: 24px; font-weight: bold; background: linear-gradient(135deg, #60a5fa, #a78bfa); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; margin: 0;">✏️ Editar Batidas</h2>
                     <button onclick="closeEditModal()" style="background: none; border: none; font-size: 28px; cursor: pointer; color: #94a3b8; padding: 0; width: 32px; height: 32px; line-height: 1;">ã</button>
                 </div>
                 
@@ -1678,8 +1678,8 @@
             const icons = {
                 success: '?',
                 error: '?',
-                warning: '??',
-                info: '??'
+                warning: '⚠️',
+                info: 'ℹ️'
             };
             
             titleEl.innerHTML = `${icons[type] || icons.info} ${title}`;
@@ -1966,7 +1966,7 @@
 
         // funçãoo para enriquecer batidas com nomes dos funcionçãrios
         async function enrichWithEmployeeNames(batidas, companies) {
-            console.log('?? Buscando nomes dos funcionçãrios...');
+            // Enriquecer com nomes dos funcionários
             
             const funcionariosCache = new Map();
             const funcionariosAtivosSet = new Set(); // ? REGISTRAR APENAS FUNCIONçãRIOS ATIVOS
@@ -2078,93 +2078,56 @@
         async function fetchEmployeesFromAPI(dateStart, dateEnd) {
             try {
                 // API Secullum espera formato ISO: YYYY-MM-DD (não converter para dd/MM/yyyy)
-                console.log(`?? Buscando batidas de ${dateStart} até ${dateEnd}...`);
+                // Buscar batidas de período
 
                 let allBatidas = [];
                 const companies = API_CONFIG.selectedCompanies.includes('all') 
                     ? API_CONFIG.companies 
                     : API_CONFIG.companies.filter(c => API_CONFIG.selectedCompanies.includes(c.id));
 
-                // Buscar dados de cada empresa
-                for (let i = 0; i < companies.length; i++) {
-                    const company = companies[i];
-                    
-                    
-                    // Usar formato ISO diretamente (YYYY-MM-DD)
+                // ⚡ PARALELIZAÇÃO: Buscar TODAS as empresas simultaneamente
+                const promises = companies.map(async (company) => {
                     const url = `${API_CONFIG.baseURL}/IntegracaoExterna/Batidas?dataInicio=${dateStart}&dataFim=${dateEnd}`;
-
-                    let attempts = 0;
-                    let success = false;
                     
-                    while (attempts < 3 && !success) {
-                        try {
-                            const response = await fetch(url, {
-                                method: 'GET',
-                                headers: {
-                                    'Authorization': `Bearer ${API_CONFIG.token}`,
-                                    'secullumidbancoselecionado': company.id,
-                                    'Content-Type': 'application/json'
-                                }
-                            });
-
-                            if (!response.ok) {
-                                const errorText = await response.text();
-                                console.warn(`?? Erro ao buscar ${company.name}: ${response.status} - ${errorText}`);
-                                attempts++;
-                                if (attempts < 3) {
-                                    console.log(`?? Tentando novamente em 500ms... (tentativa ${attempts+1}/3)`);
-                                    await sleep(500);
-                                }
-                                continue;
+                    try {
+                        const response = await fetch(url, {
+                            method: 'GET',
+                            headers: {
+                                'Authorization': `Bearer ${API_CONFIG.token}`,
+                                'secullumidbancoselecionado': company.id,
+                                'Content-Type': 'application/json'
                             }
-
-                            const result = await response.json();
-                            
-                            
-                            
-                            // Log detalhado para investigar "FALTA"
-                            const batidaComFalta = result.find(b => 
-                                b.Entrada1 === 'FALTA' || b.Saida1 === 'FALTA' ||
-                                b.Entrada2 === 'FALTA' || b.Saida2 === 'FALTA' ||
-                                b.Entrada3 === 'FALTA' || b.Saida3 === 'FALTA' ||
-                                b.Entrada4 === 'FALTA' || b.Saida4 === 'FALTA' ||
-                                b.Entrada5 === 'FALTA' || b.Saida5 === 'FALTA'
-                            );
-                            
-                            if (batidaComFalta) {
-                                console.log(`?? FALTA detectada: ${batidaComFalta.NomeEmpregado} (${batidaComFalta.Data})`);
-                            }
-                            
-                            // A API retorna um ARRAY direto, não um objeto {Sucesso, Dados}
-                            if (Array.isArray(result) && result.length > 0) {
-                                console.log(`? ${company.name}: ${result.length} registros`);
-                                
-                                // Debug removido para performance
-                                // Adicionar informação da empresa em cada batida
-                                result.forEach(batida => {
-                                    batida._empresa = company.name;
-                                    batida._empresaId = company.id;
-                                });
-                                allBatidas = allBatidas.concat(result);
-                            } else {
-                                console.warn(`?? ${company.name}: Nenhum registro encontrado`);
-                            }
-                            
-                            success = true;
-                        } catch (fetchError) {
-                            attempts++;
-                            console.error(`? Erro na requisiçãão para ${company.name}:`, fetchError);
-                            if (attempts < 3) {
-                                console.log(`?? Tentando novamente em 500ms... (tentativa ${attempts+1}/3)`);
-                                await sleep(500);
-                            } else {
-                                console.error(`? Falha apés 3 tentativas para ${company.name}`);
-                            }
+                        });
+                        
+                        if (!response.ok) {
+                            console.warn(`⚠️ Erro ${company.name}: ${response.status}`);
+                            return [];
                         }
+                        
+                        const result = await response.json();
+                        
+                        if (Array.isArray(result) && result.length > 0) {
+                            console.log(`✅ ${company.name}: ${result.length} registros`);
+                            
+                            result.forEach(batida => {
+                                batida._empresa = company.name;
+                                batida._empresaId = company.id;
+                            });
+                            
+                            return result;
+                        }
+                        
+                        return [];
+                    } catch (err) {
+                        console.error(`❌ Erro ${company.name}:`, err);
+                        return [];
                     }
-                }
+                });
+                
+                const results = await Promise.all(promises);
+                allBatidas = results.flat();
 
-                console.log(`?? Total de ${allBatidas.length} registros de ${companies.length} empresa(s)`);
+                // Total de registros carregados
 
                 if (allBatidas.length === 0) {
                     alert('Nenhum registro encontrado no Período selecionado.');
@@ -2570,7 +2533,7 @@
             if (diffDays > 365) {
                 showAlert(
                     'Período Muito Longo!',
-                    `você esté buscando ${diffDays} dias de dados!\n\nIsso pode:\nçã Demorar muito tempo (vçãrios minutos)\nçã Sobrecarregar a API\nçã Causar erros de timeout\n\n?? SuGestão: Busque Períodos menores (1 més por vez)`,
+                    `você está buscando ${diffDays} dias de dados!\n\nIsso pode:\n• Demorar muito tempo (vários minutos)\n• Sobrecarregar a API\n• Causar erros de timeout\n\n💡 Sugestão: Busque Períodos menores (1 mês por vez)`,
                     'warning'
                 );
                 return;
@@ -2916,7 +2879,7 @@
         // ?? Carregar IDs de impresSóo de TODOS os funcionçãrios
         async function carregarIdsImpressao() {
             try {
-                console.log('?? Carregando IDs do banco de dados...');
+                // Carregar IDs do banco de dados
                 
                 // Montar array com todos os registros (REG + DATA + EMPRESA_ID)
                 const registros = allEmployees.map(emp => ({
@@ -2984,14 +2947,14 @@
         function configureAPI() {
             const currentBaseURL = API_CONFIG.baseURL || '';
             
-            const message = '?? configuraçãoO DA URL BASE DA API\n\n' +
-                '?? Digite a URL base do SmartPoint:\n\n' +
-                '?? Exemplos comuns:\n' +
-                '1??  https://api.secullum.com.br/SmartPoint\n' +
-                '2??  https://prd.secullum.com.br/SmartPoint\n' +
-                '3??  https://sistema.secullum.com.br/SmartPoint\n' +
-                '4??  https://app.secullum.com.br/SmartPoint\n' +
-                '5??  https://cliente.secullum.com.br/SmartPoint\n\n' +
+            const message = '⚙️ CONFIGURAÇÃO DA URL BASE DA API\n\n' +
+                '📝 Digite a URL base do SmartPoint:\n\n' +
+                '💡 Exemplos comuns:\n' +
+                '1️⃣  https://api.secullum.com.br/SmartPoint\n' +
+                '2️⃣  https://prd.secullum.com.br/SmartPoint\n' +
+                '3️⃣  https://sistema.secullum.com.br/SmartPoint\n' +
+                '4️⃣  https://app.secullum.com.br/SmartPoint\n' +
+                '5️⃣  https://cliente.secullum.com.br/SmartPoint\n\n' +
                 `?? URL Atual: ${currentBaseURL || '(não configurada)'}\n\n` +
                 '?? IMPORTANTE: não inclua "/IntegracaoExterna"\n' +
                 '?? Entre em contato com o suporte Secullum se não souber a URL';
@@ -5815,9 +5778,6 @@
                                 console.error(`❌ Erro ao trocar: ${apiResponse.status} - ${errorText}`);
                             }
                             
-                            // Aguardar 500ms entre requests
-                            await new Promise(resolve => setTimeout(resolve, 500));
-                            
                         } catch (err) {
                             erros++;
                             console.error(`❌ Erro ao enviar troca:`, err);
@@ -5856,7 +5816,8 @@
                         throw new Error('NumeroFolha não encontrado!');
                     }
                     
-                    for (const item of horariosParaEnviar) {
+                    // ⚡ PARALELIZAÇÃO: Enviar TODOS os horários simultaneamente
+                    const promises = horariosParaEnviar.map(async (item) => {
                         try {
                             const payload = {
                                 FuncionarioId: funcionarioId,
@@ -5867,8 +5828,6 @@
                                 Motivo: empRef.motivo || 'Justificativa anexada via OCR',
                                 created_by: window.CURRENT_USER || 'Sistema'
                             };
-                            
-                            console.log(`?? Enviando ${item.coluna}: ${item.hora}`, payload);
                             
                             const apiResponse = await fetch(`${API_CONFIG.baseURL}/IntegracaoExterna/CartaoPonto/Manual`, {
                                 method: 'POST',
@@ -5881,24 +5840,29 @@
                             });
                             
                             if (apiResponse.ok) {
-                                sucessos++;
-                                console.log(`? ${item.coluna} enviada: ${item.hora}`);
+                                console.log(`✅ ${item.coluna} enviada: ${item.hora}`);
+                                return { success: true, coluna: item.coluna };
                             } else {
-                                erros++;
                                 const errorText = await apiResponse.text();
-                                
-                                if (errorText.includes('Período encerrado') || errorText.includes('Período fechado')) {
-                                    periodoEncerrado = true;
-                                    console.warn(`?? ${item.coluna}: Período encerrado`);
-                                } else {
-                                    console.warn(`?? Erro ao enviar ${item.coluna}: ${apiResponse.status} - ${errorText}`);
-                                }
+                                console.warn(`⚠️ Erro ao enviar ${item.coluna}: ${apiResponse.status} - ${errorText}`);
+                                return { 
+                                    success: false, 
+                                    coluna: item.coluna, 
+                                    error: errorText,
+                                    periodoEncerrado: errorText.includes('Período encerrado') || errorText.includes('Período fechado')
+                                };
                             }
                         } catch (err) {
-                            erros++;
-                            console.error(`? Erro ao enviar ${item.coluna}:`, err);
+                            console.error(`❌ Erro ao enviar ${item.coluna}:`, err);
+                            return { success: false, coluna: item.coluna, error: err.message };
                         }
-                    }
+                    });
+                    
+                    const results = await Promise.all(promises);
+                    
+                    sucessos = results.filter(r => r.success).length;
+                    erros = results.filter(r => !r.success).length;
+                    periodoEncerrado = results.some(r => r.periodoEncerrado);
                     
                     // Remover flag pendingOCR
                     empRef.pendingOCR = false;
@@ -6654,18 +6618,21 @@
                 console.log('⏱️ Timer cancelado - nova movimentação detectada');
             }
 
-            console.log('⏱️ Timer iniciado - enviará para Secullum em 2 segundos...');
             sendToSecullumTimer = setTimeout(async () => {
-                console.log('📤 Enviando para Secullum após debounce de 2s...');
+                // Mostrar popup de loading
+                showAlert('Aguarde', '🔄 Enviando horário para Secullum...', 'info');
+                
                 try {
                     await enviarParaSecullum(employee);
-                    showAlert('Sucesso', `Horário movido e enviado para Secullum!\n${punchLabels[sourcePunch]} → ${punchLabels[targetPunch]}`, 'success');
+                    showAlert('Sucesso', `✅ Horário enviado!\n${punchLabels[sourcePunch]} → ${punchLabels[targetPunch]}`, 'success');
+                    // Atualizar dados automaticamente
+                    await buscarColaboradores();
                 } catch (error) {
                     console.error('Erro ao enviar para Secullum:', error);
-                    showAlert('Erro', `Não foi possível enviar para Secullum:\n${error.message}`, 'error');
+                    showAlert('Erro', `❌ Erro ao enviar:\n${error.message}`, 'error');
                 }
                 sendToSecullumTimer = null;
-            }, 2000); // 2 segundos
+            }, 1000); // 1 segundo (otimizado)
         }
 
         // Mostrar setas de navegação ao clicar na cçãlula (igual Secullum)
