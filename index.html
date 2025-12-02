@@ -3676,15 +3676,22 @@
             renderingTable = true;
             
             try {
+                console.log('🎨 [renderTable] Iniciando renderização...');
+                console.log(`📊 allEmployees.length: ${allEmployees.length}`);
+                
                 const tbody = document.getElementById('employeeTable');
                 const searchName = document.getElementById('searchName')?.value.toLowerCase().trim() || '';
                 const searchLider = document.getElementById('searchLider')?.value.toLowerCase().trim() || '';
                 const searchProject = document.getElementById('searchProject')?.value.trim() || '';
                 
+                console.log(`🔍 Filtros: nome="${searchName}", lider="${searchLider}", projeto="${searchProject}", inconsistências=${showOnlyInconsistencies}`);
+                
                 // Filtrar por Inconsistências
                 let displayedEmployees = showOnlyInconsistencies 
                     ? allEmployees.filter(emp => emp.hasInconsistency)
                     : allEmployees;
+                
+                console.log(`✅ Após filtro de inconsistências: ${displayedEmployees.length} funcionários`);
                 
                 // Filtrar por nome (se houver busca)
                 if (searchName) {
