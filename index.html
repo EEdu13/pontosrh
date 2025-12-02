@@ -1322,6 +1322,11 @@
                 return;
             }
             
+            // 🔑 RESTAURAR TOKEN: Carregar token salvo no localStorage de volta para memória
+            if (typeof API_CONFIG !== 'undefined') {
+                API_CONFIG.token = token;
+            }
+            
             console.log('? Usuário autenticado:', userName);
             window.CURRENT_USER = userName;
             
@@ -2082,6 +2087,12 @@
 
                 const data = await response.json();
                 API_CONFIG.token = data.access_token;
+                
+                // 🔑 SALVAR TOKEN: tanto no API_CONFIG quanto no localStorage para compatibilidade
+                localStorage.setItem('secullum_token', data.access_token);
+                localStorage.setItem('token', data.access_token); // Para getAuthHeaders()
+                localStorage.setItem('secullum_token_expiry', Date.now() + (data.expires_in * 1000));
+                
                 console.log('? autenticado com sucesso!');
                 console.log('🔑 Token:', API_CONFIG.token.substring(0, 50) + '...');
                 
