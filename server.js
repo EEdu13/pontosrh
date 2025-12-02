@@ -87,9 +87,8 @@ const sqlConfig = {
 };
 
 // Configuração do Azure Blob Storage
-const AZURE_STORAGE_CONNECTION_STRING = process.env.AZURE_STORAGE_CONNECTION_STRING || 'https://checklistfilesferre.blob.core.windows.net/justificativas?sp=racwdli&st=2025-10-29T04:17:35Z&se=2027-03-01T12:32:35Z&spr=https&sv=2024-11-04&sr=c&sig=1jKY%2BiMTkvdPXs940ahhnNFkDw%2FvoJ3di4uAVr76fa4%3D';
+const AZURE_STORAGE_CONNECTION_STRING = process.env.AZURE_STORAGE_CONNECTION_STRING;
 const CONTAINER_NAME = process.env.AZURE_STORAGE_CONTAINER || 'justificativas';
-const STORAGE_ACCOUNT_NAME = process.env.AZURE_STORAGE_ACCOUNT || 'checklistfilesferre';
 
 // Token da API Secullum (deve ser gerado via /Token endpoint)
 // NOTA: Este token expira! Em produção, implementar renovação automática
@@ -101,10 +100,14 @@ let containerClient;
 
 function initBlobStorage() {
     try {
-        blobServiceClient = new BlobServiceClient(AZURE_STORAGE_CONNECTION_STRING);
+        if (!AZURE_STORAGE_CONNECTION_STRING) {
+            throw new Error('AZURE_STORAGE_CONNECTION_STRING não configurada');
+        }
+        blobServiceClient = BlobServiceClient.fromConnectionString(AZURE_STORAGE_CONNECTION_STRING);
         containerClient = blobServiceClient.getContainerClient(CONTAINER_NAME);
+        console.log('✅ Azure Blob Storage conectado');
     } catch (err) {
-        console.error('Erro ao conectar Azure Blob:', err.message);
+        console.error('❌ Erro ao conectar Azure Blob:', err.message);
     }
 }
 
@@ -490,8 +493,8 @@ app.delete('/api/colaboradores/:id', async (req, res) => {
 // ENDPOINTS - ANEXOS (Azure Blob + SQL)
 // ==========================================
 
-// POST - Upload de anexo (imagem) - PROTEGIDO
-app.post('/api/anexos/upload', authenticateToken, async (req, res) => {
+// POST - Upload de anexo (imagem) - SEM AUTENTICAÇÃO JWT (usa apenas validação de dados)
+app.post('/api/anexos/upload', async (req, res) => {
     try {
         let { reg, cpf, data, empresa_id, empresa_nome, funcionario_nome, imageBase64, motivo, ocr_texto, horarios } = req.body;
         
@@ -523,7 +526,7 @@ app.post('/api/anexos/upload', authenticateToken, async (req, res) => {
         // Salvar no SQL (usando REG + DATA + EMPRESA_ID como chave única)
         if (sqlConnected) {
             const pool = await poolPromise;
-            const userName = req.user?.name || req.user?.username || 'Sistema';
+            const userName = 'Sistema'; // Removido dependência de req.user
             
             await pool.request()
                 .input('cpf', sql.VarChar, cpf)
