@@ -1562,11 +1562,11 @@
             <div style="background: rgba(30, 41, 59, 0.95); backdrop-filter: blur(20px); border: 1px solid rgba(148, 163, 184, 0.1); border-radius: 12px; padding: 32px; max-width: 600px; width: 90%; box-shadow: 0 20px 60px rgba(0,0,0,0.5);">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
                     <h2 style="font-size: 24px; font-weight: bold; background: linear-gradient(135deg, #60a5fa, #a78bfa); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; margin: 0;">✏️ Editar Batidas</h2>
-                    <button onclick="closeEditModal()" style="background: none; border: none; font-size: 28px; cursor: pointer; color: #94a3b8; padding: 0; width: 32px; height: 32px; line-height: 1;">ã</button>
+                    <button onclick="closeEditModal()" style="background: none; border: none; font-size: 28px; cursor: pointer; color: #94a3b8; padding: 0; width: 32px; height: 32px; line-height: 1;"></button>
                 </div>
                 
                 <div style="background: rgba(15, 23, 42, 0.6); padding: 16px; border-radius: 8px; margin-bottom: 24px; border: 1px solid rgba(148, 163, 184, 0.1);">
-                    <div style="font-weight: 600; color: #e2e8f0;" id="editEmployeeName">NOME DO FUNCIONçãRIO</div>
+                    <div style="font-weight: 600; color: #e2e8f0;" id="editEmployeeName">NOME DO FUNCIONÁRIO</div>
                     <div style="font-size: 14px; color: #94a3b8; margin-top: 4px;">
                         REG: <span id="editEmployeeReg">000</span> | Data: <span id="editEmployeeDate">00/00/0000</span>
                     </div>
@@ -1776,7 +1776,32 @@
         };
 
         // ==========================================
-        // HELPER: Adicionar token de autenticaçãoO em todas as requisiçãães
+        // 🚀 CACHE HÍBRIDO INTELIGENTE - 60 DIAS
+        // ==========================================
+        const CACHE_STRATEGY = {
+            DEFAULT_RANGE_DAYS: 60,
+            TTL: {
+                historical: 24 * 60 * 60 * 1000,
+                current_month: 5 * 60 * 1000,
+                today: 30 * 1000
+            }
+        };
+
+        const SMART_CACHE = {
+            historical: new Map(),
+            recent: new Map(),
+            today: new Map(),
+            metadata: {
+                lastFullLoad: null,
+                lastUpdate: null,
+                totalRequests: 0
+            }
+        };
+
+        let autoRefreshInterval = null;
+
+        // ==========================================
+        // HELPER: Adicionar token de autenticação em todas as requisições
         // ==========================================
         function getAuthHeaders(additionalHeaders = {}) {
             const token = localStorage.getItem('token') || sessionStorage.getItem('token');
@@ -1964,12 +1989,12 @@
             }
         }
 
-        // funçãoo para enriquecer batidas com nomes dos funcionçãrios
+        // funçãoo para enriquecer batidas com nomes dos FUNCIONÁRIOs
         async function enrichWithEmployeeNames(batidas, companies) {
             // Enriquecer com nomes dos funcionários
             
             const funcionariosCache = new Map();
-            const funcionariosAtivosSet = new Set(); // ? REGISTRAR APENAS FUNCIONçãRIOS ATIVOS
+            const funcionariosAtivosSet = new Set(); // ? REGISTRAR APENAS FUNCIONÁRIOS ATIVOS
             
             for (const company of companies) {
                 try {
@@ -1987,7 +2012,7 @@
                     if (response.ok) {
                         const funcionarios = await response.json();
                         
-                        // FILTRAR: Apenas funcionçãrios ATIVOS (sem data de demisSóo)
+                        // FILTRAR: Apenas FUNCIONÁRIOs ATIVOS (sem data de demisSóo)
                         const funcionariosAtivos = funcionarios.filter(func => {
                             // ? CAMPO CORRETO: "Demissao" (conforme documentação Secullum)
                             const dataDemissao = func.Demissao || null;
@@ -2001,7 +2026,7 @@
                             return true;
                         });
                         
-                        console.log(`? ${company.name}: ${funcionariosAtivos.length} funcionçãrios ativos (total: ${funcionarios.length})`);
+                        console.log(`? ${company.name}: ${funcionariosAtivos.length} FUNCIONÁRIOs ativos (total: ${funcionarios.length})`);
                         
                         funcionariosAtivos.forEach(func => {
                             const reg = func.NumeroIdentificador || func.NumeroFolha;
@@ -2037,11 +2062,11 @@
                         });
                     }
                 } catch (error) {
-                    console.warn(`?? Erro ao buscar funcionçãrios de ${company.name}`);
+                    console.warn(`?? Erro ao buscar FUNCIONÁRIOs de ${company.name}`);
                 }
             }
             
-            // ? FILTRAR batidas: mostrar APENAS funcionçãrios ATIVOS (silencioso)
+            // ? FILTRAR batidas: mostrar APENAS FUNCIONÁRIOs ATIVOS (silencioso)
             const batidasFiltradas = batidas.filter(batida => {
                 const reg = batida.Funcionario?.NumeroIdentificador || batida.Funcionario?.NumeroFolha;
                 const key = `${batida._empresaId}_${reg}`;
@@ -2062,7 +2087,7 @@
                 return true;
             });
             
-            console.log(`? Nomes carregados! ${batidasFiltradas.length} registros (apenas funcionçãrios ativos)`);
+            console.log(`? Nomes carregados! ${batidasFiltradas.length} registros (apenas FUNCIONÁRIOs ativos)`);
             
             // ? SUBSTITUIR array original
             batidas.length = 0;
@@ -2134,7 +2159,7 @@
                     return [];
                 }
 
-                // Buscar nomes dos funcionçãrios
+                // Buscar nomes dos FUNCIONÁRIOs
                 await enrichWithEmployeeNames(allBatidas, companies);
 
                 return parseSecullumData(allBatidas, dateStart);
@@ -2147,11 +2172,11 @@
 
         // funçãoo para converter dados da Secullum para formato interno
         function parseSecullumData(batidas, dataRef) {
-            // Agrupar batidas por funcionçãrio + data
+            // Agrupar batidas por FUNCIONÁRIO + data
             const funcionariosMap = new Map();
 
             batidas.forEach(batida => {
-                // Pegar informaçõeses do funcionçãrio
+                // Pegar informaçõeses do FUNCIONÁRIO
                 const reg = batida.Funcionario?.NumeroIdentificador || batida.Funcionario?.NumeroFolha || batida.FuncionarioId || 'N/A';
                 const pis = batida.Funcionario?.NumeroPis || '';
                 const dataFormatada = batida.Data || dataRef;
@@ -2162,7 +2187,7 @@
                         reg: reg,
                         pis: pis,
                         cpf: batida._funcionarioCpf || '',
-                        name: batida._funcionarioNome || `Funcionçãrio ${reg}`,
+                        name: batida._funcionarioNome || `FUNCIONÁRIO ${reg}`,
                         city: batida._empresa || 'N/A',
                         project: 'N/A',
                         projetoSecullum: batida._projetoSecullum || null, // ? PROJETO DA API SECULLUM
@@ -2634,14 +2659,14 @@
                             if (Array.isArray(anexos) && anexos.length > 0) {
                                 
                                 
-                                // ? FAZER MATCH COM FUNCIONçãRIOS USANDO CPF + DATA (identificador único)
+                                // ? FAZER MATCH COM FUNCIONÁRIOS USANDO CPF + DATA (identificador único)
                                 anexos.forEach(anexo => {
                                     
                                     
                                     // Normalizar data do anexo (pode vir como 2025-10-24T00:00:00.000Z ou 2025-10-24)
                                     const dataAnexo = anexo.data.split('T')[0];
                                     
-                                    // ? BUSCAR FUNCIONçãRIO POR CPF + DATA (exato, não parcial!)
+                                    // ? BUSCAR FUNCIONÁRIO POR CPF + DATA (exato, não parcial!)
                                     const emp = allEmployees.find(e => {
                                         // Match CPF exato (remover pontos e traãos para comparar apenas nçãmeros)
                                         const cpfEmp = String(e.cpf || '').replace(/[.\-]/g, '').trim();
@@ -2649,7 +2674,7 @@
                                         
                                         if (cpfEmp !== cpfAnexo || !cpfEmp) return false;
                                         
-                                        // Normalizar data do funcionçãrio
+                                        // Normalizar data do FUNCIONÁRIO
                                         let dataEmp = '';
                                         if (e.rawData?.Data) {
                                             // Tentar formato estranho da API: 27T00:00:00/10/2025 -> 2025-10-27
@@ -2731,7 +2756,7 @@
                                         
                                         
                                     } else {
-                                        console.warn(`?? Anexo não vinculado: REG ${anexo.reg} - ${dataAnexo} (funcionçãrio não encontrado)`);
+                                        console.warn(`?? Anexo não vinculado: REG ${anexo.reg} - ${dataAnexo} (FUNCIONÁRIO não encontrado)`);
                                     }
                                 });
                             }
@@ -2750,7 +2775,7 @@
             }
         }
 
-        // Carregar perguntas e aprovaçães de TODOS os funcionçãrios (mesmo sem anexo)
+        // Carregar perguntas e aprovaçães de TODOS os FUNCIONÁRIOs (mesmo sem anexo)
         async function carregarPerguntasEAprovacoes() {
             try {
                 const dataInicio = document.getElementById('dateStart').value;
@@ -2796,7 +2821,7 @@
                                     // ? MATCH APENAS POR CPF + DATA (não filtrar por empresa)
                                     // Comentérios Sóo do CPF, não da empresa!
                                     
-                                    // Buscar funcionçãrio por CPF e DATA
+                                    // Buscar FUNCIONÁRIO por CPF e DATA
                                     const cpfAnexo = (anexo.cpf || '').replace(/\D/g, '');
                                     const dataAnexo = dataStr;
                                     
@@ -2854,7 +2879,7 @@
                                             console.warn(`?? Erro ao parsear perguntas_rh:`, err);
                                         }
                                     } else {
-                                        // DEBUG: Funcionçãrio não encontrado
+                                        // DEBUG: FUNCIONÁRIO não encontrado
                                         console.warn(`?? Anexo não vinculado: CPF=${cpfAnexo}, Data=${dataAnexo}, Perguntas:`, anexo.perguntas_rh);
                                     }
                                 });
@@ -2876,7 +2901,7 @@
             return await carregarIdsImpressao();
         }
         
-        // ?? Carregar IDs de impresSóo de TODOS os funcionçãrios
+        // ?? Carregar IDs de impresSóo de TODOS os FUNCIONÁRIOs
         async function carregarIdsImpressao() {
             try {
                 // Carregar IDs do banco de dados
@@ -2905,7 +2930,7 @@
                 
                 const { ids } = await response.json();
                 
-                // Atribuir IDs aos funcionçãrios
+                // Atribuir IDs aos FUNCIONÁRIOs
                 allEmployees.forEach(emp => {
                     // Normalizar data
                     let dataNormalizada = emp.date;
@@ -3014,13 +3039,13 @@
                 container.appendChild(allButton);
             }
             
-            // Adicionar botées das empresas
+            // Adicionar botões das empresas
             API_CONFIG.companies.forEach(company => {
                 const btn = document.createElement('button');
                 btn.className = 'btn-company';
                 btn.setAttribute('data-company', company.id);
                 btn.onclick = () => selectCompany(company.id, btn);
-                btn.innerHTML = `?? ${company.name}`;
+                btn.innerHTML = `🏢 ${company.name}`;
                 btn.style.borderColor = company.color;
                 btn.style.color = company.color;
                 container.appendChild(btn);
@@ -3258,8 +3283,8 @@
                         data-punch="ent1"
                         data-name="${emp.name}"
                         onclick="showSwapMenu(event, this)">
-                        ${colunasErradas.has('ent1') && !emp.approved?.ent1 ? '<span class="approve-icon" onclick="approveSwappedTime(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'ent1\', \'' + emp.name + '\')" title="Aprovar Horário trocado">?</span>' : ''}
-                        ${emp.punches.ent1 ? '<span class="question-icon" onclick="askQuestion(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'ent1\', \'' + emp.name + '\')" title="Adicionar pergunta">?</span>' : ''}
+                        ${colunasErradas.has('ent1') && !emp.approved?.ent1 ? '<span class="approve-icon" onclick="approveSwappedTime(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'ent1\', \'' + emp.name + '\')" title="Aprovar Horário trocado"></span>' : ''}
+                        ${emp.punches.ent1 ? '<span class="question-icon" onclick="askQuestion(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'ent1\', \'' + emp.name + '\')" title="Adicionar pergunta"></span>' : ''}
                         <span class="punch-time ${emp.approved?.ent1 ? 'approved' : getTimeClass('ent1', emp.punches.ent1)}" style="font-size: 13px; font-family: 'Courier New', monospace;">
                             ${getMotivoOuHorario(emp.punches.ent1, emp.motivo)}
                         </span>
@@ -3267,67 +3292,67 @@
                         ${emp.approved?.ent1 ? '<span class="approved-badge" title="Aprovado por RH: ' + emp.approved.ent1 + '">\u2705</span>' : ''}
                     </td>
                     <td class="center punch-cell" style="width: 100px; position: relative; cursor: pointer;" data-reg="${emp.reg}" data-date="${emp.date}" data-punch="sai1" data-name="${emp.name}" onclick="showSwapMenu(event, this)">
-                        ${colunasErradas.has('sai1') && !emp.approved?.sai1 ? '<span class="approve-icon" onclick="approveSwappedTime(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'sai1\', \'' + emp.name + '\')" title="Aprovar Horário trocado">?</span>' : ''}
-                        ${emp.punches.sai1 ? '<span class="question-icon" onclick="askQuestion(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'sai1\', \'' + emp.name + '\')" title="Adicionar pergunta">?</span>' : ''}
+                        ${colunasErradas.has('sai1') && !emp.approved?.sai1 ? '<span class="approve-icon" onclick="approveSwappedTime(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'sai1\', \'' + emp.name + '\')" title="Aprovar Horário trocado"></span>' : ''}
+                        ${emp.punches.sai1 ? '<span class="question-icon" onclick="askQuestion(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'sai1\', \'' + emp.name + '\')" title="Adicionar pergunta"></span>' : ''}
                         <span class="punch-time ${emp.approved?.sai1 ? 'approved' : getTimeClass('sai1', emp.punches.sai1)}">${getMotivoOuHorario(emp.punches.sai1, emp.motivo)}</span>
-                        ${emp.questions?.sai1 ? '<span class="has-question" title="' + emp.questions.sai1 + '"></span>' : ''}
-                        ${emp.approved?.sai1 ? '<span class="approved-badge" title="Aprovado por RH: ' + emp.approved.sai1 + '">?</span>' : ''}
+                        ${emp.questions?.sai1 ? '<span class="has-question" title="$1"></span>' : ''}
+                        ${emp.approved?.sai1 ? '<span class="approved-badge" title="Aprovado por RH: ' + emp.approved.sai1 + '"></span>' : ''}
                     </td>
                     <td class="center punch-cell" style="width: 100px; position: relative; cursor: pointer;" data-reg="${emp.reg}" data-date="${emp.date}" data-punch="ent2" data-name="${emp.name}" onclick="showSwapMenu(event, this)">
-                        ${colunasErradas.has('ent2') && !emp.approved?.ent2 ? '<span class="approve-icon" onclick="approveSwappedTime(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'ent2\', \'' + emp.name + '\')" title="Aprovar Horário trocado">?</span>' : ''}
-                        ${emp.punches.ent2 ? '<span class="question-icon" onclick="askQuestion(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'ent2\', \'' + emp.name + '\')" title="Adicionar pergunta">?</span>' : ''}
+                        ${colunasErradas.has('ent2') && !emp.approved?.ent2 ? '<span class="approve-icon" onclick="approveSwappedTime(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'ent2\', \'' + emp.name + '\')" title="Aprovar Horário trocado"></span>' : ''}
+                        ${emp.punches.ent2 ? '<span class="question-icon" onclick="askQuestion(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'ent2\', \'' + emp.name + '\')" title="Adicionar pergunta"></span>' : ''}
                         <span class="punch-time ${emp.approved?.ent2 ? 'approved' : getTimeClass('ent2', emp.punches.ent2)}">${getMotivoOuHorario(emp.punches.ent2, emp.motivo)}</span>
-                        ${emp.questions?.ent2 ? '<span class="has-question" title="' + emp.questions.ent2 + '"></span>' : ''}
-                        ${emp.approved?.ent2 ? '<span class="approved-badge" title="Aprovado por RH: ' + emp.approved.ent2 + '">?</span>' : ''}
+                        ${emp.questions?.ent2 ? '<span class="has-question" title="$1"></span>' : ''}
+                        ${emp.approved?.ent2 ? '<span class="approved-badge" title="Aprovado por RH: ' + emp.approved.ent2 + '"></span>' : ''}
                     </td>
                     <td class="center punch-cell" style="width: 100px; position: relative; cursor: pointer;" data-reg="${emp.reg}" data-date="${emp.date}" data-punch="sai2" data-name="${emp.name}" onclick="showSwapMenu(event, this)">
-                        ${colunasErradas.has('sai2') && !emp.approved?.sai2 ? '<span class="approve-icon" onclick="approveSwappedTime(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'sai2\', \'' + emp.name + '\')" title="Aprovar Horário trocado">?</span>' : ''}
-                        ${emp.punches.sai2 ? '<span class="question-icon" onclick="askQuestion(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'sai2\', \'' + emp.name + '\')" title="Adicionar pergunta">?</span>' : ''}
+                        ${colunasErradas.has('sai2') && !emp.approved?.sai2 ? '<span class="approve-icon" onclick="approveSwappedTime(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'sai2\', \'' + emp.name + '\')" title="Aprovar Horário trocado"></span>' : ''}
+                        ${emp.punches.sai2 ? '<span class="question-icon" onclick="askQuestion(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'sai2\', \'' + emp.name + '\')" title="Adicionar pergunta"></span>' : ''}
                         <span class="punch-time ${emp.approved?.sai2 ? 'approved' : getTimeClass('sai2', emp.punches.sai2)}">${getMotivoOuHorario(emp.punches.sai2, emp.motivo)}</span>
-                        ${emp.questions?.sai2 ? '<span class="has-question" title="' + emp.questions.sai2 + '"></span>' : ''}
-                        ${emp.approved?.sai2 ? '<span class="approved-badge" title="Aprovado por RH: ' + emp.approved.sai2 + '">?</span>' : ''}
+                        ${emp.questions?.sai2 ? '<span class="has-question" title="$1"></span>' : ''}
+                        ${emp.approved?.sai2 ? '<span class="approved-badge" title="Aprovado por RH: ' + emp.approved.sai2 + '"></span>' : ''}
                     </td>
                     <td class="center punch-cell" style="width: 100px; position: relative; cursor: pointer;" data-reg="${emp.reg}" data-date="${emp.date}" data-punch="ent3" data-name="${emp.name}" onclick="showSwapMenu(event, this)">
-                        ${colunasErradas.has('ent3') && !emp.approved?.ent3 ? '<span class="approve-icon" onclick="approveSwappedTime(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'ent3\', \'' + emp.name + '\')" title="Aprovar Horário trocado">?</span>' : ''}
-                        ${emp.punches.ent3 ? '<span class="question-icon" onclick="askQuestion(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'ent3\', \'' + emp.name + '\')" title="Adicionar pergunta">?</span>' : ''}
+                        ${colunasErradas.has('ent3') && !emp.approved?.ent3 ? '<span class="approve-icon" onclick="approveSwappedTime(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'ent3\', \'' + emp.name + '\')" title="Aprovar Horário trocado"></span>' : ''}
+                        ${emp.punches.ent3 ? '<span class="question-icon" onclick="askQuestion(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'ent3\', \'' + emp.name + '\')" title="Adicionar pergunta"></span>' : ''}
                         <span class="punch-time ${emp.approved?.ent3 ? 'approved' : getTimeClass('ent3', emp.punches.ent3)}">${getMotivoOuHorario(emp.punches.ent3, emp.motivo)}</span>
-                        ${emp.questions?.ent3 ? '<span class="has-question" title="' + emp.questions.ent3 + '"></span>' : ''}
-                        ${emp.approved?.ent3 ? '<span class="approved-badge" title="Aprovado por RH: ' + emp.approved.ent3 + '">?</span>' : ''}
+                        ${emp.questions?.ent3 ? '<span class="has-question" title="$1"></span>' : ''}
+                        ${emp.approved?.ent3 ? '<span class="approved-badge" title="Aprovado por RH: ' + emp.approved.ent3 + '"></span>' : ''}
                     </td>
                     <td class="center punch-cell" style="width: 100px; position: relative; cursor: pointer;" data-reg="${emp.reg}" data-date="${emp.date}" data-punch="sai3" data-name="${emp.name}" onclick="showSwapMenu(event, this)">
-                        ${colunasErradas.has('sai3') && !emp.approved?.sai3 ? '<span class="approve-icon" onclick="approveSwappedTime(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'sai3\', \'' + emp.name + '\')" title="Aprovar Horário trocado">?</span>' : ''}
-                        ${emp.punches.sai3 ? '<span class="question-icon" onclick="askQuestion(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'sai3\', \'' + emp.name + '\')" title="Adicionar pergunta">?</span>' : ''}
+                        ${colunasErradas.has('sai3') && !emp.approved?.sai3 ? '<span class="approve-icon" onclick="approveSwappedTime(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'sai3\', \'' + emp.name + '\')" title="Aprovar Horário trocado"></span>' : ''}
+                        ${emp.punches.sai3 ? '<span class="question-icon" onclick="askQuestion(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'sai3\', \'' + emp.name + '\')" title="Adicionar pergunta"></span>' : ''}
                         <span class="punch-time ${emp.approved?.sai3 ? 'approved' : getTimeClass('sai3', emp.punches.sai3)}">${getMotivoOuHorario(emp.punches.sai3, emp.motivo)}</span>
-                        ${emp.questions?.sai3 ? '<span class="has-question" title="' + emp.questions.sai3 + '"></span>' : ''}
-                        ${emp.approved?.sai3 ? '<span class="approved-badge" title="Aprovado por RH: ' + emp.approved.sai3 + '">?</span>' : ''}
+                        ${emp.questions?.sai3 ? '<span class="has-question" title="$1"></span>' : ''}
+                        ${emp.approved?.sai3 ? '<span class="approved-badge" title="Aprovado por RH: ' + emp.approved.sai3 + '"></span>' : ''}
                     </td>
                     <td class="center punch-cell" style="width: 100px; position: relative; cursor: pointer;" data-reg="${emp.reg}" data-date="${emp.date}" data-punch="ent4" data-name="${emp.name}" onclick="showSwapMenu(event, this)">
-                        ${colunasErradas.has('ent4') && !emp.approved?.ent4 ? '<span class="approve-icon" onclick="approveSwappedTime(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'ent4\', \'' + emp.name + '\')" title="Aprovar Horário trocado">?</span>' : ''}
-                        ${emp.punches.ent4 ? '<span class="question-icon" onclick="askQuestion(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'ent4\', \'' + emp.name + '\')" title="Adicionar pergunta">?</span>' : ''}
+                        ${colunasErradas.has('ent4') && !emp.approved?.ent4 ? '<span class="approve-icon" onclick="approveSwappedTime(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'ent4\', \'' + emp.name + '\')" title="Aprovar Horário trocado"></span>' : ''}
+                        ${emp.punches.ent4 ? '<span class="question-icon" onclick="askQuestion(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'ent4\', \'' + emp.name + '\')" title="Adicionar pergunta"></span>' : ''}
                         <span class="punch-time ${emp.approved?.ent4 ? 'approved' : getTimeClass('ent4', emp.punches.ent4)}">${getMotivoOuHorario(emp.punches.ent4, emp.motivo)}</span>
-                        ${emp.questions?.ent4 ? '<span class="has-question" title="' + emp.questions.ent4 + '"></span>' : ''}
-                        ${emp.approved?.ent4 ? '<span class="approved-badge" title="Aprovado por RH: ' + emp.approved.ent4 + '">?</span>' : ''}
+                        ${emp.questions?.ent4 ? '<span class="has-question" title="$1"></span>' : ''}
+                        ${emp.approved?.ent4 ? '<span class="approved-badge" title="Aprovado por RH: ' + emp.approved.ent4 + '"></span>' : ''}
                     </td>
                     <td class="center punch-cell" style="width: 100px; position: relative; cursor: pointer;" data-reg="${emp.reg}" data-date="${emp.date}" data-punch="sai4" data-name="${emp.name}" onclick="showSwapMenu(event, this)">
-                        ${colunasErradas.has('sai4') && !emp.approved?.sai4 ? '<span class="approve-icon" onclick="approveSwappedTime(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'sai4\', \'' + emp.name + '\')" title="Aprovar Horário trocado">?</span>' : ''}
-                        ${emp.punches.sai4 ? '<span class="question-icon" onclick="askQuestion(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'sai4\', \'' + emp.name + '\')" title="Adicionar pergunta">?</span>' : ''}
+                        ${colunasErradas.has('sai4') && !emp.approved?.sai4 ? '<span class="approve-icon" onclick="approveSwappedTime(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'sai4\', \'' + emp.name + '\')" title="Aprovar Horário trocado"></span>' : ''}
+                        ${emp.punches.sai4 ? '<span class="question-icon" onclick="askQuestion(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'sai4\', \'' + emp.name + '\')" title="Adicionar pergunta"></span>' : ''}
                         <span class="punch-time ${emp.approved?.sai4 ? 'approved' : getTimeClass('sai4', emp.punches.sai4)}">${getMotivoOuHorario(emp.punches.sai4, emp.motivo)}</span>
-                        ${emp.questions?.sai4 ? '<span class="has-question" title="' + emp.questions.sai4 + '"></span>' : ''}
-                        ${emp.approved?.sai4 ? '<span class="approved-badge" title="Aprovado por RH: ' + emp.approved.sai4 + '">?</span>' : ''}
+                        ${emp.questions?.sai4 ? '<span class="has-question" title="$1"></span>' : ''}
+                        ${emp.approved?.sai4 ? '<span class="approved-badge" title="Aprovado por RH: ' + emp.approved.sai4 + '"></span>' : ''}
                     </td>
                     <td class="center punch-cell" style="width: 100px; position: relative; cursor: pointer;" data-reg="${emp.reg}" data-date="${emp.date}" data-punch="ent5" data-name="${emp.name}" onclick="showSwapMenu(event, this)">
-                        ${colunasErradas.has('ent5') && !emp.approved?.ent5 ? '<span class="approve-icon" onclick="approveSwappedTime(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'ent5\', \'' + emp.name + '\')" title="Aprovar Horário trocado">?</span>' : ''}
-                        ${emp.punches.ent5 ? '<span class="question-icon" onclick="askQuestion(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'ent5\', \'' + emp.name + '\')" title="Adicionar pergunta">?</span>' : ''}
+                        ${colunasErradas.has('ent5') && !emp.approved?.ent5 ? '<span class="approve-icon" onclick="approveSwappedTime(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'ent5\', \'' + emp.name + '\')" title="Aprovar Horário trocado"></span>' : ''}
+                        ${emp.punches.ent5 ? '<span class="question-icon" onclick="askQuestion(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'ent5\', \'' + emp.name + '\')" title="Adicionar pergunta"></span>' : ''}
                         <span class="punch-time ${emp.approved?.ent5 ? 'approved' : getTimeClass('ent5', emp.punches.ent5)}">${getMotivoOuHorario(emp.punches.ent5, emp.motivo)}</span>
-                        ${emp.questions?.ent5 ? '<span class="has-question" title="' + emp.questions.ent5 + '"></span>' : ''}
-                        ${emp.approved?.ent5 ? '<span class="approved-badge" title="Aprovado por RH: ' + emp.approved.ent5 + '">?</span>' : ''}
+                        ${emp.questions?.ent5 ? '<span class="has-question" title="$1"></span>' : ''}
+                        ${emp.approved?.ent5 ? '<span class="approved-badge" title="Aprovado por RH: ' + emp.approved.ent5 + '"></span>' : ''}
                     </td>
                     <td class="center punch-cell" style="width: 100px; position: relative; cursor: pointer;" data-reg="${emp.reg}" data-date="${emp.date}" data-punch="sai5" data-name="${emp.name}" onclick="showSwapMenu(event, this)">
-                        ${colunasErradas.has('sai5') && !emp.approved?.sai5 ? '<span class="approve-icon" onclick="approveSwappedTime(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'sai5\', \'' + emp.name + '\')" title="Aprovar Horário trocado">?</span>' : ''}
-                        ${emp.punches.sai5 ? '<span class="question-icon" onclick="askQuestion(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'sai5\', \'' + emp.name + '\')" title="Adicionar pergunta">?</span>' : ''}
+                        ${colunasErradas.has('sai5') && !emp.approved?.sai5 ? '<span class="approve-icon" onclick="approveSwappedTime(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'sai5\', \'' + emp.name + '\')" title="Aprovar Horário trocado"></span>' : ''}
+                        ${emp.punches.sai5 ? '<span class="question-icon" onclick="askQuestion(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'sai5\', \'' + emp.name + '\')" title="Adicionar pergunta"></span>' : ''}
                         <span class="punch-time ${emp.approved?.sai5 ? 'approved' : getTimeClass('sai5', emp.punches.sai5)}">${getMotivoOuHorario(emp.punches.sai5, emp.motivo)}</span>
-                        ${emp.questions?.sai5 ? '<span class="has-question" title="' + emp.questions.sai5 + '"></span>' : ''}
-                        ${emp.approved?.sai5 ? '<span class="approved-badge" title="Aprovado por RH: ' + emp.approved.sai5 + '">?</span>' : ''}
+                        ${emp.questions?.sai5 ? '<span class="has-question" title="$1"></span>' : ''}
+                        ${emp.approved?.sai5 ? '<span class="approved-badge" title="Aprovado por RH: ' + emp.approved.sai5 + '"></span>' : ''}
                     </td>
                     <td class="center" style="width: 70px; font-weight: bold; color: #7c3aed; font-size: 14px;">
                         ${emp.anexoId ? `#${emp.anexoId}` : '-'}
@@ -3423,7 +3448,7 @@
                 dataComparacao = `${ano}-${mes}-${dia}`;
             }
             
-            // Buscar funcionçãrio por REG E DATA
+            // Buscar FUNCIONÁRIO por REG E DATA
             const employee = allEmployees.find(emp => {
                 // Normalizar data do employee também
                 let empData = emp.date;
@@ -3439,8 +3464,8 @@
             });
             
             if (!employee) {
-                console.error(`? Funcionçãrio não encontrado: REG=${reg}, Data=${dataComparacao}`);
-                alert('Erro: Funcionçãrio não encontrado!');
+                console.error(`? FUNCIONÁRIO não encontrado: REG=${reg}, Data=${dataComparacao}`);
+                alert('Erro: FUNCIONÁRIO não encontrado!');
                 return;
             }
             
@@ -3479,7 +3504,7 @@
                     if (anexo && anexo.blob_url) {
                         // já EXISTE ANEXO - Perguntar o que fazer
                         const confirmacao = confirm(
-                            `?? já EXISTE UM ANEXO PARA ESTE FUNCIONçãRIO NESTA DATA!\n\n` +
+                            `?? já EXISTE UM ANEXO PARA ESTE FUNCIONÁRIO NESTA DATA!\n\n` +
                             `?? REG: ${employee.reg}\n` +
                             `?? Nome: ${employee.name}\n` +
                             `?? Data: ${dataFormatada}\n` +
@@ -3992,7 +4017,7 @@
                     console.log(`?? ID detectado: #${idDetectado}`);
                 }
                 
-                // ?? DETECTAR ASSINATURAS (FUNCIONçãRIO E Líder)
+                // ?? DETECTAR ASSINATURAS (FUNCIONÁRIO E Líder)
                 let assinaturaFuncionarioDetectada = false;
                 let assinaturaLiderDetectada = false;
                 try {
@@ -4018,7 +4043,7 @@
                     console.log('??????????????????????????????????');
                     console.log('?? RESULTADO DETECçããO DE ASSINATURAS');
                     console.log('??????????????????????????????????');
-                    console.log(`?? Funcionçãrio: ${assinaturaFuncionarioDetectada ? '? ASSINADO' : '? não ASSINADO'}`);
+                    console.log(`?? FUNCIONÁRIO: ${assinaturaFuncionarioDetectada ? '? ASSINADO' : '? não ASSINADO'}`);
                 console.log(`?? Líder: ${assinaturaLiderDetectada ? '? ASSINADO' : '? não ASSINADO'}`);
                 console.log('??????????????????????????????????');
                 } catch (err) {
@@ -4406,10 +4431,10 @@
         }
         
         // ==========================================
-        // DETECçããO DE ASSINATURAS (FUNCIONçãRIO E Líder)
+        // DETECçããO DE ASSINATURAS (FUNCIONÁRIO E Líder)
         // ==========================================
         function detectarAssinaturas(canvas) {
-            console.log('?? Iniciando detecçãão de assinaturas (Funcionçãrio + Líder)...');
+            console.log('?? Iniciando detecçãão de assinaturas (FUNCIONÁRIO + Líder)...');
             
             const ctx = canvas.getContext('2d', { willReadFrequently: true });
             const largura = canvas.width;
@@ -4418,14 +4443,14 @@
             // ?? REGIçãES DAS ASSINATURAS
             // Baseado na imagem fornecida:
             
-            // FUNCIONçãRIO (lado esquerdo inferior)
+            // FUNCIONÁRIO (lado esquerdo inferior)
             // Região focada ACIMA do nome impresso "ADEMIR QUEIROZ DE SOUSA"
             const regiaoFuncionario = {
                 x: Math.round(largura * 0.05),  // 5% da largura
                 y: Math.round(altura * 0.80),   // 80% da altura (área da assinatura manuscrita)
                 w: Math.round(largura * 0.40),  // 40% da largura
                 h: Math.round(altura * 0.10),   // 10% da altura (Só a área da assinatura, não o texto)
-                nome: 'Funcionçãrio',
+                nome: 'FUNCIONÁRIO',
                 cor: '#3b82f6'  // Azul
             };
             
@@ -4496,7 +4521,7 @@
                 console.log(`   ${temAssinatura ? '? ASSINADO' : '? não ASSINADO'}`);
                 
                 // Guardar resultado (usar chaves fixas para evitar problemas)
-                if (regiao.nome === 'Funcionçãrio') {
+                if (regiao.nome === 'FUNCIONÁRIO') {
                     resultados.funcionario = temAssinatura;
                 } else if (regiao.nome === 'Líder') {
                     resultados.lider = temAssinatura;
@@ -4598,7 +4623,7 @@
                                 <h1>?? Detecçãão de Assinaturas</h1>
                                 <div class="stats">
                                     <div class="stat-box ${resultados.funcionario ? 'funcionario' : 'unsigned'}">
-                                        <h3>?? FUNCIONçãRIO</h3>
+                                        <h3>?? FUNCIONÁRIO</h3>
                                         <div class="status">${resultados.funcionario ? '?' : '?'}</div>
                                         <div class="label">${resultados.funcionario ? 'ASSINADO' : 'não ASSINADO'}</div>
                                     </div>
@@ -4611,7 +4636,7 @@
                                 <img src="${debugUrl}">
                                 <div class="info">
                                     <strong>?? Legenda:</strong><br>
-                                    ?? Reténgulo AZUL = Região do Funcionçãrio<br>
+                                    ?? Reténgulo AZUL = Região do FUNCIONÁRIO<br>
                                     ?? Reténgulo VERDE = Região do Líder<br>
                                     ?? Reténgulo VERMELHO = Assinatura não detectada<br><br>
                                     <strong>Limiar de detecçãão:</strong> =2% pixels muito escuros OU =6% pixels escuros
@@ -4891,7 +4916,7 @@
                     const continuar = confirm(
                         `?? ID não DETECTADO\n\n` +
                         `não foi posSóvel ler o ID automaticamente.\n\n` +
-                        `?? Funcionçãrio: ${currentAnexoEmployee.name}\n` +
+                        `?? FUNCIONÁRIO: ${currentAnexoEmployee.name}\n` +
                         `?? ID esperado: #${idEsperado}\n\n` +
                         `Deseja continuar?`
                     );
@@ -4909,7 +4934,7 @@
                 
                 // ?? CASO 4: Primeiro formulério
                 if (!idEsperado) {
-                    console.log(`?? Funcionçãrio ainda não possui ID no sistema`);
+                    console.log(`?? FUNCIONÁRIO ainda não possui ID no sistema`);
                 }
                 
                 // ======================================
@@ -5378,7 +5403,7 @@
                 return `<span style="display: inline-block; margin-left: 8px; padding: 2px 8px; background: ${color}; color: white; border-radius: 12px; font-size: 10px; font-weight: 600;">${confidence}%</span>`;
             };
             
-            // ?? BUSCAR HorárioS já BATIDOS do funcionçãrio
+            // ?? BUSCAR HorárioS já BATIDOS do FUNCIONÁRIO
             const horariosJaBatidos = {
                 ent1: currentAnexoEmployee?.punches?.ent1 || currentAnexoEmployee?.ent1,
                 sai1: currentAnexoEmployee?.punches?.sai1 || currentAnexoEmployee?.sai1,
@@ -5417,7 +5442,7 @@
                             <span style="font-size: 24px;">${dados.assinaturaFuncionario ? '?' : '?'}</span>
                             <div>
                                 <div style="font-weight: 600; color: ${dados.assinaturaFuncionario ? '#1e40af' : '#991b1b'}; font-size: 14px;">
-                                    ?? Funcionçãrio
+                                    ?? FUNCIONÁRIO
                                 </div>
                                 <div style="font-size: 11px; color: ${dados.assinaturaFuncionario ? '#1e40af' : '#b91c1c'}; margin-top: 2px;">
                                     ${dados.assinaturaFuncionario ? 'ASSINADO' : 'não ASSINADO'}
@@ -5496,7 +5521,7 @@
             // ?? VALIDAR ASSINATURAS ANTES DE ENVIAR
             if (currentOCRData && (currentOCRData.assinaturaFuncionario === false || currentOCRData.assinaturaLider === false)) {
                 const faltantes = [];
-                if (!currentOCRData.assinaturaFuncionario) faltantes.push('?? Funcionçãrio');
+                if (!currentOCRData.assinaturaFuncionario) faltantes.push('?? FUNCIONÁRIO');
                 if (!currentOCRData.assinaturaLider) faltantes.push('?? Líder');
                 
                 const confirmar = confirm(
@@ -5600,7 +5625,7 @@
                 if (result.success) {
                     console.log('? Anexo salvo:', result);
                     
-                    // BUSCAR a referçãncia correta do funcionçãrio em allEmployees
+                    // BUSCAR a referçãncia correta do FUNCIONÁRIO em allEmployees
                     const dataFormatada = currentAnexoEmployee.rawData?.Data?.split('T')[0] || currentAnexoEmployee.date;
                     const empRef = allEmployees.find(e => 
                         e.reg === currentAnexoEmployee.reg && 
@@ -5670,7 +5695,7 @@
                             showAlert('Erro', `Anexo salvo mas erro ao enviar para Secullum:\n${err.message}`, 'error');
                         }
                     } else {
-                        throw new Error('Funcionçãrio não encontrado em allEmployees');
+                        throw new Error('FUNCIONÁRIO não encontrado em allEmployees');
                     }
                 } else {
                     throw new Error(result.error || 'Erro desconhecido');
@@ -5691,13 +5716,13 @@
             console.log(`?? Enviando Horários para Secullum: REG=${empRef.reg}, Data=${empRef.date}`);
             
             if (!empRef) {
-                alert('? Erro: Funcionçãrio não encontrado!');
+                alert('? Erro: FUNCIONÁRIO não encontrado!');
                 return;
             }
             
             // Se for inverSóo (pendingSwap), mostrar popup de confirmação
             if (empRef.pendingSwap && !autoEnvio) {
-                if (!confirm(`? Confirmar envio para Secullum?\n\nFuncionçãrio: ${empRef.name}\nData: ${empRef.date}\n\nHorários:\n` +
+                if (!confirm(`? Confirmar envio para Secullum?\n\nFUNCIONÁRIO: ${empRef.name}\nData: ${empRef.date}\n\nHorários:\n` +
                              `Ent1: ${empRef.punches?.ent1 || '--:--'} | Sai1: ${empRef.punches?.sai1 || '--:--'}\n` +
                              `Ent2: ${empRef.punches?.ent2 || '--:--'} | Sai2: ${empRef.punches?.sai2 || '--:--'}\n` +
                              `Ent3: ${empRef.punches?.ent3 || '--:--'} | Sai3: ${empRef.punches?.sai3 || '--:--'}`)) {
@@ -6082,7 +6107,7 @@
                                 <div class="signature-space"></div>
                                 <div class="signature-line">
                                     <div class="signature-name">${emp.name}</div>
-                                    <div class="signature-label">Assinatura do funcionçãrio</div>
+                                    <div class="signature-label">Assinatura do FUNCIONÁRIO</div>
                                 </div>
                             </div>
                             <div class="signature-box right">
@@ -6356,19 +6381,19 @@
             if (currentQuestionContext) {
                 const { reg, date, punchType, isApproval } = currentQuestionContext;
                 
-                console.log(`?? Buscando funcionçãrio: REG=${reg}, Data=${date}`);
+                console.log(`?? Buscando FUNCIONÁRIO: REG=${reg}, Data=${date}`);
                 
-                // ?? Buscar funcionçãrio pela DATA E REG (não importa se tem anexo ou não)
+                // ?? Buscar FUNCIONÁRIO pela DATA E REG (não importa se tem anexo ou não)
                 // Se tiver anexo, vai salvar. Se não tiver, vai avisar.
                 let employee = allEmployees.find(emp => emp.reg === reg && emp.date === date);
                 
                 if (!employee) {
-                    console.warn(`?? Funcionçãrio não encontrado: REG=${reg}, Data=${date}`);
-                    showAlert('Erro', 'Funcionçãrio não encontrado para esta data.', 'error');
+                    console.warn(`?? FUNCIONÁRIO não encontrado: REG=${reg}, Data=${date}`);
+                    showAlert('Erro', 'FUNCIONÁRIO não encontrado para esta data.', 'error');
                     return;
                 }
                 
-                console.log(`? Funcionçãrio encontrado: ${employee.name} - Data: ${employee.date} - Anexo: ${employee.anexoUrl ? 'SIM' : 'não'}`);
+                console.log(`? FUNCIONÁRIO encontrado: ${employee.name} - Data: ${employee.date} - Anexo: ${employee.anexoUrl ? 'SIM' : 'não'}`);
                 
                 if (employee) {
                     if (isApproval) {
@@ -6716,7 +6741,7 @@
             
             const employee = allEmployees.find(emp => emp.reg === reg && emp.date === date);
             if (!employee) {
-                showAlert('Erro', 'Funcionçãrio não encontrado!', 'error');
+                showAlert('Erro', 'FUNCIONÁRIO não encontrado!', 'error');
                 return;
             }
 
@@ -6741,7 +6766,7 @@
 
             const confirmed = confirm(
                 `?? TEM CERTEZA QUE DESEJA INVERTER HorárioS?\n\n` +
-                `Funcionçãrio: ${name}\n` +
+                `FUNCIONÁRIO: ${name}\n` +
                 `Data: ${date}\n\n` +
                 `${punch1Label}: ${time1} ? ${time2}\n` +
                 `${punch2Label}: ${time2} ? ${time1}\n\n` +
@@ -6998,7 +7023,7 @@
             
             const employee = allEmployees.find(emp => emp.reg === reg && emp.date === date);
             if (!employee) {
-                showAlert('Erro', 'Funcionçãrio não encontrado', 'error');
+                showAlert('Erro', 'FUNCIONÁRIO não encontrado', 'error');
                 return;
             }
             
@@ -7232,12 +7257,12 @@
                     'sai5': 'Saida5'
                 };
 
-                // Buscar dados completos do funcionçãrio (igual no modal)
+                // Buscar dados completos do FUNCIONÁRIO (igual no modal)
                 const funcionarioId = employee.rawData?.FuncionarioId || employee.dadosCompletos?.FuncionarioId;
                 const data = employee.rawData?.Data || employee.dadosCompletos?.Data || employee.date;
                 
                 if (!funcionarioId) {
-                    throw new Error('ID do funcionçãrio não encontrado! Recarregue os dados.');
+                    throw new Error('ID do FUNCIONÁRIO não encontrado! Recarregue os dados.');
                 }
 
                 const payload = {
@@ -7403,7 +7428,7 @@
             currentEditingCell = null;
         }
 
-        // funçãoo auxiliar para atualizar status de um funcionçãrio
+        // funçãoo auxiliar para atualizar status de um FUNCIONÁRIO
         function updateEmployeeStatus(employee) {
             const p = employee.punches;
             
@@ -7467,7 +7492,7 @@
                 employee.hasInconsistency = false;
             }
             
-            // Re-renderizar apenas a linha deste funcionçãrio
+            // Re-renderizar apenas a linha deste FUNCIONÁRIO
             renderTable();
         }
 
@@ -7479,13 +7504,13 @@
         function openEditModal(reg, date) {
             const employee = allEmployees.find(emp => emp.reg === reg && emp.date === date);
             if (!employee) {
-                alert('Funcionçãrio não encontrado!');
+                alert('FUNCIONÁRIO não encontrado!');
                 return;
             }
 
             currentEditEmployee = employee;
 
-            // Preencher informaçõeses do funcionçãrio
+            // Preencher informaçõeses do FUNCIONÁRIO
             document.getElementById('editEmployeeName').textContent = employee.name;
             document.getElementById('editEmployeeReg').textContent = employee.reg;
             document.getElementById('editEmployeeDate').textContent = date;
@@ -7544,7 +7569,7 @@
             };
 
             console.log('?? Dados a serem enviados:', updatedPunches);
-            console.log('?? Funcionçãrio:', currentEditEmployee);
+            console.log('?? FUNCIONÁRIO:', currentEditEmployee);
 
             // Confirmar antes de enviar
             const confirmacao = confirm(
@@ -7557,12 +7582,12 @@
             if (!confirmacao) return;
 
             try {
-                // Buscar o ID do funcionçãrio na API (necesSório para o endpoint)
+                // Buscar o ID do FUNCIONÁRIO na API (necesSório para o endpoint)
                 const funcionarioId = currentEditEmployee.rawData?.FuncionarioId || currentEditEmployee.dadosCompletos?.FuncionarioId;
                 const data = currentEditEmployee.rawData?.Data || currentEditEmployee.dadosCompletos?.Data || currentEditEmployee.data;
                 
                 if (!funcionarioId) {
-                    throw new Error('ID do funcionçãrio não encontrado! Recarregue os dados.');
+                    throw new Error('ID do FUNCIONÁRIO não encontrado! Recarregue os dados.');
                 }
 
                 console.log(`?? Iniciando atualizaçãoo de batidas...`);
@@ -7983,7 +8008,7 @@
     <!-- Modal de Upload de Anexo -->
     <div id="modalAnexo" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); backdrop-filter: blur(10px); z-index: 10000; justify-content: center; align-items: center; overflow-y: auto;">
         <div style="background: rgba(30, 41, 59, 0.95); backdrop-filter: blur(20px); border: 1px solid rgba(148, 163, 184, 0.1); border-radius: 16px; padding: 24px 32px; max-width: 900px; width: 90%; max-height: 85vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.7); position: relative; margin: 20px auto;">
-            <button onclick="fecharModalAnexo()" style="position: absolute; top: 16px; right: 16px; background: none; border: none; font-size: 32px; cursor: pointer; color: #94a3b8; padding: 0; width: 40px; height: 40px; line-height: 1;">ã</button>
+            <button onclick="fecharModalAnexo()" style="position: absolute; top: 16px; right: 16px; background: none; border: none; font-size: 32px; cursor: pointer; color: #94a3b8; padding: 0; width: 40px; height: 40px; line-height: 1;"></button>
             
             <h2 style="font-size: 24px; font-weight: bold; background: linear-gradient(135deg, #60a5fa, #a78bfa); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; margin: 0 0 8px 0;">?? Anexar Justificativa</h2>
             <p style="color: #94a3b8; margin: 0 0 24px 0; font-size: 14px;" id="modalAnexoInfo">REG: 000 | Data: 00/00/0000</p>
