@@ -1316,7 +1316,7 @@
             
             // Se não tem token OU token expirou, redirecionar para login
             if (!token || !expiry || Date.now() >= parseInt(expiry)) {
-                console.log('?? Token inválido ou expirado, redirecionando para login...');
+                console.log('🔑 Token inválido ou expirado, redirecionando para login...');
                 localStorage.clear(); // Limpar tudo
                 window.location.href = '/login.html';
                 return;
@@ -1395,7 +1395,7 @@
                         <div id="monitorLastUpdate" style="font-size: 18px; font-weight: 700; color: #e2e8f0; margin-top: 4px;">--:--:--</div>
                     </div>
                     <button class="btn" onclick="refreshMachineMonitor()" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); padding: 10px 20px;">
-                        <span>??</span>
+                        <span>🔑</span>
                         <span>Atualizar</span>
                     </button>
                 </div>
@@ -1638,11 +1638,11 @@
             </div>
             <div class="pdf-controls-buttons">
                 <button class="btn btn-print" onclick="window.print()">
-                    <span>???</span>
+                    <span>❓</span>
                     <span>Imprimir Todas</span>
                 </button>
                 <button class="btn btn-close" id="btnClosePDF">
-                    <span>??</span>
+                    <span></span>
                     <span>Fechar</span>
                 </button>
             </div>
@@ -1960,11 +1960,7 @@
             const token = localStorage.getItem('token') || sessionStorage.getItem('token');
             
             if (!token) {
-                console.warn('?? Token não encontrado - algumas funcionalidades podem não funcionar');
-                return {
-                    'Content-Type': 'application/json',
-                    ...additionalHeaders
-                };
+                throw new Error('Token não fornecido');
             }
             
             return {
@@ -1978,7 +1974,7 @@
         async function authenticatedFetch(url, options = {}) {
             const headers = getAuthHeaders(options.headers || {});
             if (!headers) {
-                console.warn('?? Requisiçãão ignorada - sem autenticaçãoO:', url);
+                console.warn('⚠️ Requisição ignorada - sem autenticação:', url);
                 return null;
             }
             return fetch(url, { ...options, headers });
@@ -2025,7 +2021,7 @@
                 
                 return null;
             } catch (error) {
-                console.warn(`?? Erro ao buscar colaborador CPF ${cpf}:`, error.message);
+                console.warn(`⚠️ Erro ao buscar colaborador CPF ${cpf}:`, error.message);
                 return null;
             }
         }
@@ -2056,7 +2052,7 @@
                 
                 return [];
             } catch (error) {
-                console.warn('?? Erro ao buscar colaboradores em batch:', error.message);
+                console.warn('⚠️ Erro ao buscar colaboradores em batch:', error.message);
                 return [];
             }
         }
@@ -2087,7 +2083,7 @@
                 const data = await response.json();
                 API_CONFIG.token = data.access_token;
                 console.log('? autenticado com sucesso!');
-                console.log('?? Token:', API_CONFIG.token.substring(0, 50) + '...');
+                console.log('🔑 Token:', API_CONFIG.token.substring(0, 50) + '...');
                 
                 // Buscar empresas disponçãveis apés autenticaçãoO
                 await loadCompanies();
@@ -2215,7 +2211,7 @@
                         });
                     }
                 } catch (error) {
-                    console.warn(`?? Erro ao buscar FUNCIONÁRIOs de ${company.name}`);
+                    console.warn(`⚠️ Erro ao buscar FUNCIONÁRIOs de ${company.name}`);
                 }
             }
             
@@ -2751,7 +2747,7 @@
                 
                 // DEBUG: Log para investigar afastamentos
                 if (batida.Entrada1 === 'A. INSS' || batida.Entrada1 === 'AFASTAMENTO INSS') {
-                    console.log('?? AFASTAMENTO DETECTADO:', {
+                    console.log('🏥 AFASTAMENTO DETECTADO:', {
                         nome: batida._funcionarioNome,
                         reg: reg,
                         data: dataFormatada,
@@ -3005,11 +3001,11 @@
         let useDigitalSignature = false;
         let isAPIConnected = false;
         
-        // ?? CORREçããO: Flags de controle para evitar race conditions
+        // 🔧 CORREÇÃO: Flags de controle para evitar race conditions
         let renderingTable = false;
         let loadingAnexos = false;
 
-        // ?? CORREçããO: Event delegation - executar apenas UMA VEZ
+        // 🔧 CORREÇÃO: Event delegation - executar apenas UMA VEZ
         (function initEventListeners() {
             const tableBody = document.getElementById('employeeTable');
             
@@ -3096,7 +3092,7 @@
                 );
                 return;
             } else if (diffDays > 90) {
-                console.warn(`?? Período longo: ${diffDays} dias. Pode demorar...`);
+                console.warn(`⚠️ Período longo: ${diffDays} dias. Pode demorar...`);
             }
             
             showLoading(`Buscando ${diffDays} dias de dados...`);
@@ -3140,7 +3136,7 @@
                 
                 hideLoading();
                 apiStatus.className = 'api-status connected';
-                apiStatus.innerHTML = `?? ${apiData.length} registros (${timeElapsed}s)`;
+                apiStatus.innerHTML = `📊 ${apiData.length} registros (${timeElapsed}s)`;
                 
                 renderTable();
                 
@@ -3164,7 +3160,7 @@
             }
         }
         
-        // ?? CARREGAR ANEXOS DIRETO DO AZURE SQL (TABELA ANEXOS)
+        // 📎 CARREGAR ANEXOS DIRETO DO AZURE SQL (TABELA ANEXOS)
         async function carregarAnexos() {
             loadingAnexos = true;
             
@@ -3243,15 +3239,15 @@
                                     });
                                     
                                     if (emp) {
-                                        emp.anexoId = anexo.id; // ?? ID da tabela ANEXOS
+                                        emp.anexoId = anexo.id; // 🆔 ID da tabela ANEXOS
                                         emp.anexoUrl = anexo.blob_url;
-                                        emp.anexoDate = dataAnexo; // ?? Guardar data do anexo
+                                        emp.anexoDate = dataAnexo; // 📅 Guardar data do anexo
                                         emp.motivo = anexo.motivo_detectado || emp.motivo;
                                         emp.attachments = [anexo.blob_filename];
                                         
                                         
                                         
-                                        // ?? CARREGAR PERGUNTAS E APROVaçãES DO RH DO BANCO DE DADOS
+                                        // 💬 CARREGAR PERGUNTAS E APROVAÇÕES DO RH DO BANCO DE DADOS
                                         if (anexo.perguntas_rh && anexo.perguntas_rh !== '{}') {
                                             try {
                                                 const allData = JSON.parse(anexo.perguntas_rh);
@@ -3281,7 +3277,7 @@
                                                     
                                                 }
                                             } catch (err) {
-                                                console.warn(`?? Erro ao parsear perguntas_rh para ${emp.name}:`, err);
+                                                console.warn(`⚠️ Erro ao parsear perguntas_rh para ${emp.name}:`, err);
                                                 emp.questions = {};
                                                 emp.approved = {};
                                             }
@@ -3296,7 +3292,7 @@
                                         
                                         
                                     } else {
-                                        console.warn(`?? Anexo não vinculado: REG ${anexo.reg} - ${dataAnexo} (FUNCIONÁRIO não encontrado)`);
+                                        console.warn(`⚠️ Anexo não vinculado: REG ${anexo.reg} - ${dataAnexo} (FUNCIONÁRIO não encontrado)`);
                                     }
                                 });
                             }
@@ -3332,7 +3328,7 @@
                     empresasSelecionadas.push('0');
                 }
                 
-                console.log('?? Empresas a consultar (incluindo 0):', empresasSelecionadas);
+                console.log('🏢 Empresas a consultar (incluindo 0):', empresasSelecionadas);
                 
                 for (let empresaId of empresasSelecionadas) {
                     const inicio = new Date(dataInicio);
@@ -3464,7 +3460,7 @@
                 });
                 
                 if (!response.ok) {
-                    console.warn('?? Erro ao buscar IDs do banco');
+                    console.warn('⚠️ Erro ao buscar IDs do banco');
                     return;
                 }
                 
@@ -3520,15 +3516,15 @@
                 '3️⃣  https://sistema.secullum.com.br/SmartPoint\n' +
                 '4️⃣  https://app.secullum.com.br/SmartPoint\n' +
                 '5️⃣  https://cliente.secullum.com.br/SmartPoint\n\n' +
-                `?? URL Atual: ${currentBaseURL || '(não configurada)'}\n\n` +
-                '?? IMPORTANTE: não inclua "/IntegracaoExterna"\n' +
-                '?? Entre em contato com o suporte Secullum se não souber a URL';
+                `ℹ️ URL Atual: ${currentBaseURL || '(não configurada)'}\n\n` +
+                'ℹ️ IMPORTANTE: não inclua "/IntegracaoExterna"\n' +
+                'ℹ️ Entre em contato com o suporte Secullum se não souber a URL';
             
             const newBaseURL = prompt(message, currentBaseURL || 'https://');
             
             if (newBaseURL && newBaseURL.trim() && newBaseURL !== 'https://') {
                 API_CONFIG.baseURL = newBaseURL.trim().replace(/\/$/, ''); // Remove barra final
-                alert(`? URL Base configurada com sucesso!\n\n?? ${API_CONFIG.baseURL}\n\n?? Agora clique em "Conectar API Secullum" para testar.`);
+                alert(`✅ URL Base configurada com sucesso!\n\nℹ️ ${API_CONFIG.baseURL}\n\nℹ️ Agora clique em "Conectar API Secullum" para testar.`);
             } else if (newBaseURL === '' || newBaseURL === 'https://') {
                 alert('? Por favor, digite uma URL válida!\n\n?? Dica: Entre em contato com o suporte da Secullum para obter a URL correta da sua instalação.');
             }
@@ -3598,7 +3594,7 @@
             const dateEnd = document.getElementById('dateEnd').value;
             
             if (!dateStart || !dateEnd) {
-                alert('?? Por favor, selecione as datas de Início e fim!');
+                alert('⚠️ Por favor, selecione as datas de Início e fim!');
                 return;
             }
             
@@ -3618,7 +3614,7 @@
                 allEmployees.sort((a, b) => a.name.localeCompare(b.name));
                 
                 // FAZER MATCH COM SQL AZURE (buscar Líder e PROJETO)
-                console.log('?? Buscando dados complementares do SQL Azure...');
+                console.log('🔍 Buscando dados complementares do SQL Azure...');
                 const cpfs = [...new Set(allEmployees.map(emp => emp.cpf).filter(cpf => cpf))];
                 const sqlData = await getColaboradoresBatchCPF(cpfs);
                 
@@ -3647,14 +3643,14 @@
                     }
                 });
                 
-                // ?? CARREGAR ANEXOS E PERGUNTAS
+                // 📝 CARREGAR ANEXOS E PERGUNTAS
                 try {
                     await carregarAnexos();
                 } catch (err) {
                     console.error('? Erro ao carregar anexos:', err);
                 }
                 
-                // ?? CARREGAR IDs DE IMPRESSóO
+                // 📝 CARREGAR IDs DE IMPRESSóO
                 try {
                     await carregarIdsImpressao();
                 } catch (err) {
@@ -3662,9 +3658,9 @@
                 }
                 
                 renderTable();
-                alert(`? ${apiData.length} registros carregados!\n?? Tempo de busca: ${timeElapsed}s`);
+                alert(`✅ ${apiData.length} registros carregados!\nℹ️ Tempo de busca: ${timeElapsed}s`);
             } else {
-                alert('?? Nenhum registro encontrado neste Período!');
+                alert('⚠️ Nenhum registro encontrado neste Período!');
             }
             
             document.getElementById('apiStatus').innerHTML = `<span style="width: 8px; height: 8px; background: #10b981; border-radius: 50%; display: inline-block;"></span> API Conectada (${timeElapsed}s)`;
@@ -3675,7 +3671,7 @@
         // ==========================================
         // Renderizar tabela
         function renderTable() {
-            // ?? CORREçããO: Evitar renderizaçães simulténeas
+            // 📝 CORREçããO: Evitar renderizaçães simulténeas
             if (renderingTable) {
                 console.warn('? já esté renderizando, ignorando chamada duplicada');
                 return;
@@ -3833,82 +3829,81 @@
                     <td style="font-family: 'Courier New', monospace; font-size: 12px; width: 140px;">${emp.cpf ? emp.cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4') : 'N/A'}</td>
                     <td style="font-weight: 600; font-size: 12px; min-width: 140px;">${emp.city}</td>
                     <td class="center" style="font-size: 12px; width: 100px;">${emp.date}</td>
-                    <td class="center punch-cell" style="width: 100px; position: relative; cursor: pointer;" 
+                    <td class="center punch-cell" style="width: 100px; position: relative;" 
                         data-reg="${emp.reg}" 
                         data-date="${emp.date}" 
                         data-punch="ent1"
-                        data-name="${emp.name}"
-                        onclick="showSwapMenu(event, this)">
+                        data-name="${emp.name}">
                         ${colunasErradas.has('ent1') && !emp.approved?.ent1 ? '<span class="approve-icon" onclick="approveSwappedTime(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'ent1\', \'' + emp.name + '\')" title="Aprovar Horário trocado"></span>' : ''}
                         ${emp.punches.ent1 ? '<span class="question-icon" onclick="askQuestion(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'ent1\', \'' + emp.name + '\')" title="Adicionar pergunta"></span>' : ''}
                         <span class="punch-time ${emp.approved?.ent1 ? 'approved' : getTimeClass('ent1', emp.punches.ent1)}" style="font-size: 13px; font-family: 'Courier New', monospace;">
                             ${getMotivoOuHorario(emp.punches.ent1, emp.motivo)}
                         </span>
-                        ${emp.questions?.ent1 ? '<span class="has-question" title="' + emp.questions.ent1 + '">\ud83d\udcac</span>' : ''}
-                        ${emp.approved?.ent1 ? '<span class="approved-badge" title="Aprovado por RH: ' + emp.approved.ent1 + '">\u2705</span>' : ''}
+                        ${emp.questions?.ent1 ? '<span class="has-question" title="' + emp.questions.ent1 + '">💬</span>' : ''}
+                        ${emp.approved?.ent1 ? '<span class="approved-badge" title="Aprovado por RH: ' + emp.approved.ent1 + '">✅</span>' : ''}
                     </td>
-                    <td class="center punch-cell" style="width: 100px; position: relative; cursor: pointer;" data-reg="${emp.reg}" data-date="${emp.date}" data-punch="sai1" data-name="${emp.name}" onclick="showSwapMenu(event, this)">
+                    <td class="center punch-cell" style="width: 100px; position: relative;" data-reg="${emp.reg}" data-date="${emp.date}" data-punch="sai1" data-name="${emp.name}">
                         ${colunasErradas.has('sai1') && !emp.approved?.sai1 ? '<span class="approve-icon" onclick="approveSwappedTime(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'sai1\', \'' + emp.name + '\')" title="Aprovar Horário trocado"></span>' : ''}
                         ${emp.punches.sai1 ? '<span class="question-icon" onclick="askQuestion(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'sai1\', \'' + emp.name + '\')" title="Adicionar pergunta"></span>' : ''}
                         <span class="punch-time ${emp.approved?.sai1 ? 'approved' : getTimeClass('sai1', emp.punches.sai1)}">${getMotivoOuHorario(emp.punches.sai1, emp.motivo)}</span>
-                        ${emp.questions?.sai1 ? '<span class="has-question" title="$1"></span>' : ''}
-                        ${emp.approved?.sai1 ? '<span class="approved-badge" title="Aprovado por RH: ' + emp.approved.sai1 + '"></span>' : ''}
+                        ${emp.questions?.sai1 ? '<span class="has-question" title="$1">💬</span>' : ''}
+                        ${emp.approved?.sai1 ? '<span class="approved-badge" title="Aprovado por RH: ' + emp.approved.sai1 + '">✅</span>' : ''}
                     </td>
-                    <td class="center punch-cell" style="width: 100px; position: relative; cursor: pointer;" data-reg="${emp.reg}" data-date="${emp.date}" data-punch="ent2" data-name="${emp.name}" onclick="showSwapMenu(event, this)">
+                    <td class="center punch-cell" style="width: 100px; position: relative;" data-reg="${emp.reg}" data-date="${emp.date}" data-punch="ent2" data-name="${emp.name}">
                         ${colunasErradas.has('ent2') && !emp.approved?.ent2 ? '<span class="approve-icon" onclick="approveSwappedTime(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'ent2\', \'' + emp.name + '\')" title="Aprovar Horário trocado"></span>' : ''}
                         ${emp.punches.ent2 ? '<span class="question-icon" onclick="askQuestion(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'ent2\', \'' + emp.name + '\')" title="Adicionar pergunta"></span>' : ''}
                         <span class="punch-time ${emp.approved?.ent2 ? 'approved' : getTimeClass('ent2', emp.punches.ent2)}">${getMotivoOuHorario(emp.punches.ent2, emp.motivo)}</span>
-                        ${emp.questions?.ent2 ? '<span class="has-question" title="$1"></span>' : ''}
-                        ${emp.approved?.ent2 ? '<span class="approved-badge" title="Aprovado por RH: ' + emp.approved.ent2 + '"></span>' : ''}
+                        ${emp.questions?.ent2 ? '<span class="has-question" title="$1">💬</span>' : ''}
+                        ${emp.approved?.ent2 ? '<span class="approved-badge" title="Aprovado por RH: ' + emp.approved.ent2 + '">✅</span>' : ''}
                     </td>
-                    <td class="center punch-cell" style="width: 100px; position: relative; cursor: pointer;" data-reg="${emp.reg}" data-date="${emp.date}" data-punch="sai2" data-name="${emp.name}" onclick="showSwapMenu(event, this)">
+                    <td class="center punch-cell" style="width: 100px; position: relative;" data-reg="${emp.reg}" data-date="${emp.date}" data-punch="sai2" data-name="${emp.name}">
                         ${colunasErradas.has('sai2') && !emp.approved?.sai2 ? '<span class="approve-icon" onclick="approveSwappedTime(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'sai2\', \'' + emp.name + '\')" title="Aprovar Horário trocado"></span>' : ''}
                         ${emp.punches.sai2 ? '<span class="question-icon" onclick="askQuestion(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'sai2\', \'' + emp.name + '\')" title="Adicionar pergunta"></span>' : ''}
                         <span class="punch-time ${emp.approved?.sai2 ? 'approved' : getTimeClass('sai2', emp.punches.sai2)}">${getMotivoOuHorario(emp.punches.sai2, emp.motivo)}</span>
-                        ${emp.questions?.sai2 ? '<span class="has-question" title="$1"></span>' : ''}
-                        ${emp.approved?.sai2 ? '<span class="approved-badge" title="Aprovado por RH: ' + emp.approved.sai2 + '"></span>' : ''}
+                        ${emp.questions?.sai2 ? '<span class="has-question" title="$1">💬</span>' : ''}
+                        ${emp.approved?.sai2 ? '<span class="approved-badge" title="Aprovado por RH: ' + emp.approved.sai2 + '">✅</span>' : ''}
                     </td>
-                    <td class="center punch-cell" style="width: 100px; position: relative; cursor: pointer;" data-reg="${emp.reg}" data-date="${emp.date}" data-punch="ent3" data-name="${emp.name}" onclick="showSwapMenu(event, this)">
+                    <td class="center punch-cell" style="width: 100px; position: relative;" data-reg="${emp.reg}" data-date="${emp.date}" data-punch="ent3" data-name="${emp.name}">
                         ${colunasErradas.has('ent3') && !emp.approved?.ent3 ? '<span class="approve-icon" onclick="approveSwappedTime(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'ent3\', \'' + emp.name + '\')" title="Aprovar Horário trocado"></span>' : ''}
                         ${emp.punches.ent3 ? '<span class="question-icon" onclick="askQuestion(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'ent3\', \'' + emp.name + '\')" title="Adicionar pergunta"></span>' : ''}
                         <span class="punch-time ${emp.approved?.ent3 ? 'approved' : getTimeClass('ent3', emp.punches.ent3)}">${getMotivoOuHorario(emp.punches.ent3, emp.motivo)}</span>
-                        ${emp.questions?.ent3 ? '<span class="has-question" title="$1"></span>' : ''}
-                        ${emp.approved?.ent3 ? '<span class="approved-badge" title="Aprovado por RH: ' + emp.approved.ent3 + '"></span>' : ''}
+                        ${emp.questions?.ent3 ? '<span class="has-question" title="$1">💬</span>' : ''}
+                        ${emp.approved?.ent3 ? '<span class="approved-badge" title="Aprovado por RH: ' + emp.approved.ent3 + '">✅</span>' : ''}
                     </td>
-                    <td class="center punch-cell" style="width: 100px; position: relative; cursor: pointer;" data-reg="${emp.reg}" data-date="${emp.date}" data-punch="sai3" data-name="${emp.name}" onclick="showSwapMenu(event, this)">
+                    <td class="center punch-cell" style="width: 100px; position: relative;" data-reg="${emp.reg}" data-date="${emp.date}" data-punch="sai3" data-name="${emp.name}">
                         ${colunasErradas.has('sai3') && !emp.approved?.sai3 ? '<span class="approve-icon" onclick="approveSwappedTime(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'sai3\', \'' + emp.name + '\')" title="Aprovar Horário trocado"></span>' : ''}
                         ${emp.punches.sai3 ? '<span class="question-icon" onclick="askQuestion(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'sai3\', \'' + emp.name + '\')" title="Adicionar pergunta"></span>' : ''}
                         <span class="punch-time ${emp.approved?.sai3 ? 'approved' : getTimeClass('sai3', emp.punches.sai3)}">${getMotivoOuHorario(emp.punches.sai3, emp.motivo)}</span>
-                        ${emp.questions?.sai3 ? '<span class="has-question" title="$1"></span>' : ''}
-                        ${emp.approved?.sai3 ? '<span class="approved-badge" title="Aprovado por RH: ' + emp.approved.sai3 + '"></span>' : ''}
+                        ${emp.questions?.sai3 ? '<span class="has-question" title="$1">💬</span>' : ''}
+                        ${emp.approved?.sai3 ? '<span class="approved-badge" title="Aprovado por RH: ' + emp.approved.sai3 + '">✅</span>' : ''}
                     </td>
-                    <td class="center punch-cell" style="width: 100px; position: relative; cursor: pointer;" data-reg="${emp.reg}" data-date="${emp.date}" data-punch="ent4" data-name="${emp.name}" onclick="showSwapMenu(event, this)">
+                    <td class="center punch-cell" style="width: 100px; position: relative;" data-reg="${emp.reg}" data-date="${emp.date}" data-punch="ent4" data-name="${emp.name}">
                         ${colunasErradas.has('ent4') && !emp.approved?.ent4 ? '<span class="approve-icon" onclick="approveSwappedTime(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'ent4\', \'' + emp.name + '\')" title="Aprovar Horário trocado"></span>' : ''}
                         ${emp.punches.ent4 ? '<span class="question-icon" onclick="askQuestion(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'ent4\', \'' + emp.name + '\')" title="Adicionar pergunta"></span>' : ''}
                         <span class="punch-time ${emp.approved?.ent4 ? 'approved' : getTimeClass('ent4', emp.punches.ent4)}">${getMotivoOuHorario(emp.punches.ent4, emp.motivo)}</span>
-                        ${emp.questions?.ent4 ? '<span class="has-question" title="$1"></span>' : ''}
-                        ${emp.approved?.ent4 ? '<span class="approved-badge" title="Aprovado por RH: ' + emp.approved.ent4 + '"></span>' : ''}
+                        ${emp.questions?.ent4 ? '<span class="has-question" title="$1">💬</span>' : ''}
+                        ${emp.approved?.ent4 ? '<span class="approved-badge" title="Aprovado por RH: ' + emp.approved.ent4 + '">✅</span>' : ''}
                     </td>
-                    <td class="center punch-cell" style="width: 100px; position: relative; cursor: pointer;" data-reg="${emp.reg}" data-date="${emp.date}" data-punch="sai4" data-name="${emp.name}" onclick="showSwapMenu(event, this)">
+                    <td class="center punch-cell" style="width: 100px; position: relative;" data-reg="${emp.reg}" data-date="${emp.date}" data-punch="sai4" data-name="${emp.name}">
                         ${colunasErradas.has('sai4') && !emp.approved?.sai4 ? '<span class="approve-icon" onclick="approveSwappedTime(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'sai4\', \'' + emp.name + '\')" title="Aprovar Horário trocado"></span>' : ''}
                         ${emp.punches.sai4 ? '<span class="question-icon" onclick="askQuestion(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'sai4\', \'' + emp.name + '\')" title="Adicionar pergunta"></span>' : ''}
                         <span class="punch-time ${emp.approved?.sai4 ? 'approved' : getTimeClass('sai4', emp.punches.sai4)}">${getMotivoOuHorario(emp.punches.sai4, emp.motivo)}</span>
-                        ${emp.questions?.sai4 ? '<span class="has-question" title="$1"></span>' : ''}
-                        ${emp.approved?.sai4 ? '<span class="approved-badge" title="Aprovado por RH: ' + emp.approved.sai4 + '"></span>' : ''}
+                        ${emp.questions?.sai4 ? '<span class="has-question" title="$1">💬</span>' : ''}
+                        ${emp.approved?.sai4 ? '<span class="approved-badge" title="Aprovado por RH: ' + emp.approved.sai4 + '">✅</span>' : ''}
                     </td>
-                    <td class="center punch-cell" style="width: 100px; position: relative; cursor: pointer;" data-reg="${emp.reg}" data-date="${emp.date}" data-punch="ent5" data-name="${emp.name}" onclick="showSwapMenu(event, this)">
+                    <td class="center punch-cell" style="width: 100px; position: relative;" data-reg="${emp.reg}" data-date="${emp.date}" data-punch="ent5" data-name="${emp.name}">
                         ${colunasErradas.has('ent5') && !emp.approved?.ent5 ? '<span class="approve-icon" onclick="approveSwappedTime(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'ent5\', \'' + emp.name + '\')" title="Aprovar Horário trocado"></span>' : ''}
                         ${emp.punches.ent5 ? '<span class="question-icon" onclick="askQuestion(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'ent5\', \'' + emp.name + '\')" title="Adicionar pergunta"></span>' : ''}
                         <span class="punch-time ${emp.approved?.ent5 ? 'approved' : getTimeClass('ent5', emp.punches.ent5)}">${getMotivoOuHorario(emp.punches.ent5, emp.motivo)}</span>
-                        ${emp.questions?.ent5 ? '<span class="has-question" title="$1"></span>' : ''}
-                        ${emp.approved?.ent5 ? '<span class="approved-badge" title="Aprovado por RH: ' + emp.approved.ent5 + '"></span>' : ''}
+                        ${emp.questions?.ent5 ? '<span class="has-question" title="$1">💬</span>' : ''}
+                        ${emp.approved?.ent5 ? '<span class="approved-badge" title="Aprovado por RH: ' + emp.approved.ent5 + '">✅</span>' : ''}
                     </td>
-                    <td class="center punch-cell" style="width: 100px; position: relative; cursor: pointer;" data-reg="${emp.reg}" data-date="${emp.date}" data-punch="sai5" data-name="${emp.name}" onclick="showSwapMenu(event, this)">
+                    <td class="center punch-cell" style="width: 100px; position: relative;" data-reg="${emp.reg}" data-date="${emp.date}" data-punch="sai5" data-name="${emp.name}">
                         ${colunasErradas.has('sai5') && !emp.approved?.sai5 ? '<span class="approve-icon" onclick="approveSwappedTime(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'sai5\', \'' + emp.name + '\')" title="Aprovar Horário trocado"></span>' : ''}
                         ${emp.punches.sai5 ? '<span class="question-icon" onclick="askQuestion(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'sai5\', \'' + emp.name + '\')" title="Adicionar pergunta"></span>' : ''}
                         <span class="punch-time ${emp.approved?.sai5 ? 'approved' : getTimeClass('sai5', emp.punches.sai5)}">${getMotivoOuHorario(emp.punches.sai5, emp.motivo)}</span>
-                        ${emp.questions?.sai5 ? '<span class="has-question" title="$1"></span>' : ''}
-                        ${emp.approved?.sai5 ? '<span class="approved-badge" title="Aprovado por RH: ' + emp.approved.sai5 + '"></span>' : ''}
+                        ${emp.questions?.sai5 ? '<span class="has-question" title="$1">💬</span>' : ''}
+                        ${emp.approved?.sai5 ? '<span class="approved-badge" title="Aprovado por RH: ' + emp.approved.sai5 + '">✅</span>' : ''}
                     </td>
                     <td class="center" style="width: 70px; font-weight: bold; color: #7c3aed; font-size: 14px;">
                         ${emp.anexoId ? `#${emp.anexoId}` : '-'}
@@ -3920,15 +3915,15 @@
                         ${emp.anexoUrl ? `
                             <div style="display: flex; flex-direction: column; gap: 4px; align-items: center;">
                                 <a href="${emp.anexoUrl}" target="_blank" style="font-size: 11px; color: #3b82f6; text-decoration: none; font-weight: 600;">
-                                    ?? Ver imagem
+                                    🖼️ Ver imagem
                                 </a>
                                 <button class="upload-btn" style="font-size: 10px; padding: 2px 8px; background: #10b981; color: white; border: none; border-radius: 4px; cursor: pointer;" onclick="handleFileUpload(event, '${emp.reg}', '${emp.date}')">
-                                    ?? Substituir
+                                    🔄 Substituir
                                 </button>
                             </div>
                         ` : `
                             <button class="upload-btn" style="font-size: 11px; padding: 5px 10px;" onclick="handleFileUpload(event, '${emp.reg}', '${emp.date}')">
-                                ?? Anexar
+                                📎 Anexar
                             </button>
                         `}
                     </td>
@@ -3941,7 +3936,7 @@
                 `;
             }).join('');
 
-            // ?? CORREçããO: Restaurar checkboxes selecionados
+            // 📝 CORREçããO: Restaurar checkboxes selecionados
             displayedEmployees.forEach(emp => {
                 const uniqueId = `${emp.reg}_${emp.date}`;
                 if (selectedEmployees.includes(uniqueId)) {
@@ -4060,11 +4055,11 @@
                     if (anexo && anexo.blob_url) {
                         // já EXISTE ANEXO - Perguntar o que fazer
                         const confirmacao = confirm(
-                            `?? já EXISTE UM ANEXO PARA ESTE FUNCIONÁRIO NESTA DATA!\n\n` +
-                            `?? REG: ${employee.reg}\n` +
-                            `?? Nome: ${employee.name}\n` +
-                            `?? Data: ${dataFormatada}\n` +
-                            `?? Motivo salvo: ${anexo.motivo_detectado || '(não informado)'}\n\n` +
+                            `⚠️ já EXISTE UM ANEXO PARA ESTE FUNCIONÁRIO NESTA DATA!\n\n` +
+                            `ℹ️ REG: ${employee.reg}\n` +
+                            `ℹ️ Nome: ${employee.name}\n` +
+                            `ℹ️ Data: ${dataFormatada}\n` +
+                            `ℹ️ Motivo salvo: ${anexo.motivo_detectado || '(não informado)'}\n\n` +
                             `Deseja SUBSTITUIR o anexo existente?\n\n` +
                             `? OK = Substituir anexo\n` +
                             `? Cancelar = Ver anexo atual`
@@ -4082,7 +4077,7 @@
                     console.warn(`?? Erro ao verificar anexo existente: ${response.status}`);
                 }
             } catch (err) {
-                console.warn('?? Erro ao verificar anexo:', err.message);
+                console.warn('⚠️ Erro ao verificar anexo:', err.message);
             }
             
             document.getElementById('modalAnexo').style.display = 'flex';
@@ -4213,7 +4208,7 @@
                     return azureVisionConfig;
                 }
             } catch (err) {
-                console.warn('?? não foi posSóvel obter config Azure Vision do servidor');
+                console.warn('⚠️ não foi posSóvel obter config Azure Vision do servidor');
             }
             
             // Fallback: valores vazios (vai falhar mas não expée credenciais)
@@ -4232,14 +4227,14 @@
             
             
             try {
-                // ?? REDIMENSIONAR imagem se muito grande
+                // 📝 REDIMENSIONAR imagem se muito grande
                 let base64Content = imageBase64.split(',')[1];
                 
                 // Verificar tamanho
                 const tamanhoMB = (base64Content.length * 3 / 4) / (1024 * 1024);
                 
                 if (tamanhoMB > 4) {
-                    console.log('?? Imagem muito grande, redimensionando...');
+                    console.log('🛠️ Imagem muito grande, redimensionando...');
                     
                     const img = await new Promise((resolve, reject) => {
                         const image = new Image();
@@ -4354,15 +4349,15 @@
                         }
                     }
                 } else {
-                    console.warn('?? analyzeResult esté vazio ou não tem readResults');
+                    console.warn('⚠️ analyzeResult esté vazio ou não tem readResults');
                 }
                 
-                console.log('??????????????????????????????????');
-                console.log('?? TEXTO COMPLETO DETECTADO PELO AZURE:');
-                console.log('??????????????????????????????????');
+                console.log('');
+                console.log('📄 TEXTO COMPLETO DETECTADO PELO AZURE:');
+                console.log('');
                 console.log(fullText);
-                console.log('??????????????????????????????????');
-                console.log(`?? Total de caracteres: ${fullText.length}`);
+                console.log('');
+                console.log(`📊 Total de caracteres: ${fullText.length}`);
                 
                 // ? DETECTAR CHECKBOX MARCADO PELO TEXTO DO AZURE (antes da ançãlise de pixels)
                 let motivoDetectado = 'Esqueceu de registrar o Ponto'; // Default
@@ -4381,7 +4376,7 @@
                     'Registro indevido'
                 ];
                 
-                // ?? NOVA ESTRatéGIA: Bolinha marcada ã a que não tem "O" antes do texto
+                // 📝 NOVA ESTRatéGIA: Bolinha marcada ã a que não tem "O" antes do texto
                 // Azure lé "O Motivo" para bolinhas vazias, e apenas "Motivo" para marcada
                 const linhasTexto = fullText.split('\n');
                 const motivosSemBolinha = [];
@@ -4426,7 +4421,7 @@
                     console.log('   ?? Nenhum motivo sem "O" detectado, usando ançãlise visual...');
                 }
                 
-                // ?? ESTRatéGIA FINAL: DETECTAR HorárioS ApéS "BATIDO"
+                // 📝 ESTRatéGIA FINAL: DETECTAR HorárioS ApéS "BATIDO"
                 // Layout do formulério:
                 // - Horários preenchidos aparecem primeiro (07:05, 12:40, 07:05)
                 // - Depois aparecem as palavras "BATIDO BATIDO BATIDO"
@@ -4519,7 +4514,7 @@
                 
                 
                 // EXTRAIR MOTIVO COM DETECçããO VISUAL DO CHECKBOX MARCADO
-                // ?? Se não foi detectado pelo texto, usar ançãlise de pixels
+                // 📝 Se não foi detectado pelo texto, usar ançãlise de pixels
                 
                 try {
                     // Só fazer ançãlise visual se não detectou pelo texto
@@ -4573,7 +4568,7 @@
                     console.log(`?? ID detectado: #${idDetectado}`);
                 }
                 
-                // ?? DETECTAR ASSINATURAS (FUNCIONÁRIO E Líder)
+                // 📝 DETECTAR ASSINATURAS (FUNCIONÁRIO E Líder)
                 let assinaturaFuncionarioDetectada = false;
                 let assinaturaLiderDetectada = false;
                 try {
@@ -4596,12 +4591,12 @@
                     assinaturaFuncionarioDetectada = resultados.funcionario;
                     assinaturaLiderDetectada = resultados.lider;
                     
-                    console.log('??????????????????????????????????');
-                    console.log('?? RESULTADO DETECçããO DE ASSINATURAS');
-                    console.log('??????????????????????????????????');
+                    console.log('');
+                    console.log('📋 RESULTADO DETECçããO DE ASSINATURAS');
+                    console.log('');
                     console.log(`?? FUNCIONÁRIO: ${assinaturaFuncionarioDetectada ? '? ASSINADO' : '? não ASSINADO'}`);
                 console.log(`?? Líder: ${assinaturaLiderDetectada ? '? ASSINADO' : '? não ASSINADO'}`);
-                console.log('??????????????????????????????????');
+                console.log('');
                 } catch (err) {
                     console.warn('?? Erro ao detectar assinaturas:', err);
                 }
@@ -4754,7 +4749,7 @@
 
             console.log('   ✅ Resultado final:', resultado);
             return resultado;
-        }        // ?? BUSCA DINçãMICA: Detecta TODAS as batidas (não Só 4 fixas)
+        }        // 📝 BUSCA DINçãMICA: Detecta TODAS as batidas (não Só 4 fixas)
         function detectarCaixasAmarelas(canvas) {
             
             
@@ -4796,7 +4791,7 @@
             
             
             
-            // ?? DEBUG VISUAL: Desenhar reténgulos nas regiçães buscadas
+            // 📝 DEBUG VISUAL: Desenhar reténgulos nas regiçães buscadas
             const debugCanvas = document.createElement('canvas');
             const debugCtx = debugCanvas.getContext('2d');
             debugCanvas.width = canvas.width;
@@ -4875,7 +4870,7 @@
         function detectarCheckboxMarcado(canvas) {
             const ctx = canvas.getContext('2d', { willReadFrequently: true });
             
-            console.log(`??? Ançãlise de checkbox em imagem ${canvas.width}x${canvas.height}`);
+            console.log(`? Ançãlise de checkbox em imagem ${canvas.width}x${canvas.height}`);
             
             // ? COORDENADAS DOS CHECKBOXES (quadradinhos, não o texto)
             // Baseado na imagem 954x641:
@@ -4904,7 +4899,7 @@
             
             console.log(`?? Analisando ${checkboxes.length} checkboxes...`);
             
-            // ?? DEBUG VISUAL: Desenhar cçãrculos vermelhos nas coordenadas
+            // 📝 DEBUG VISUAL: Desenhar cçãrculos vermelhos nas coordenadas
             const debugCanvas = document.createElement('canvas');
             const debugCtx = debugCanvas.getContext('2d');
             debugCanvas.width = canvas.width;
@@ -4960,11 +4955,11 @@
                 }
             });
             
-            // ?? Abrir imagem de debug automaticamente em nova aba
+            // 📝 Abrir imagem de debug automaticamente em nova aba
             const debugUrl = debugCanvas.toDataURL('image/png');
-            console.log('?? IMAGEM DE DEBUG GERADA!');
-            console.log('??? Abrindo imagem com cçãrculos vermelhos em nova aba...');
-            console.log('?? Legenda: 1=Esqueceu, 2=Falha no App, 3=Falta, 4=Folga, 5=Hora Parada, 6=Maquina defeito, 7=Duplicidade, 8=Indevido');
+            console.log('✅ IMAGEM DE DEBUG GERADA!');
+            console.log('? Abrindo imagem com cçãrculos vermelhos em nova aba...');
+            console.log('📋 Legenda: 1=Esqueceu, 2=Falha no App, 3=Falta, 4=Folga, 5=Hora Parada, 6=Maquina defeito, 7=Duplicidade, 8=Indevido');
             
             // Abrir em nova aba automaticamente
             const debugWindow = window.open();
@@ -4972,7 +4967,7 @@
                 debugWindow.document.write(`<img src="${debugUrl}" style="max-width:100%; height:auto;">`);
                 debugWindow.document.title = 'Debug - posiçãoes dos Checkboxes';
             } else {
-                console.log('?? Pop-up bloqueado! Cole este link numa nova aba:');
+                console.log('⚠️ Pop-up bloqueado! Cole este link numa nova aba:');
                 console.log(debugUrl);
             }
             
@@ -4982,7 +4977,7 @@
                 return checkboxMarcado;
             }
             
-            console.log('?? Nenhum checkbox com concentração suficiente, usando padrão');
+            console.log('⚠️ Nenhum checkbox com concentração suficiente, usando padrão');
             return 'Esqueceu de registrar o Ponto';
         }
         
@@ -4990,13 +4985,13 @@
         // DETECçããO DE ASSINATURAS (FUNCIONÁRIO E Líder)
         // ==========================================
         function detectarAssinaturas(canvas) {
-            console.log('?? Iniciando detecçãão de assinaturas (FUNCIONÁRIO + Líder)...');
+            console.log('🔍 Iniciando detecçãão de assinaturas (FUNCIONÁRIO + Líder)...');
             
             const ctx = canvas.getContext('2d', { willReadFrequently: true });
             const largura = canvas.width;
             const altura = canvas.height;
             
-            // ?? REGIçãES DAS ASSINATURAS
+            // 📝 REGIçãES DAS ASSINATURAS
             // Baseado na imagem fornecida:
             
             // FUNCIONÁRIO (lado esquerdo inferior)
@@ -5023,7 +5018,7 @@
             
             const regioes = [regiaoFuncionario, regiaoLider];
             
-            // ?? DEBUG VISUAL: Criar canvas com reténgulos coloridos
+            // 📝 DEBUG VISUAL: Criar canvas com reténgulos coloridos
             const debugCanvas = document.createElement('canvas');
             const debugCtx = debugCanvas.getContext('2d');
             debugCanvas.width = canvas.width;
@@ -5114,7 +5109,7 @@
                 debugCtx.fillText(stats, regiao.x + 10, regiao.y + 25);
             });
             
-            // ?? Mostrar imagem de debug
+            // 📝 Mostrar imagem de debug
             const debugUrl = debugCanvas.toDataURL('image/png');
             const debugWindow = window.open('', '_blank', 'width=1000,height=800');
             if (debugWindow) {
@@ -5210,8 +5205,8 @@
         // EXTRaçãO DE ID DO PDF (VERSóO CORRIGIDA FINAL)
         // ==========================================
         async function extrairIdDoPDF(canvas) {
-            console.log('?? Iniciando extração de ID (posiçãoo: ID IMP)...');
-            console.log('?? DimenSóes do canvas original:', canvas.width + 'x' + canvas.height);
+            console.log('🔍 Iniciando extração de ID (posiçãoo: ID IMP)...');
+            console.log('📊 DimenSóes do canvas original:', canvas.width + 'x' + canvas.height);
             
             try {
                 // ? REGIãO CORRETA: "ID IMP: XX" na SEGUNDA linha do cabeçãalho
@@ -5270,11 +5265,11 @@
                     preserve_interword_spaces: '1'
                 });
                 
-                // ?? DEBUG VISUAL: Mostrar imagem processada e abrir em nova aba
+                // 📝 DEBUG VISUAL: Mostrar imagem processada e abrir em nova aba
                 const debugUrl = cropCanvas.toDataURL();
-                console.log('??? Região processada (copie o link abaixo e cole em nova aba):');
+                console.log('? Região processada (copie o link abaixo e cole em nova aba):');
                 console.log(debugUrl);
-                console.log('?? Tamanho da região: ' + cropCanvas.width + 'x' + cropCanvas.height + 'px');
+                console.log('📊 Tamanho da região: ' + cropCanvas.width + 'x' + cropCanvas.height + 'px');
                 
                 // Abrir automaticamente em nova janela para visualização
                 try {
@@ -5330,8 +5325,8 @@
                     console.warn('   ?? Nenhum padrão de ID encontrado no texto');
                 }
                 
-                // ?? FALLBACK: Tentar regiçães alternativas
-                console.log('?? Tentando regiçães alternativas...');
+                // 📝 FALLBACK: Tentar regiçães alternativas
+                console.log('🔍 Tentando regiçães alternativas...');
                 
                 const alternativeRegions = [
                     { x: 650, y: 175, w: 200, h: 40, desc: 'Região ampla esquerda' },
@@ -5414,7 +5409,7 @@
         // PROCESSAMENTO DE IMAGEM COM validaçãoO INTELIGENTE
         // ==========================================
         async function processarImagem(file) {
-            console.log('?? Processando imagem:', file.name || 'clipboard');
+            console.log('🛠️ Processando imagem:', file.name || 'clipboard');
             
             // Mostrar preview
             const reader = new FileReader();
@@ -5452,7 +5447,7 @@
                 
                 console.log('');
                 
-                // ?? CASO 1: IDs diferentes OU não detectado = PERGUNTAR
+                // 📝 CASO 1: IDs diferentes OU não detectado = PERGUNTAR
                 if (idEsperado && idEncontrado && parseInt(idEncontrado) !== parseInt(idEsperado)) {
                     const continuar = confirm(
                         `?? ID DIFERENTE!\n\n` +
@@ -5467,7 +5462,7 @@
                     }
                 }
                 
-                // ?? CASO 2: não leu ID = PERGUNTAR
+                // 📝 CASO 2: não leu ID = PERGUNTAR
                 if (idEsperado && !idEncontrado) {
                     const continuar = confirm(
                         `?? ID não DETECTADO\n\n` +
@@ -5485,10 +5480,10 @@
                 
                 // ? CASO 3: IDs batem
                 if (idEncontrado && idEsperado && parseInt(idEncontrado) === parseInt(idEsperado)) {
-                    console.log(`??? ID VALIDADO COM SUCESSO! ???`);
+                    console.log(`? ID VALIDADO COM SUCESSO! ?`);
                 }
                 
-                // ?? CASO 4: Primeiro formulério
+                // 📝 CASO 4: Primeiro formulério
                 if (!idEsperado) {
                     console.log(`?? FUNCIONÁRIO ainda não possui ID no sistema`);
                 }
@@ -5513,10 +5508,10 @@
         }
 
         
-        // ?? funçãoO ANTIGA - não MAIS USADA (substituçãda por extrairIdDoPDF(canvas))
+        // 📝 funçãoO ANTIGA - não MAIS USADA (substituçãda por extrairIdDoPDF(canvas))
         /*
         function extrairIdDoPDF_OLD(texto, palavrasComConfidencia = []) {
-            console.log('?? Buscando ID no PDF...');
+            console.log('🔍 Buscando ID no PDF...');
             
             // méTODO 1: Buscar padrão "ID #22" no texto completo
             const patterns = [
@@ -5551,7 +5546,7 @@
             
             // méTODO 3: Buscar em palavras com alta confiançãa no CANTO SUPERIOR DIREITO
             if (palavrasComConfidencia && palavrasComConfidencia.length > 0) {
-                console.log('?? Analisando posiçãoes das palavras...');
+                console.log('📊 Analisando posiçãoes das palavras...');
                 
                 const candidatosID = [];
                 
@@ -5597,11 +5592,11 @@
         }
         */
 
-        // ?? funçãoO ANTIGA - não MAIS USADA (sistema hçãbrido agora detecta caixas automaticamente)
+        // 📝 funçãoO ANTIGA - não MAIS USADA (sistema hçãbrido agora detecta caixas automaticamente)
         /*
-        // ?? EXTRaçãO MELHORADA COM validaçãoO INTELIGENTE
+        // 📝 EXTRaçãO MELHORADA COM validaçãoO INTELIGENTE
         function extrairDadosOCRMelhorado(texto, palavrasFiltradas, ocrData) {
-            console.log('?? Iniciando extração melhorada de dados...');
+            console.log('🔍 Iniciando extração melhorada de dados...');
             
             const dados = {
                 ent1: null,
@@ -5719,7 +5714,7 @@
             
             // Buscar marcaçães "X" com alta confiançãa
             const marcacoesX = palavrasFiltradas.filter(word => 
-                /^[xX????]$/.test(word.text) && word.confidence > 60
+                /^[xX]$/.test(word.text) && word.confidence > 60
             );
             
             console.log(`? Marcaçães "X" encontradas (confiançãa > 60%): ${marcacoesX.length}`);
@@ -5763,14 +5758,14 @@
             dados.motivo = motivoDetectado;
             dados.confidence.motivo = confidenciaMotivo;
             
-            console.log('?? Extração finalizada:', dados);
+            console.log('✅ Extração finalizada:', dados);
             return dados;
         }
         */
 
         // Extrair Horários e motivo do texto OCR (funçãoO ANTIGA - MANTER COMO FALLBACK)
         function extrairDadosOCR(texto) {
-            console.log('?? Texto OCR completo:', texto);
+            console.log('📄 Texto OCR completo:', texto);
             
             const dados = {
                 ent1: null,
@@ -5906,7 +5901,7 @@
             
             // Procurar "X", checkboxes marcados, ou qualquer Sómbolo de marcação
             // Melhorado para captar mais variaçães
-            const regexX = /\b[xX????]\b|\\[xX\\]|\(\\s*[xX]\\s*\)|\[[xX]\]/g;
+            const regexX = /\b[xX]\b|\\[xX\\]|\(\\s*[xX]\\s*\)|\[[xX]\]/g;
             const xMatches = [];
             let xMatch;
             while ((xMatch = regexX.exec(texto)) !== null) {
@@ -5939,12 +5934,12 @@
             });
             
             dados.motivo = motivoDetectado;
-            console.log('?? Motivo detectado:', motivoDetectado);
+            console.log('📋 Motivo detectado:', motivoDetectado);
             
             return dados;
         }
         
-        // ?? Mostrar resultado do OCR COM INDICADORES DE CONFIANçãA
+        // 📝 Mostrar resultado do OCR COM INDICADORES DE CONFIANçãA
         function mostrarResultadoOCR(dados) {
             // funçãoo auxiliar para cor do indicador baseado na confiançãa
             const getConfidenceColor = (confidence) => {
@@ -5959,7 +5954,7 @@
                 return `<span style="display: inline-block; margin-left: 8px; padding: 2px 8px; background: ${color}; color: white; border-radius: 12px; font-size: 10px; font-weight: 600;">${confidence}%</span>`;
             };
             
-            // ?? BUSCAR HorárioS já BATIDOS do FUNCIONÁRIO
+            // 📝 BUSCAR HorárioS já BATIDOS do FUNCIONÁRIO
             const horariosJaBatidos = {
                 ent1: currentAnexoEmployee?.punches?.ent1 || currentAnexoEmployee?.ent1,
                 sai1: currentAnexoEmployee?.punches?.sai1 || currentAnexoEmployee?.sai1,
@@ -5969,7 +5964,7 @@
                 sai3: currentAnexoEmployee?.punches?.sai3 || currentAnexoEmployee?.sai3
             };
             
-            console.log('?? Horários já batidos:', horariosJaBatidos);
+            console.log('⏰ Horários já batidos:', horariosJaBatidos);
             
             // funçãoo para criar campo (bloqueado se já batido, editével se vazio)
             const criarCampo = (id, label, valorOCR, valorJaBatido, confidence) => {
@@ -6055,7 +6050,7 @@
                 <div style="margin-top: 12px; padding: 12px; background: #dbeafe; border-left: 4px solid #3b82f6; border-radius: 4px;">
                     <div style="font-size: 12px; color: #1e40af; line-height: 1.5;">
                         <strong>?? Indicadores:</strong><br>
-                        <span style="color: #64748b;">??</span> Cinza: Horário já batido (bloqueado)<br>
+                        <span style="color: #64748b;"></span> Cinza: Horário já batido (bloqueado)<br>
                         <span style="color: #10b981;">?</span> Verde (=80%): Alta confiançãa<br>
                         <span style="color: #f59e0b;">?</span> Amarelo (60-80%): média confiançãa - revisar<br>
                         <span style="color: #ef4444;">?</span> Vermelho (<60%): Baixa confiançãa - corrigir
@@ -6074,7 +6069,7 @@
                 return;
             }
             
-            // ?? VALIDAR ASSINATURAS ANTES DE ENVIAR
+            // 📝 VALIDAR ASSINATURAS ANTES DE ENVIAR
             if (currentOCRData && (currentOCRData.assinaturaFuncionario === false || currentOCRData.assinaturaLider === false)) {
                 const faltantes = [];
                 if (!currentOCRData.assinaturaFuncionario) faltantes.push('?? FUNCIONÁRIO');
@@ -6093,7 +6088,7 @@
                     return;
                 }
                 
-                console.log('?? Usuário aceitou enviar sem assinaturas completas');
+                console.log('✅ Usuário aceitou enviar sem assinaturas completas');
             }
             
             const btn = document.getElementById('btnConfirmarAnexo');
@@ -6121,9 +6116,9 @@
                     sai3: sai3
                 };
                 
-                console.log('?? Dados finais (editados pelo Usuário):', currentOCRData);
+                console.log('📊 Dados finais (editados pelo Usuário):', currentOCRData);
                 
-                // ?? USAR SEMPRE A DATA DA TABELA, IGNORAR rawData.Data
+                // 📝 USAR SEMPRE A DATA DA TABELA, IGNORAR rawData.Data
                 let dataFormatted = currentAnexoEmployee.date;
                 
                 console.log(`?? Data da TABELA (USANDO ESTA): ${currentAnexoEmployee.date}`);
@@ -6166,7 +6161,7 @@
                     perguntas_rh: JSON.stringify(currentAnexoEmployee.questions || {})
                 };
                 
-                console.log('?? Enviando anexo com data:', payload.data);
+                console.log('📤 Enviando anexo com data:', payload.data);
                 
                 // Upload pro servidor (Azure Blob + SQL)
                 // O servidor farçã UPDATE automaticamente se registro já existir (REG+DATA+EMPRESA_ID)
@@ -6206,7 +6201,7 @@
                         // não marcar como pendingOCR (vamos enviar direto)
                         empRef.ocrData = currentOCRData;
                         
-                        console.log('?? Campos preenchidos na tabela');
+                        console.log('✅ Campos preenchidos na tabela');
                         console.log('   Ent1:', empRef.punches.ent1, 'Sai1:', empRef.punches.sai1);
                         console.log('   Ent2:', empRef.punches.ent2, 'Sai2:', empRef.punches.sai2);
                         console.log('   Ent3:', empRef.punches.ent3, 'Sai3:', empRef.punches.sai3);
@@ -6217,8 +6212,8 @@
                         // FECHAR MODAL PRIMEIRO
                         fecharModalAnexo();
                         
-                        // ?? ENVIAR AUTOMATICAMENTE PARA SECULLUM (SEM CHECKBOX)
-                        console.log('?? Enviando automaticamente para Secullum...');
+                        // 📝 ENVIAR AUTOMATICAMENTE PARA SECULLUM (SEM CHECKBOX)
+                        console.log('📤 Enviando automaticamente para Secullum...');
                         showLoading('Enviando para Secullum...');
                         
                         try {
@@ -6371,7 +6366,7 @@
                     
                 } else {
                     // Envio normal (OCR)
-                    console.log('?? Verificando Horários para envio...');
+                    console.log('🔍 Verificando Horários para envio...');
                     console.log('   empRef.ent1:', empRef.ent1);
                     console.log('   empRef.punches.ent1:', empRef.punches?.ent1);
                     console.log('   empRef.sai1:', empRef.sai1);
@@ -6477,7 +6472,7 @@
         
         // Remover anexo
         async function removeAttachment(reg, date) {
-            if (!confirm('?? Deseja realmente remover o anexo?')) return;
+            if (!confirm('⚠️ Deseja realmente remover o anexo?')) return;
             
             try {
                 const employee = allEmployees.find(emp => emp.reg === reg);
@@ -6745,7 +6740,7 @@
         // ==========================================
         let currentQuestionContext = null;
 
-        // ?? CORREçããO: Salvar perguntas no banco de dados (com merge de dados existentes)
+        // 📝 CORREçããO: Salvar perguntas no banco de dados (com merge de dados existentes)
         async function saveQuestionsToDB(employee, dateContext) {
             try {
                 let dataFormatted = employee.anexoDate || dateContext;
@@ -6758,7 +6753,7 @@
                 
                 console.log(`?? Salvando perguntas: ${employee.name} (${dataFormatted})`);
                 
-                // ?? 1. BUSCAR dados existentes primeiro
+                // 📝 1. BUSCAR dados existentes primeiro
                 let existingData = {};
                 try {
                     const fetchResponse = await fetch(
@@ -6777,10 +6772,10 @@
                         }
                     }
                 } catch (err) {
-                    console.warn('?? não foi posSóvel buscar dados existentes');
+                    console.warn('⚠️ não foi posSóvel buscar dados existentes');
                 }
                 
-                // ?? 2. MESCLAR dados antigos + novos
+                // 📝 2. MESCLAR dados antigos + novos
                 const mergedData = {
                     ...existingData,
                     ...employee.questions,
@@ -6789,7 +6784,7 @@
                 
                 console.log(`?? Dados mesclados a salvar:`, mergedData);
                 
-                // ?? 3. SALVAR
+                // 📝 3. SALVAR
                 const response = await fetch(
                     `${API_BASE_URL}/api/anexos/${employee.cpf}/${dataFormatted}/questions`,
                     {
@@ -6838,7 +6833,7 @@
                 
                 console.log(`? Salvando aprovação: ${employee.name} (CPF: ${employee.cpf}, Data: ${dataFormatted}, ${punchType})`);
                 
-                // ?? BUSCAR DADOS EXISTENTES DO BANCO PRIMEIRO
+                // 📝 BUSCAR DADOS EXISTENTES DO BANCO PRIMEIRO
                 let existingData = {};
                 try {
                     const fetchResponse = await fetch(`${API_BASE_URL}/api/anexos/${dataFormatted}/${employee.rawData?.Empresa || 0}`, {
@@ -6945,7 +6940,7 @@
                 
                 console.log(`?? Buscando FUNCIONÁRIO: REG=${reg}, Data=${date}`);
                 
-                // ?? Buscar FUNCIONÁRIO pela DATA E REG (não importa se tem anexo ou não)
+                // 📝 Buscar FUNCIONÁRIO pela DATA E REG (não importa se tem anexo ou não)
                 // Se tiver anexo, vai salvar. Se não tiver, vai avisar.
                 let employee = allEmployees.find(emp => emp.reg === reg && emp.date === date);
                 
@@ -7029,7 +7024,7 @@
 
             // Atualizar modal com mensagem de aprovação
             document.getElementById('questionContext').textContent = 
-                `?? APROVAR Horário TROCADO\n${name} - ${punchLabel}: ${punchTime} (${date})`;
+                `✅ APROVAR Horário TROCADO\n${name} - ${punchLabel}: ${punchTime} (${date})`;
             
             // Limpar input
             document.getElementById('questionInput').value = '';
@@ -7213,9 +7208,9 @@
                     await enviarParaSecullum(employee);
                     showAlert('Sucesso', `✅ Horário enviado!\n${punchLabels[sourcePunch]} → ${punchLabels[targetPunch]}`, 'success');
                     // Atualizar dados automaticamente
-                    await buscarColaboradores();
+                    await searchPeriod();
                 } catch (error) {
-                    console.error('Erro ao enviar para Secullum:', error);
+                    console.error('❌ Erro ao enviar para Secullum:', error);
                     showAlert('Erro', `❌ Erro ao enviar:\n${error.message}`, 'error');
                 }
                 sendToSecullumTimer = null;
@@ -7327,12 +7322,12 @@
             const time2 = employee.punches[punch2] || '--:--';
 
             const confirmed = confirm(
-                `?? TEM CERTEZA QUE DESEJA INVERTER HorárioS?\n\n` +
+                `⚠️ TEM CERTEZA QUE DESEJA INVERTER HorárioS?\n\n` +
                 `FUNCIONÁRIO: ${name}\n` +
                 `Data: ${date}\n\n` +
                 `${punch1Label}: ${time1} ? ${time2}\n` +
                 `${punch2Label}: ${time2} ? ${time1}\n\n` +
-                `?? Esta ação enviarçã IMEDIATAMENTE para Secullum!`
+                `⚠️ Esta ação enviarçã IMEDIATAMENTE para Secullum!`
             );
 
             if (!confirmed) {
@@ -7475,7 +7470,7 @@
                         <table style="width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
                             <thead>
                                 <tr style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
-                                    <th style="padding: 14px 16px; text-align: left; font-weight: 700; font-size: 13px; letter-spacing: 0.5px;">??? EQUIPAMENTO</th>
+                                    <th style="padding: 14px 16px; text-align: left; font-weight: 700; font-size: 13px; letter-spacing: 0.5px;">? EQUIPAMENTO</th>
                                     <th style="padding: 14px 16px; text-align: center; font-weight: 700; font-size: 13px; letter-spacing: 0.5px;">?? Última SINC</th>
                                     <th style="padding: 14px 16px; text-align: center; font-weight: 700; font-size: 13px; letter-spacing: 0.5px;">?? QTD BATIDAS</th>
                                     <th style="padding: 14px 16px; text-align: center; font-weight: 700; font-size: 13px; letter-spacing: 0.5px;">?? Hçã QUANTO TEMPO</th>
@@ -7596,7 +7591,7 @@
             }
             
             // Confirmar excluSóo
-            if (!confirm(`?? Tem certeza que deseja APAGAR o ponto?\n\n${employee.name}\n${columnName}: ${currentTime}\nData: ${date}`)) {
+            if (!confirm(`⚠️ Tem certeza que deseja APAGAR o ponto?\n\n${employee.name}\n${columnName}: ${currentTime}\nData: ${date}`)) {
                 return;
             }
             
@@ -7613,7 +7608,7 @@
                     dataFormatted = dataFormatted.split('T')[0];
                 }
                 
-                console.log(`??? Apagando ${columnName}:`, {
+                console.log(`? Apagando ${columnName}:`, {
                     NumeroFolha: reg,
                     Data: dataFormatted + 'T00:00:00',
                     Coluna: columnName,
@@ -7884,7 +7879,7 @@
                     
                     const editIcon = document.createElement('span');
                     editIcon.className = 'edit-icon';
-                    editIcon.textContent = '??';
+                    editIcon.textContent = '';
                     
                     const timeSpan = document.createElement('span');
                     timeSpan.className = `punch-time ${newValue ? 'present' : 'missing'}`;
@@ -7981,7 +7976,7 @@
             
             const editIcon = document.createElement('span');
             editIcon.className = 'edit-icon';
-            editIcon.textContent = '??';
+            editIcon.textContent = '';
             
             const timeSpan = document.createElement('span');
             timeSpan.className = `punch-time ${currentValue ? 'present' : 'missing'}`;
@@ -8134,8 +8129,8 @@
                 sai5: getTimeValue('editSai5')
             };
 
-            console.log('?? Dados a serem enviados:', updatedPunches);
-            console.log('?? FUNCIONÁRIO:', currentEditEmployee);
+            console.log('📊 Dados a serem enviados:', updatedPunches);
+            console.log('👤 FUNCIONÁRIO:', currentEditEmployee);
 
             // Confirmar antes de enviar
             const confirmacao = confirm(
@@ -8245,7 +8240,7 @@
                 closeEditModal();
 
                 // Recarregar dados
-                console.log('?? Recarregando dados...');
+                console.log('🔄 Recarregando dados...');
                 await searchPeriod();
 
             } catch (error) {
@@ -8258,7 +8253,7 @@
         // EVENT LISTENERS
         // ==========================================
         
-        // ?? CORREçããO: Event listeners duplicados REMOVIDOS
+        // 📝 CORREçããO: Event listeners duplicados REMOVIDOS
         // Agora usa event delegation configurado na inicialização (linha ~2395)
         
         // Checkbox "Selecionar Todos"
@@ -8293,7 +8288,7 @@
 
         // funçãoo compartilhada de geração de PDF
         async function generatePDFs() {
-            console.log('?? generatePDFs() iniciada');
+            console.log('📄 generatePDFs() iniciada');
             console.log(`?? Selecionados: ${selectedEmployees.length} - ${JSON.stringify(selectedEmployees.slice(0, 3))}`);
             
             // ? VERIFICAR SE Hçã seleçãoãO
@@ -8335,11 +8330,11 @@
                 return;
             }
             
-            // ?? MOSTRAR LOADING E SALVAR NO BANCO
-            console.log('?? Salvando justificativas no banco de dados...');
+            // 📝 MOSTRAR LOADING E SALVAR NO BANCO
+            console.log('💾 Salvando justificativas no banco de dados...');
             showAlert('Aguarde', 'Salvando justificativas no banco de dados...', 'info');
             
-            // ?? Verificar se algum registro já foi impresso
+            // 📝 Verificar se algum registro já foi impresso
             const registrosExistentes = [];
             const registrosNovos = [];
             
@@ -8385,7 +8380,7 @@
                 // Fechar alert de loading
                 hideAlert();
                 
-                // ?? AVISAR SE Hçã REIMPRESSóES
+                // 📝 AVISAR SE Hçã REIMPRESSóES
                 if (registrosExistentes.length > 0) {
                     const nomes = registrosExistentes.join('\nçã ');
                     const confirmar = confirm(
@@ -8466,7 +8461,7 @@
         });
 
         // ==========================================
-        // ?? botãoo DE TESTE - ANEXO OCR
+        // 📝 botãoo DE TESTE - ANEXO OCR
         // ==========================================
         document.getElementById('btnTesteAnexo').addEventListener('click', () => {
             document.getElementById('inputTesteAnexo').click();
@@ -8477,8 +8472,8 @@
             if (!file) return;
 
             console.clear();
-            console.log('?????? TESTE DE ANEXO E OCR INICIADO ??????');
-            console.log('?? Arquivo selecionado:', file.name, `(${(file.size / 1024).toFixed(2)} KB)`);
+            console.log('🧪 TESTE DE ANEXO E OCR INICIADO ');
+            console.log('📁 Arquivo selecionado:', file.name, `(${(file.size / 1024).toFixed(2)} KB)`);
 
             try {
                 // Converter para base64
@@ -8486,22 +8481,22 @@
                 reader.onload = async (event) => {
                     const imageBase64 = event.target.result;
                     
-                    console.log('?? Tamanho base64:', imageBase64.length, 'caracteres');
+                    console.log('📊 Tamanho base64:', imageBase64.length, 'caracteres');
 
                     // Chamar funçãoo de OCR
                     console.log('');
-                    console.log('??????????????????????????????????');
-                    console.log('?? INICIANDO AZURE COMPUTER VISION OCR');
-                    console.log('??????????????????????????????????');
+                    console.log('');
+                    console.log('☁️ INICIANDO AZURE COMPUTER VISION OCR');
+                    console.log('');
                     
                     const resultado = await extrairDadosComGoogleVision(imageBase64);
                     
                     console.log('');
-                    console.log('??????????????????????????????????');
-                    console.log('?? RESULTADO FINAL DO OCR');
-                    console.log('??????????????????????????????????');
-                    console.log('?? ID detectado:', resultado.id || 'não DETECTADO');
-                    console.log('?? Motivo:', resultado.motivo || 'não DETECTADO');
+                    console.log('');
+                    console.log('📊 RESULTADO FINAL DO OCR');
+                    console.log('');
+                    console.log('🆔 ID detectado:', resultado.id || 'não DETECTADO');
+                    console.log('📋 Motivo:', resultado.motivo || 'não DETECTADO');
                     console.log('? Horários extraçãdos:');
                     console.log('   Ent1:', resultado.ent1 || 'vazio');
                     console.log('   Sai1:', resultado.sai1 || 'vazio');
@@ -8509,14 +8504,14 @@
                     console.log('   Sai2:', resultado.sai2 || 'vazio');
                     console.log('   Ent3:', resultado.ent3 || 'vazio');
                     console.log('   Sai3:', resultado.sai3 || 'vazio');
-                    console.log('?? Confiançãa:');
+                    console.log('🎯 Confiançãa:');
                     console.log('   ID:', resultado.confidence?.id || 0, '%');
                     console.log('   Motivo:', resultado.confidence?.motivo || 0, '%');
                     console.log('   Ent1:', resultado.confidence?.ent1 || 0, '%');
                     console.log('   Sai1:', resultado.confidence?.sai1 || 0, '%');
                     console.log('   Ent2:', resultado.confidence?.ent2 || 0, '%');
                     console.log('   Sai2:', resultado.confidence?.sai2 || 0, '%');
-                    console.log('??????????????????????????????????');
+                    console.log('');
                     console.log('');
                     
                     // Mostrar popup com resultado
@@ -8532,7 +8527,7 @@
                     alert(
                         `?? RESULTADO DO TESTE DE OCR\n\n` +
                         `?? ID: ${resultado.id || 'não DETECTADO'}\n` +
-                        `?? Motivo: ${resultado.motivo || 'PADRãO'} ??\n` +
+                        `?? Motivo: ${resultado.motivo || 'PADRãO'} \n` +
                         `   (Detecçãão de checkbox visual não implementada no OCR - sempre usa padrão)\n\n` +
                         `? Horários:\n${horariosStr || 'Nenhum Horário detectado'}\n\n` +
                         `? Verifique o console (F12) para detalhes completos!`
@@ -8580,7 +8575,7 @@
             <p style="color: #94a3b8; margin: 0 0 24px 0; font-size: 14px;" id="modalAnexoInfo">REG: 000 | Data: 00/00/0000</p>
             
             <div id="dropZone" style="border: 3px dashed #3b82f6; border-radius: 12px; padding: 32px 24px; text-align: center; background: rgba(59, 130, 246, 0.1); cursor: pointer; transition: all 0.3s; margin-bottom: 16px;">
-                <div style="font-size: 40px; margin-bottom: 12px;">??</div>
+                <div style="font-size: 40px; margin-bottom: 12px;"></div>
                 <h3 style="font-size: 16px; font-weight: 600; color: #e2e8f0; margin: 0 0 6px 0;">Cole o print aqui (Ctrl+V)</h3>
                 <p style="color: #94a3b8; margin: 0; font-size: 13px;">Ou clique para selecionar arquivo</p>
                 <input type="file" id="fileInput" accept="image/*" style="display: none;">
