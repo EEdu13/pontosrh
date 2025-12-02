@@ -3263,8 +3263,8 @@
                         <span class="punch-time ${emp.approved?.ent1 ? 'approved' : getTimeClass('ent1', emp.punches.ent1)}" style="font-size: 13px; font-family: 'Courier New', monospace;">
                             ${getMotivoOuHorario(emp.punches.ent1, emp.motivo)}
                         </span>
-                        ${emp.questions?.ent1 ? '<span class="has-question" title="' + emp.questions.ent1 + '">??</span>' : ''}
-                        ${emp.approved?.ent1 ? '<span class="approved-badge" title="Aprovado por RH: ' + emp.approved.ent1 + '">?</span>' : ''}
+                        ${emp.questions?.ent1 ? '<span class="has-question" title="' + emp.questions.ent1 + '">\ud83d\udcac</span>' : ''}
+                        ${emp.approved?.ent1 ? '<span class="approved-badge" title="Aprovado por RH: ' + emp.approved.ent1 + '">\u2705</span>' : ''}
                     </td>
                     <td class="center punch-cell" style="width: 100px; position: relative; cursor: pointer;" data-reg="${emp.reg}" data-date="${emp.date}" data-punch="sai1" data-name="${emp.name}" onclick="showSwapMenu(event, this)">
                         ${colunasErradas.has('sai1') && !emp.approved?.sai1 ? '<span class="approve-icon" onclick="approveSwappedTime(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'sai1\', \'' + emp.name + '\')" title="Aprovar Horário trocado">?</span>' : ''}
