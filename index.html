@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
@@ -3270,63 +3270,63 @@
                         ${colunasErradas.has('sai1') && !emp.approved?.sai1 ? '<span class="approve-icon" onclick="approveSwappedTime(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'sai1\', \'' + emp.name + '\')" title="Aprovar Horário trocado">?</span>' : ''}
                         ${emp.punches.sai1 ? '<span class="question-icon" onclick="askQuestion(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'sai1\', \'' + emp.name + '\')" title="Adicionar pergunta">?</span>' : ''}
                         <span class="punch-time ${emp.approved?.sai1 ? 'approved' : getTimeClass('sai1', emp.punches.sai1)}">${getMotivoOuHorario(emp.punches.sai1, emp.motivo)}</span>
-                        ${emp.questions?.sai1 ? '<span class="has-question" title="' + emp.questions.sai1 + '">??</span>' : ''}
+                        ${emp.questions?.sai1 ? '<span class="has-question" title="' + emp.questions.sai1 + '"></span>' : ''}
                         ${emp.approved?.sai1 ? '<span class="approved-badge" title="Aprovado por RH: ' + emp.approved.sai1 + '">?</span>' : ''}
                     </td>
                     <td class="center punch-cell" style="width: 100px; position: relative; cursor: pointer;" data-reg="${emp.reg}" data-date="${emp.date}" data-punch="ent2" data-name="${emp.name}" onclick="showSwapMenu(event, this)">
                         ${colunasErradas.has('ent2') && !emp.approved?.ent2 ? '<span class="approve-icon" onclick="approveSwappedTime(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'ent2\', \'' + emp.name + '\')" title="Aprovar Horário trocado">?</span>' : ''}
                         ${emp.punches.ent2 ? '<span class="question-icon" onclick="askQuestion(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'ent2\', \'' + emp.name + '\')" title="Adicionar pergunta">?</span>' : ''}
                         <span class="punch-time ${emp.approved?.ent2 ? 'approved' : getTimeClass('ent2', emp.punches.ent2)}">${getMotivoOuHorario(emp.punches.ent2, emp.motivo)}</span>
-                        ${emp.questions?.ent2 ? '<span class="has-question" title="' + emp.questions.ent2 + '">??</span>' : ''}
+                        ${emp.questions?.ent2 ? '<span class="has-question" title="' + emp.questions.ent2 + '"></span>' : ''}
                         ${emp.approved?.ent2 ? '<span class="approved-badge" title="Aprovado por RH: ' + emp.approved.ent2 + '">?</span>' : ''}
                     </td>
                     <td class="center punch-cell" style="width: 100px; position: relative; cursor: pointer;" data-reg="${emp.reg}" data-date="${emp.date}" data-punch="sai2" data-name="${emp.name}" onclick="showSwapMenu(event, this)">
                         ${colunasErradas.has('sai2') && !emp.approved?.sai2 ? '<span class="approve-icon" onclick="approveSwappedTime(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'sai2\', \'' + emp.name + '\')" title="Aprovar Horário trocado">?</span>' : ''}
                         ${emp.punches.sai2 ? '<span class="question-icon" onclick="askQuestion(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'sai2\', \'' + emp.name + '\')" title="Adicionar pergunta">?</span>' : ''}
                         <span class="punch-time ${emp.approved?.sai2 ? 'approved' : getTimeClass('sai2', emp.punches.sai2)}">${getMotivoOuHorario(emp.punches.sai2, emp.motivo)}</span>
-                        ${emp.questions?.sai2 ? '<span class="has-question" title="' + emp.questions.sai2 + '">??</span>' : ''}
+                        ${emp.questions?.sai2 ? '<span class="has-question" title="' + emp.questions.sai2 + '"></span>' : ''}
                         ${emp.approved?.sai2 ? '<span class="approved-badge" title="Aprovado por RH: ' + emp.approved.sai2 + '">?</span>' : ''}
                     </td>
                     <td class="center punch-cell" style="width: 100px; position: relative; cursor: pointer;" data-reg="${emp.reg}" data-date="${emp.date}" data-punch="ent3" data-name="${emp.name}" onclick="showSwapMenu(event, this)">
                         ${colunasErradas.has('ent3') && !emp.approved?.ent3 ? '<span class="approve-icon" onclick="approveSwappedTime(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'ent3\', \'' + emp.name + '\')" title="Aprovar Horário trocado">?</span>' : ''}
                         ${emp.punches.ent3 ? '<span class="question-icon" onclick="askQuestion(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'ent3\', \'' + emp.name + '\')" title="Adicionar pergunta">?</span>' : ''}
                         <span class="punch-time ${emp.approved?.ent3 ? 'approved' : getTimeClass('ent3', emp.punches.ent3)}">${getMotivoOuHorario(emp.punches.ent3, emp.motivo)}</span>
-                        ${emp.questions?.ent3 ? '<span class="has-question" title="' + emp.questions.ent3 + '">??</span>' : ''}
+                        ${emp.questions?.ent3 ? '<span class="has-question" title="' + emp.questions.ent3 + '"></span>' : ''}
                         ${emp.approved?.ent3 ? '<span class="approved-badge" title="Aprovado por RH: ' + emp.approved.ent3 + '">?</span>' : ''}
                     </td>
                     <td class="center punch-cell" style="width: 100px; position: relative; cursor: pointer;" data-reg="${emp.reg}" data-date="${emp.date}" data-punch="sai3" data-name="${emp.name}" onclick="showSwapMenu(event, this)">
                         ${colunasErradas.has('sai3') && !emp.approved?.sai3 ? '<span class="approve-icon" onclick="approveSwappedTime(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'sai3\', \'' + emp.name + '\')" title="Aprovar Horário trocado">?</span>' : ''}
                         ${emp.punches.sai3 ? '<span class="question-icon" onclick="askQuestion(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'sai3\', \'' + emp.name + '\')" title="Adicionar pergunta">?</span>' : ''}
                         <span class="punch-time ${emp.approved?.sai3 ? 'approved' : getTimeClass('sai3', emp.punches.sai3)}">${getMotivoOuHorario(emp.punches.sai3, emp.motivo)}</span>
-                        ${emp.questions?.sai3 ? '<span class="has-question" title="' + emp.questions.sai3 + '">??</span>' : ''}
+                        ${emp.questions?.sai3 ? '<span class="has-question" title="' + emp.questions.sai3 + '"></span>' : ''}
                         ${emp.approved?.sai3 ? '<span class="approved-badge" title="Aprovado por RH: ' + emp.approved.sai3 + '">?</span>' : ''}
                     </td>
                     <td class="center punch-cell" style="width: 100px; position: relative; cursor: pointer;" data-reg="${emp.reg}" data-date="${emp.date}" data-punch="ent4" data-name="${emp.name}" onclick="showSwapMenu(event, this)">
                         ${colunasErradas.has('ent4') && !emp.approved?.ent4 ? '<span class="approve-icon" onclick="approveSwappedTime(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'ent4\', \'' + emp.name + '\')" title="Aprovar Horário trocado">?</span>' : ''}
                         ${emp.punches.ent4 ? '<span class="question-icon" onclick="askQuestion(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'ent4\', \'' + emp.name + '\')" title="Adicionar pergunta">?</span>' : ''}
                         <span class="punch-time ${emp.approved?.ent4 ? 'approved' : getTimeClass('ent4', emp.punches.ent4)}">${getMotivoOuHorario(emp.punches.ent4, emp.motivo)}</span>
-                        ${emp.questions?.ent4 ? '<span class="has-question" title="' + emp.questions.ent4 + '">??</span>' : ''}
+                        ${emp.questions?.ent4 ? '<span class="has-question" title="' + emp.questions.ent4 + '"></span>' : ''}
                         ${emp.approved?.ent4 ? '<span class="approved-badge" title="Aprovado por RH: ' + emp.approved.ent4 + '">?</span>' : ''}
                     </td>
                     <td class="center punch-cell" style="width: 100px; position: relative; cursor: pointer;" data-reg="${emp.reg}" data-date="${emp.date}" data-punch="sai4" data-name="${emp.name}" onclick="showSwapMenu(event, this)">
                         ${colunasErradas.has('sai4') && !emp.approved?.sai4 ? '<span class="approve-icon" onclick="approveSwappedTime(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'sai4\', \'' + emp.name + '\')" title="Aprovar Horário trocado">?</span>' : ''}
                         ${emp.punches.sai4 ? '<span class="question-icon" onclick="askQuestion(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'sai4\', \'' + emp.name + '\')" title="Adicionar pergunta">?</span>' : ''}
                         <span class="punch-time ${emp.approved?.sai4 ? 'approved' : getTimeClass('sai4', emp.punches.sai4)}">${getMotivoOuHorario(emp.punches.sai4, emp.motivo)}</span>
-                        ${emp.questions?.sai4 ? '<span class="has-question" title="' + emp.questions.sai4 + '">??</span>' : ''}
+                        ${emp.questions?.sai4 ? '<span class="has-question" title="' + emp.questions.sai4 + '"></span>' : ''}
                         ${emp.approved?.sai4 ? '<span class="approved-badge" title="Aprovado por RH: ' + emp.approved.sai4 + '">?</span>' : ''}
                     </td>
                     <td class="center punch-cell" style="width: 100px; position: relative; cursor: pointer;" data-reg="${emp.reg}" data-date="${emp.date}" data-punch="ent5" data-name="${emp.name}" onclick="showSwapMenu(event, this)">
                         ${colunasErradas.has('ent5') && !emp.approved?.ent5 ? '<span class="approve-icon" onclick="approveSwappedTime(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'ent5\', \'' + emp.name + '\')" title="Aprovar Horário trocado">?</span>' : ''}
                         ${emp.punches.ent5 ? '<span class="question-icon" onclick="askQuestion(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'ent5\', \'' + emp.name + '\')" title="Adicionar pergunta">?</span>' : ''}
                         <span class="punch-time ${emp.approved?.ent5 ? 'approved' : getTimeClass('ent5', emp.punches.ent5)}">${getMotivoOuHorario(emp.punches.ent5, emp.motivo)}</span>
-                        ${emp.questions?.ent5 ? '<span class="has-question" title="' + emp.questions.ent5 + '">??</span>' : ''}
+                        ${emp.questions?.ent5 ? '<span class="has-question" title="' + emp.questions.ent5 + '"></span>' : ''}
                         ${emp.approved?.ent5 ? '<span class="approved-badge" title="Aprovado por RH: ' + emp.approved.ent5 + '">?</span>' : ''}
                     </td>
                     <td class="center punch-cell" style="width: 100px; position: relative; cursor: pointer;" data-reg="${emp.reg}" data-date="${emp.date}" data-punch="sai5" data-name="${emp.name}" onclick="showSwapMenu(event, this)">
                         ${colunasErradas.has('sai5') && !emp.approved?.sai5 ? '<span class="approve-icon" onclick="approveSwappedTime(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'sai5\', \'' + emp.name + '\')" title="Aprovar Horário trocado">?</span>' : ''}
                         ${emp.punches.sai5 ? '<span class="question-icon" onclick="askQuestion(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'sai5\', \'' + emp.name + '\')" title="Adicionar pergunta">?</span>' : ''}
                         <span class="punch-time ${emp.approved?.sai5 ? 'approved' : getTimeClass('sai5', emp.punches.sai5)}">${getMotivoOuHorario(emp.punches.sai5, emp.motivo)}</span>
-                        ${emp.questions?.sai5 ? '<span class="has-question" title="' + emp.questions.sai5 + '">??</span>' : ''}
+                        ${emp.questions?.sai5 ? '<span class="has-question" title="' + emp.questions.sai5 + '"></span>' : ''}
                         ${emp.approved?.sai5 ? '<span class="approved-badge" title="Aprovado por RH: ' + emp.approved.sai5 + '">?</span>' : ''}
                     </td>
                     <td class="center" style="width: 70px; font-weight: bold; color: #7c3aed; font-size: 14px;">
