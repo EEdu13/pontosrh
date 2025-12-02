@@ -1787,6 +1787,17 @@
             }
         };
 
+        // ==========================================
+        // ⚡ CONFIGURAÇÃO OTIMIZADA (pode alterar aqui)
+        // ==========================================
+        const CACHE_CONFIG = {
+            daysToLoad: 6,  // Quantidade de dias para carregar (padrão: 6)
+            ttl: {
+                historical: 24 * 60 * 60 * 1000,  // 24h para dados antigos
+                today: 30 * 1000  // 30s para dados de hoje
+            }
+        };
+
         const SMART_CACHE = {
             employees: new Map(),      // ✅ NOVO: cache por funcionário (REG_DATA_EMPRESA)
             historical: new Map(),
@@ -2244,82 +2255,228 @@
             }
         }
 
-        // 📦 CARGA INICIAL: 60 DIAS (1x por sessão)
+        // ==========================================
+        // ✅ FUNÇÃO OTIMIZADA - USA RANGE DE DATAS
+        // ==========================================
         async function loadFullHistoricalCache() {
-            const startTime = performance.now();
-            const today = new Date();
-            const startDate = new Date(today - CACHE_STRATEGY.DEFAULT_RANGE_DAYS * 24 * 60 * 60 * 1000);
+            console.log('🚀 [OTIMIZADO] Iniciando carga com date range...');
+            showLoading('⚡ Carregando dados otimizados...');
             
-            const dateStart = startDate.toISOString().split('T')[0];
-            const dateEnd = today.toISOString().split('T')[0];
+            const now = new Date();
+            const startDate = new Date(now);
+            startDate.setDate(startDate.getDate() - parseInt(CACHE_CONFIG.daysToLoad) + 1);
             
-            showLoading(`🔄 Carregando 60 dias (${API_CONFIG.companies.length} empresas)...`);
+            // Formatar datas para API (YYYY-MM-DD)
+            const dataInicio = formatDateForAPI(startDate);
+            const dataFim = formatDateForAPI(now);
             
-            const companies = API_CONFIG.companies;
+            console.log(`📅 Range solicitado: ${dataInicio} até ${dataFim} (${CACHE_CONFIG.daysToLoad} dias)`);
             
-            // ✅ 1 REQUEST POR EMPRESA (range completo de 60 dias)
-            const promises = companies.map(async (company) => {
-                try {
-                    const url = `${API_CONFIG.baseURL}/IntegracaoExterna/Batidas?dataInicio=${dateStart}&dataFim=${dateEnd}`;
+            // Buscar empresas selecionadas
+            const empresas = API_CONFIG.selectedCompanies.includes('all')
+                ? API_CONFIG.companies
+                : API_CONFIG.companies.filter(c => API_CONFIG.selectedCompanies.includes(c.id));
+            
+            console.log(`🏢 Empresas selecionadas: ${empresas.map(e => e.name).join(', ')}`);
+            
+            if (empresas.length === 0) {
+                hideLoading();
+                showNotification('⚠️ Nenhuma empresa selecionada', 'warning');
+                return false;
+            }
+            
+            try {
+                const startTime = Date.now();
+                
+                // ✅ OTIMIZAÇÃO: 1 request por empresa (PARALELO)
+                const promises = empresas.map(async (empresa) => {
+                    console.log(`🔄 Buscando dados da ${empresa.name}...`);
                     
-                    const response = await fetch(url, {
-                        method: 'GET',
-                        headers: {
-                            'Authorization': `Bearer ${API_CONFIG.token}`,
-                            'secullumidbancoselecionado': company.id,
-                            'Content-Type': 'application/json'
+                    try {
+                        const url = `${API_CONFIG.baseURL}/IntegracaoExterna/Batidas?dataInicio=${dataInicio}&dataFim=${dataFim}`;
+                        
+                        const response = await fetch(url, {
+                            method: 'GET',
+                            headers: {
+                                'Authorization': `Bearer ${API_CONFIG.token}`,
+                                'secullumidbancoselecionado': empresa.id,
+                                'Content-Type': 'application/json'
+                            }
+                        });
+                        
+                        if (!response.ok) {
+                            const errorText = await response.text();
+                            console.error(`❌ Erro ${response.status} na empresa ${empresa.name}:`, errorText);
+                            throw new Error(`Erro ${response.status} na empresa ${empresa.name}`);
                         }
+                        
+                        const data = await response.json();
+                        console.log(`✅ ${empresa.name}: ${data.length} batidas recebidas`);
+                        
+                        return {
+                            empresaId: empresa.id,
+                            empresaNome: empresa.name,
+                            data: Array.isArray(data) ? data : [],
+                            success: true
+                        };
+                        
+                    } catch (error) {
+                        console.error(`❌ Falha ao buscar ${empresa.name}:`, error);
+                        return {
+                            empresaId: empresa.id,
+                            empresaNome: empresa.name,
+                            data: [],
+                            success: false,
+                            error: error.message
+                        };
+                    }
+                });
+                
+                // ✅ Aguardar TODAS as empresas em paralelo
+                console.log(`⏳ Aguardando ${promises.length} requisições paralelas...`);
+                const results = await Promise.all(promises);
+                
+                const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+                console.log(`⚡ Tempo total de requisições: ${elapsed}s`);
+                
+                // Verificar falhas
+                const failures = results.filter(r => !r.success);
+                if (failures.length > 0) {
+                    console.warn(`⚠️ ${failures.length} empresa(s) falharam:`, failures.map(f => f.empresaNome));
+                }
+                
+                // ✅ Processar e cachear por funcionário
+                let totalFuncionarios = 0;
+                let totalBatidas = 0;
+                
+                results.forEach(result => {
+                    if (!result.success || result.data.length === 0) {
+                        console.log(`⏭️ Pulando ${result.empresaNome} (sem dados ou erro)`);
+                        return;
+                    }
+                    
+                    const { empresaId, empresaNome, data } = result;
+                    totalBatidas += data.length;
+                    
+                    // Agrupar batidas por funcionário
+                    const funcionariosMap = new Map();
+                    
+                    data.forEach(batida => {
+                        // Extrair REG do funcionário
+                        const reg = batida.Funcionario?.NumeroIdentificador || 
+                                   batida.Funcionario?.NumeroFolha || 
+                                   null;
+                        
+                        if (!reg) {
+                            console.warn('⚠️ Batida sem REG:', batida);
+                            return;
+                        }
+                        
+                        if (!funcionariosMap.has(reg)) {
+                            funcionariosMap.set(reg, {
+                                reg: reg,
+                                nome: batida.Funcionario?.Nome || 'Nome não disponível',
+                                empresaId: empresaId,
+                                empresaNome: empresaNome,
+                                batidas: []
+                            });
+                        }
+                        
+                        funcionariosMap.get(reg).batidas.push(batida);
                     });
                     
-                    if (!response.ok) {
-                        console.warn(`⚠️ ${company.name}: ${response.status}`);
-                        return [];
-                    }
+                    console.log(`📊 ${empresaNome}: ${funcionariosMap.size} funcionários encontrados`);
                     
-                    const result = await response.json();
-                    
-                    if (Array.isArray(result)) {
-                        console.log(`✅ ${company.name}: ${result.length} registros`);
-                        result.forEach(batida => {
-                            batida._empresa = company.name;
-                            batida._empresaId = company.id;
+                    // Cachear cada funcionário individualmente
+                    funcionariosMap.forEach((funcionario, reg) => {
+                        const cacheKey = `${reg}_${empresaId}`;
+                        
+                        // Determinar TTL baseado na data mais recente
+                        let ttl = CACHE_CONFIG.ttl.historical; // Padrão: 24h
+                        
+                        const hoje = new Date().toISOString().split('T')[0];
+                        const temBatidasHoje = funcionario.batidas.some(b => {
+                            const dataBatida = b.Data ? b.Data.split('T')[0] : null;
+                            return dataBatida === hoje;
                         });
-                        return result;
-                    }
-                    
-                    return [];
-                } catch (err) {
-                    console.error(`❌ ${company.name}:`, err);
-                    return [];
-                }
-            });
-            
-            console.log(`🚀 Disparando ${promises.length} requests (range 60 dias)...`);
-            
-            const results = await Promise.allSettled(promises);
-            const allData = results
-                .filter(r => r.status === 'fulfilled')
-                .flatMap(r => r.value);
-            
-            // ✅ CACHEAR POR FUNCIONÁRIO (REG_DATA_EMPRESA)
-            allData.forEach(batida => {
-                const reg = batida.Funcionario?.NumeroIdentificador || 
-                           batida.Funcionario?.NumeroFolha;
-                const date = batida.Data?.split('T')[0];
-                const empresaId = batida._empresaId;
+                        
+                        if (temBatidasHoje) {
+                            ttl = CACHE_CONFIG.ttl.today; // 30s
+                        }
+                        
+                        SMART_CACHE.employees.set(cacheKey, {
+                            data: funcionario,
+                            timestamp: Date.now(),
+                            ttl: ttl
+                        });
+                        
+                        totalFuncionarios++;
+                    });
+                });
                 
-                if (reg && date && empresaId) {
-                    setCachedEmployee(reg, date, empresaId, batida);
-                }
-            });
+                hideLoading();
+                
+                console.log(`✅ Cache populado com sucesso!`);
+                console.log(`📊 Estatísticas:`);
+                console.log(`   - Funcionários: ${totalFuncionarios}`);
+                console.log(`   - Batidas totais: ${totalBatidas}`);
+                console.log(`   - Tempo total: ${elapsed}s`);
+                console.log(`   - Performance: ${(totalBatidas / parseFloat(elapsed)).toFixed(0)} batidas/segundo`);
+                
+                showNotification(`✅ Dados carregados em ${elapsed}s! (${totalFuncionarios} funcionários)`, 'success');
+                
+                return true;
+                
+            } catch (error) {
+                console.error('❌ Erro crítico ao carregar dados:', error);
+                hideLoading();
+                showNotification(`❌ Erro: ${error.message}`, 'error');
+                return false;
+            }
+        }
+
+        // ==========================================
+        // ✅ FUNÇÃO AUXILIAR - FORMATAR DATA PARA API
+        // ==========================================
+        function formatDateForAPI(date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`; // Retorna "2025-11-30"
+        }
+
+        // ==========================================
+        // ✅ NORMALIZAR DATAS DE DIFERENTES FORMATOS
+        // ==========================================
+        function normalizeDate(dateStr) {
+            if (!dateStr) return null;
             
-            SMART_CACHE.metadata.lastFullLoad = Date.now();
+            // Já está no formato correto (YYYY-MM-DD)
+            if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+                return dateStr;
+            }
             
-            const elapsed = ((performance.now() - startTime) / 1000).toFixed(1);
-            console.log(`✅ Cache carregado em ${elapsed}s`);
-            console.log(`📊 Total: ${SMART_CACHE.employees.size} funcionários cacheados`);
+            // Formato DD/MM/YYYY
+            if (/^\d{2}\/\d{2}\/\d{4}$/.test(dateStr)) {
+                const [day, month, year] = dateStr.split('/');
+                return `${year}-${month}-${day}`;
+            }
             
-            hideLoading();
+            // Formato estranho: 27T00:00:00/10/2025
+            const strangeMatch = dateStr.match(/^(\d{2})T\d{2}:\d{2}:\d{2}\/(\d{2})\/(\d{4})$/);
+            if (strangeMatch) {
+                const [, day, month, year] = strangeMatch;
+                return `${year}-${month}-${day}`;
+            }
+            
+            // Tentar parsear como Date
+            const parsed = new Date(dateStr);
+            if (!isNaN(parsed.getTime())) {
+                return formatDateForAPI(parsed);
+            }
+            
+            console.warn('⚠️ Formato de data não reconhecido:', dateStr);
+            return null;
         }
 
         // 🔄 ATUALIZAR APENAS HOJE E ONTEM (30s)
