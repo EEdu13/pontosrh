@@ -2088,13 +2088,36 @@
                 const data = await response.json();
                 API_CONFIG.token = data.access_token;
                 
-                // 🔑 SALVAR TOKEN: tanto no API_CONFIG quanto no localStorage para compatibilidade
+                // 🔑 SALVAR TOKEN SECULLUM
                 localStorage.setItem('secullum_token', data.access_token);
-                localStorage.setItem('token', data.access_token); // Para getAuthHeaders()
                 localStorage.setItem('secullum_token_expiry', Date.now() + (data.expires_in * 1000));
                 
-                console.log('? autenticado com sucesso!');
-                console.log('🔑 Token:', API_CONFIG.token.substring(0, 50) + '...');
+                console.log('✅ Secullum autenticado com sucesso!');
+                console.log('🔑 Token Secullum:', API_CONFIG.token.substring(0, 50) + '...');
+                
+                // 🔐 AUTENTICAR NO BACKEND (Railway) para obter JWT
+                try {
+                    const backendResponse = await fetch('https://justificativas.up.railway.app/api/auth/login', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            username: API_CONFIG.credentials.username,
+                            password: API_CONFIG.credentials.password
+                        })
+                    });
+                    
+                    if (backendResponse.ok) {
+                        const backendData = await backendResponse.json();
+                        // Salvar token JWT do backend (usado para /api/anexos/upload, etc)
+                        localStorage.setItem('token', backendData.token);
+                        console.log('✅ Backend autenticado com sucesso!');
+                        console.log('🔑 Token JWT:', backendData.token.substring(0, 50) + '...');
+                    } else {
+                        console.warn('⚠️ Falha ao autenticar no backend, mas Secullum OK');
+                    }
+                } catch (err) {
+                    console.warn('⚠️ Erro ao autenticar no backend:', err.message);
+                }
                 
                 // Buscar empresas disponçãveis apés autenticaçãoO
                 await loadCompanies();
