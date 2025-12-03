@@ -670,31 +670,17 @@
                 console.log(`📊 Total de funcionários retornados: ${funcionarios.length}`);
                 console.log(`📅 Data de referência (hoje): ${hoje.toLocaleDateString('pt-BR')}`);
                 
-                // 🔍 DEBUG: Ver estrutura de funcionário e campos disponíveis
-                if (funcionarios.length > 0) {
-                    console.log('🔍 Estrutura do primeiro funcionário:', funcionarios[0]);
-                    console.log('🔍 Campos disponíveis:', Object.keys(funcionarios[0]));
-                    console.log('🔍 DataDemissao existe?', 'DataDemissao' in funcionarios[0]);
-                    console.log('🔍 DataDemissao valor:', funcionarios[0].DataDemissao);
-                    
-                    // Ver funcionários com DataDemissao preenchida
-                    const comDemissao = funcionarios.filter(f => f.DataDemissao);
-                    console.log(`🔍 Funcionários COM DataDemissao: ${comDemissao.length} de ${funcionarios.length}`);
-                    if (comDemissao.length > 0) {
-                        console.log('🔍 Exemplo de demitido:', comDemissao[0]);
-                    }
-                }
-                
+                // ✅ FILTRAR APENAS FUNCIONÁRIOS ATIVOS (campo correto: "Demissao" não "DataDemissao")
                 const funcionariosAtivos = funcionarios.filter(f => {
-                    if (!f.DataDemissao) return true; // Sem data de demissão = ativo
+                    // Se não tem data de demissão = ativo
+                    if (!f.Demissao) return true;
                     
-                    const dataDemissao = new Date(f.DataDemissao);
+                    // Se tem data de demissão, verificar se é futura (ainda ativo) ou passada (demitido)
+                    const dataDemissao = new Date(f.Demissao);
                     dataDemissao.setHours(0, 0, 0, 0);
-                    const estaAtivo = dataDemissao > hoje;
                     
-                    if (!estaAtivo) {
-                        console.log(`❌ Demitido: ${f.Nome} - Demissão: ${dataDemissao.toLocaleDateString('pt-BR')}`);
-                    }
+                    // Se demissão é DEPOIS de hoje = ainda está ativo
+                    const estaAtivo = dataDemissao > hoje;
                     
                     return estaAtivo;
                 });
