@@ -2733,6 +2733,121 @@
 
         // 📊 PEGAR DADOS DO CACHE (INSTANTÂNEO)
         // funçãoo para buscar batidas de todas as empresas selecionadas
+        // 📅 PREENCHER DIAS FALTANTES NO PERÍODO
+        // Se um funcionário tem batidas no período mas falta um dia específico,
+        // criar registro vazio para esse dia aparecer na tabela
+        function fillMissingDays(employees, dateStart, dateEnd, companies) {
+            console.log('📅 Verificando dias faltantes no período...');
+            
+            const start = new Date(dateStart);
+            const end = new Date(dateEnd);
+            const allDates = [];
+            
+            // Gerar lista de todas as datas do período
+            for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+                allDates.push(new Date(d));
+            }
+            
+            console.log(`📅 Período completo: ${allDates.length} dias (${formatDateBR(dateStart)} a ${formatDateBR(dateEnd)})`);
+            
+            // Agrupar funcionários por REG + Empresa
+            const employeesByRegAndCompany = new Map();
+            
+            employees.forEach(emp => {
+                const key = `${emp.reg}_${emp.empresaId}`;
+                if (!employeesByRegAndCompany.has(key)) {
+                    employeesByRegAndCompany.set(key, []);
+                }
+                employeesByRegAndCompany.get(key).push(emp);
+            });
+            
+            const result = [...employees]; // Começar com todos os registros existentes
+            let addedDays = 0;
+            
+            // Para cada funcionário, verificar se tem registro em todos os dias do período
+            employeesByRegAndCompany.forEach((empRecords, key) => {
+                if (empRecords.length === 0) return;
+                
+                const [reg, empresaId] = key.split('_');
+                const firstRecord = empRecords[0]; // Pegar informações base do primeiro registro
+                
+                // Verificar quais datas esse funcionário tem
+                const existingDates = new Set(
+                    empRecords.map(emp => {
+                        // Normalizar data (pode vir em vários formatos)
+                        if (emp.rawData?.Data) {
+                            return new Date(emp.rawData.Data.split('T')[0]).toISOString().split('T')[0];
+                        } else if (emp.date) {
+                            // Converter DD/MM/YYYY para YYYY-MM-DD
+                            const parts = emp.date.split('/');
+                            if (parts.length === 3) {
+                                return `${parts[2]}-${parts[1].padStart(2,'0')}-${parts[0].padStart(2,'0')}`;
+                            }
+                        }
+                        return null;
+                    }).filter(d => d)
+                );
+                
+                // Para cada dia do período, verificar se falta
+                allDates.forEach(date => {
+                    const dateStr = date.toISOString().split('T')[0]; // YYYY-MM-DD
+                    
+                    if (!existingDates.has(dateStr)) {
+                        // Dia faltando! Criar registro vazio
+                        const emptyRecord = {
+                            reg: reg,
+                            pis: firstRecord.pis || '',
+                            cpf: firstRecord.cpf || '',
+                            name: firstRecord.name,
+                            city: firstRecord.city,
+                            project: firstRecord.project || 'N/A',
+                            projetoSecullum: firstRecord.projetoSecullum || null,
+                            departamentoSecullum: firstRecord.departamentoSecullum || null,
+                            date: formatDateBR(dateStr),
+                            day: getDayOfWeek(dateStr),
+                            punches: {
+                                ent1: '',
+                                sai1: '',
+                                ent2: '',
+                                sai2: '',
+                                ent3: '',
+                                sai3: '',
+                                ent4: '',
+                                sai4: '',
+                                ent5: '',
+                                sai5: ''
+                            },
+                            motivo: '',
+                            attachments: [],
+                            hasInconsistency: true, // Marcar como inconsistência (sem batidas)
+                            empresa: firstRecord.empresa,
+                            empresaId: empresaId,
+                            rawData: {
+                                Data: `${dateStr}T00:00:00`,
+                                _empresa: firstRecord.empresa,
+                                _empresaId: empresaId,
+                                _funcionarioNome: firstRecord.name,
+                                _funcionarioCpf: firstRecord.cpf
+                            },
+                            nomeLider: firstRecord.nomeLider || null,
+                            projeto: firstRecord.projeto || null
+                        };
+                        
+                        result.push(emptyRecord);
+                        addedDays++;
+                    }
+                });
+            });
+            
+            if (addedDays > 0) {
+                console.log(`✅ ${addedDays} dias faltantes preenchidos (registros vazios criados)`);
+            } else {
+                console.log(`✅ Nenhum dia faltante detectado`);
+            }
+            
+            return result;
+        }
+
         async function fetchEmployeesFromAPI(dateStart, dateEnd) {
             try {
                 console.log('🔍 Iniciando busca inteligente...');
@@ -2779,7 +2894,13 @@
                     autoRefreshInterval = setInterval(updateRecentData, CACHE_STRATEGY.TTL.today);
                 }
                 
-                return parseSecullumData(allBatidas, dateStart);
+                const parsedData = parseSecullumData(allBatidas, dateStart);
+                
+                // 🔍 PREENCHER DIAS FALTANTES: Se funcionário tem batidas no período, 
+                // mas falta algum dia específico, criar registro vazio
+                const filledData = fillMissingDays(parsedData, dateStart, dateEnd, companies);
+                
+                return filledData;
             } catch (error) {
                 console.error('❌ Erro ao buscar colaboradores:', error);
                 
@@ -3367,6 +3488,24 @@
                             emp.nomeLider = null;
                             emp.projeto = null;
                         }
+                    }
+                    
+                    // Adicionar departamento Secullum (DEPTO SEC) - buscar sempre
+                    if (emp.projetoSecullum) {
+                        // Usar o projetoSecullum que já vem enriquecido das batidas
+                        emp.departamentoSecullum = String(emp.projetoSecullum);
+                    } else if (emp.rawData?.Departamento) {
+                        // Fallback: extrair do rawData.Departamento
+                        const dept = emp.rawData.Departamento;
+                        if (typeof dept === 'object' && dept.Codigo) {
+                            emp.departamentoSecullum = String(dept.Codigo);
+                        } else if (typeof dept === 'string') {
+                            emp.departamentoSecullum = dept;
+                        } else {
+                            emp.departamentoSecullum = null;
+                        }
+                    } else {
+                        emp.departamentoSecullum = null;
                     }
                 });
                 
