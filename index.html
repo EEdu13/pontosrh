@@ -6426,8 +6426,9 @@
                         throw new Error('NumeroFolha não encontrado!');
                     }
                     
-                    // ⚡ PARALELIZAÇÃO: Enviar TODOS os horários simultaneamente
-                    const promises = horariosParaEnviar.map(async (item) => {
+                    // ⚡ ENVIO SEQUENCIAL: Um horário por vez para evitar conflitos na API Secullum
+                    const results = [];
+                    for (const item of horariosParaEnviar) {
                         try {
                             const payload = {
                                 FuncionarioId: funcionarioId,
@@ -6451,24 +6452,26 @@
                             
                             if (apiResponse.ok) {
                                 console.log(`✅ ${item.coluna} enviada: ${item.hora}`);
-                                return { success: true, coluna: item.coluna };
+                                results.push({ success: true, coluna: item.coluna });
                             } else {
                                 const errorText = await apiResponse.text();
                                 console.warn(`⚠️ Erro ao enviar ${item.coluna}: ${apiResponse.status} - ${errorText}`);
-                                return { 
+                                results.push({ 
                                     success: false, 
                                     coluna: item.coluna, 
                                     error: errorText,
                                     periodoEncerrado: errorText.includes('Período encerrado') || errorText.includes('Período fechado')
-                                };
+                                });
                             }
+                            
+                            // Pequeno delay entre requisições para evitar race conditions
+                            await new Promise(resolve => setTimeout(resolve, 300));
+                            
                         } catch (err) {
                             console.error(`❌ Erro ao enviar ${item.coluna}:`, err);
-                            return { success: false, coluna: item.coluna, error: err.message };
+                            results.push({ success: false, coluna: item.coluna, error: err.message });
                         }
-                    });
-                    
-                    const results = await Promise.all(promises);
+                    }
                     
                     sucessos = results.filter(r => r.success).length;
                     erros = results.filter(r => !r.success).length;
