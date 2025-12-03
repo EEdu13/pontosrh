@@ -670,6 +670,21 @@
                 console.log(`📊 Total de funcionários retornados: ${funcionarios.length}`);
                 console.log(`📅 Data de referência (hoje): ${hoje.toLocaleDateString('pt-BR')}`);
                 
+                // 🔍 DEBUG: Ver estrutura de funcionário e campos disponíveis
+                if (funcionarios.length > 0) {
+                    console.log('🔍 Estrutura do primeiro funcionário:', funcionarios[0]);
+                    console.log('🔍 Campos disponíveis:', Object.keys(funcionarios[0]));
+                    console.log('🔍 DataDemissao existe?', 'DataDemissao' in funcionarios[0]);
+                    console.log('🔍 DataDemissao valor:', funcionarios[0].DataDemissao);
+                    
+                    // Ver funcionários com DataDemissao preenchida
+                    const comDemissao = funcionarios.filter(f => f.DataDemissao);
+                    console.log(`🔍 Funcionários COM DataDemissao: ${comDemissao.length} de ${funcionarios.length}`);
+                    if (comDemissao.length > 0) {
+                        console.log('🔍 Exemplo de demitido:', comDemissao[0]);
+                    }
+                }
+                
                 const funcionariosAtivos = funcionarios.filter(f => {
                     if (!f.DataDemissao) return true; // Sem data de demissão = ativo
                     
