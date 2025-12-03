@@ -2292,7 +2292,15 @@
                 campos.forEach(campoId => {
                     const campo = document.getElementById(campoId);
                     if (campo && !campo.disabled) {
+                        // IMPORTANTE: Mudar tipo de input para "text" para aceitar justificativas
+                        if (campo.type === 'time') {
+                            campo.type = 'text';
+                        }
                         campo.value = valorSelecionado.toUpperCase();
+                        // Adicionar estilo para indicar que é justificativa, não horário
+                        campo.style.textAlign = 'center';
+                        campo.style.fontWeight = 'bold';
+                        campo.style.color = '#3b82f6';
                         console.log(`✅ ${campoId} preenchido com: ${valorSelecionado}`);
                     }
                 });
@@ -3064,26 +3072,12 @@
                 // TAREFA 6: Verificar pontos ímpares (entrada sem saída)
                 const pontosImpares = totalBatidas % 2 !== 0; // Ímpar = falta entrada ou saída
                 
-                // 🔍 DEBUG: Log para investigar inconsistências
-                if (func.name.includes('NAGILA') || func.name.includes('Nagila')) {
-                    console.log(`🔍 DEBUG NAGILA:`, {
-                        nome: func.name,
-                        totalBatidas: totalBatidas,
-                        batidas: batidas,
-                        pontosImpares: pontosImpares,
-                        ordemIncorreta: ordemIncorreta,
-                        temMotivoEspecial: temMotivoEspecial,
-                        isDept400: isDept400,
-                        ignorarDomingo: ignorarDomingo
-                    });
-                }
-                
                 // REGRAS DE INCONSISTÊNCIA:
                 let batidaIncorreta = false;
                 
                 if (isDept400) {
-                    // Dept 400: aceita 2 batidas (ent1 + sai1), qualquer outro número é inconsistência
-                    batidaIncorreta = totalBatidas !== 2;
+                    // Dept 400: aceita 2 batidas (ent1 + sai1) OU 4 batidas (horário normal com intervalo)
+                    batidaIncorreta = (totalBatidas !== 2 && totalBatidas !== 4);
                 } else if (ignorarDomingo) {
                     // Domingo nos departamentos especificados: não é inconsistência
                     batidaIncorreta = false;
