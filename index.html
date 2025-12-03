@@ -2504,8 +2504,13 @@
                         const data = await response.json();
                         console.log(`✅ ${empresa.name}: ${data.length} batidas recebidas`);
                         
+                        // 🔍 DEBUG: Ver estrutura completa de uma batida
+                        if (data.length > 0) {
+                            console.log(`🔍 Estrutura da primeira batida:`, data[0]);
+                        }
+                        
                         // 🔍 DEBUG: Ver justificativas retornadas pela API
-                        const batidasComJustificativa = data.filter(b => b.Justificativa || b.JustificativaAbreviacao);
+                        const batidasComJustificativa = data.filter(b => b.Justificativa || b.JustificativaAbreviacao || b.Entrada1Justificativa || b.Saida1Justificativa);
                         if (batidasComJustificativa.length > 0) {
                             console.log(`🔍 ${batidasComJustificativa.length} batidas com justificativa:`, batidasComJustificativa[0]);
                         }
