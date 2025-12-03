@@ -4431,7 +4431,10 @@
             currentAnexoImage = null;
             currentOCRData = null;
             
-            
+            // ✅ RESETAR ESTADO DO BOTÃO (evitar ficar travado)
+            const btn = document.getElementById('btnConfirmarAnexo');
+            btn.disabled = false;
+            btn.textContent = 'Confirmar Anexo';
             
             document.getElementById('modalAnexoInfo').textContent = `REG: ${employee.reg} | ${employee.name} | Data: ${employee.date}`;
             document.getElementById('previewArea').style.display = 'none';
@@ -4494,6 +4497,11 @@
             currentAnexoEmployee = null;
             currentAnexoImage = null;
             currentOCRData = null;
+            
+            // ✅ RESETAR ESTADO DO BOTÃO ao fechar
+            const btn = document.getElementById('btnConfirmarAnexo');
+            btn.disabled = false;
+            btn.textContent = 'Confirmar Anexo';
         }
         
         function setupDropZone() {
