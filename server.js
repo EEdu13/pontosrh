@@ -501,7 +501,7 @@ app.delete('/api/colaboradores/:id', async (req, res) => {
 // POST - Upload de anexo (imagem) - SEM AUTENTICAÇÃO JWT (usa apenas validação de dados)
 app.post('/api/anexos/upload', async (req, res) => {
     try {
-        let { reg, cpf, data, empresa_id, empresa_nome, funcionario_nome, imageBase64, motivo, ocr_texto, horarios } = req.body;
+        let { reg, cpf, data, empresa_id, empresa_nome, funcionario_nome, imageBase64, motivo, ocr_texto, horarios, created_by } = req.body;
         
         if (!cpf || !data || !imageBase64) {
             return res.status(400).json({ error: 'CPF, data e imagem são obrigatórios' });
@@ -531,7 +531,7 @@ app.post('/api/anexos/upload', async (req, res) => {
         // Salvar no SQL (usando REG + DATA + EMPRESA_ID como chave única)
         if (sqlConnected) {
             const pool = await poolPromise;
-            const userName = 'Sistema'; // Removido dependência de req.user
+            const userName = created_by || 'Sistema'; // Usar created_by do frontend
             
             await pool.request()
                 .input('cpf', sql.VarChar, cpf)
@@ -666,7 +666,7 @@ app.put('/api/anexos/:cpf/:data/questions', async (req, res) => {
         }
         
         const pool = await poolPromise;
-        const userName = 'Sistema'; // Sem autenticação
+        const userName = req.body.created_by || 'Sistema'; // Usar created_by do frontend
         
         // 🔑 UPSERT: Verificar se já existe registro
         const checkResult = await pool.request()

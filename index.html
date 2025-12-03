@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
@@ -3049,6 +3049,32 @@
                 handleCheckboxChange(e);
             });
             
+            // Clique simples: Abrir modal de perguntas/aprovação
+            tableBody.addEventListener('click', (e) => {
+                // Verificar se é uma célula de horário
+                const cell = e.target.closest('td[data-punch]');
+                if (!cell) return;
+                
+                // Ignorar se clicou em um ícone ou botão dentro da célula
+                if (e.target.closest('.question-icon, .check-icon, button, .arrow')) return;
+                
+                const reg = cell.dataset.reg;
+                const date = cell.dataset.date;
+                const punchType = cell.dataset.punch;
+                
+                // Buscar funcionário
+                const employee = allEmployees.find(emp => emp.reg === reg && emp.date === date);
+                if (!employee) return;
+                
+                // Se a célula tem class 'swapped', abrir modal de aprovação
+                if (cell.classList.contains('swapped')) {
+                    approveSwappedTime(e, reg, date, punchType, employee.name);
+                } else if (employee.punches[punchType] && employee.punches[punchType] !== '--:--') {
+                    // Se tem horário, abrir modal de pergunta
+                    openQuestionModal(reg, date, punchType, employee.name, employee.punches[punchType]);
+                }
+            });
+            
             // Edição inline (duplo clique)
             tableBody.addEventListener('dblclick', (e) => {
                 const cell = e.target.closest('td[data-punch]');
@@ -3331,7 +3357,7 @@
                                 });
                             }
                         } catch (err) {
-                            console.warn(`?? Erro ao buscar anexos de ${dataStr}:`, err.message);
+                            console.warn(`ℹ Erro ao buscar anexos de ${dataStr}:`, err.message);
                         }
                     }
                 }
@@ -3446,11 +3472,11 @@
                                             }
                                             
                                         } catch (err) {
-                                            console.warn(`?? Erro ao parsear perguntas_rh:`, err);
+                                            console.warn(`ℹ Erro ao parsear perguntas_rh:`, err);
                                         }
                                     } else {
                                         // DEBUG: FUNCIONÁRIO não encontrado
-                                        console.warn(`?? Anexo não vinculado: CPF=${cpfAnexo}, Data=${dataAnexo}, Perguntas:`, anexo.perguntas_rh);
+                                        console.warn(`ℹ Anexo não vinculado: CPF=${cpfAnexo}, Data=${dataAnexo}, Perguntas:`, anexo.perguntas_rh);
                                     }
                                 });
                             }
@@ -3466,12 +3492,12 @@
             }
         }
 
-        // ?? Carregar IDs de impresSóo (alias para carregarIdsImpressao)
+        // ℹ Carregar IDs de impresSóo (alias para carregarIdsImpressao)
         async function carregarIDs() {
             return await carregarIdsImpressao();
         }
         
-        // ?? Carregar IDs de impresSóo de TODOS os FUNCIONÁRIOs
+        // ℹ Carregar IDs de impresSóo de TODOS os FUNCIONÁRIOs
         async function carregarIdsImpressao() {
             try {
                 // Carregar IDs do banco de dados
@@ -3560,7 +3586,7 @@
                 API_CONFIG.baseURL = newBaseURL.trim().replace(/\/$/, ''); // Remove barra final
                 alert(`✅ URL Base configurada com sucesso!\n\nℹ️ ${API_CONFIG.baseURL}\n\nℹ️ Agora clique em "Conectar API Secullum" para testar.`);
             } else if (newBaseURL === '' || newBaseURL === 'https://') {
-                alert('? Por favor, digite uma URL válida!\n\n?? Dica: Entre em contato com o suporte da Secullum para obter a URL correta da sua instalação.');
+                alert('? Por favor, digite uma URL válida!\n\nℹ Dica: Entre em contato com o suporte da Secullum para obter a URL correta da sua instalação.');
             }
         }
 
@@ -4108,7 +4134,7 @@
                         
                     }
                 } else {
-                    console.warn(`?? Erro ao verificar anexo existente: ${response.status}`);
+                    console.warn(`ℹ Erro ao verificar anexo existente: ${response.status}`);
                 }
             } catch (err) {
                 console.warn('⚠️ Erro ao verificar anexo:', err.message);
@@ -4215,7 +4241,7 @@
                         
                         ctx.putImageData(imageData, 0, 0);
                         
-                        console.log(`?? Prçã-processamento: escala ${scale}x, contraste 4.0, threshold 140`);
+                        console.log(`ℹ Prçã-processamento: escala ${scale}x, contraste 4.0, threshold 140`);
                         
                         canvas.toBlob((blob) => resolve(blob), 'image/png');
                     };
@@ -4375,7 +4401,7 @@
                 let fullText = '';
                 
                 if (analyzeResult && analyzeResult.readResults) {
-                    console.log(`?? Azure retornou ${analyzeResult.readResults.length} página(s)`);
+                    console.log(`ℹ Azure retornou ${analyzeResult.readResults.length} página(s)`);
                     for (const page of analyzeResult.readResults) {
                         
                         for (const line of page.lines) {
@@ -4446,13 +4472,13 @@
                 if (motivosSemBolinha.length === 1) {
                     motivoDetectado = motivosSemBolinha[0];
                     motivoDetectadoPorTexto = true;
-                    console.log(`   ?? DETECTADO: ${motivoDetectado}`);
+                    console.log(`   ℹ DETECTADO: ${motivoDetectado}`);
                 } else if (motivosSemBolinha.length > 1) {
-                    console.log(`   ?? méltiplos motivos sem "O": ${motivosSemBolinha.join(', ')}`);
+                    console.log(`   ℹ méltiplos motivos sem "O": ${motivosSemBolinha.join(', ')}`);
                     motivoDetectado = motivosSemBolinha[0]; // Pega o primeiro
                     motivoDetectadoPorTexto = true;
                 } else {
-                    console.log('   ?? Nenhum motivo sem "O" detectado, usando ançãlise visual...');
+                    console.log('   ℹ Nenhum motivo sem "O" detectado, usando ançãlise visual...');
                 }
                 
                 // 📝 ESTRatéGIA FINAL: DETECTAR HorárioS ApéS "BATIDO"
@@ -4503,7 +4529,7 @@
                     // Detectar fim da seçãão (JUSTIFICATIVA ou Assinatura)
                     if (linha.includes('JUSTIFICATIVA') || linha.includes('Assinatura')) {
                         if (dentroSecaoHorarios) {
-                            console.log(`   ?? Linha ${i}: Fim da seçãão (${linha.substring(0, 30)}...)`);
+                            console.log(`   ℹ Linha ${i}: Fim da seçãão (${linha.substring(0, 30)}...)`);
                             break;
                         }
                     }
@@ -4512,7 +4538,7 @@
                     if (dentroSecaoHorarios) {
                         // Ignorar linhas com palavras-chave de layout
                         if (linha === 'Horário' || linha === 'BATIDO' || linha.includes('ANULAR')) {
-                            console.log(`   ?? Linha ${i}: Ignorado (palavra-chave): ${linha}`);
+                            console.log(`   ℹ Linha ${i}: Ignorado (palavra-chave): ${linha}`);
                             continue;
                         }
                         
@@ -4540,7 +4566,7 @@
                     } else {
                         if (!horarios.includes(item.horario)) {
                             horarios.push(item.horario);
-                            console.log(`   ?? Linha ${item.indice}: Horário MANUSCRITO: ${item.horario} (original: "${item.linhaOriginal}")`);
+                            console.log(`   ℹ Linha ${item.indice}: Horário MANUSCRITO: ${item.horario} (original: "${item.linhaOriginal}")`);
                         }
                     }
                 });
@@ -4553,7 +4579,7 @@
                 try {
                     // Só fazer ançãlise visual se não detectou pelo texto
                     if (!motivoDetectadoPorTexto) {
-                        console.log(`?? Criando canvas para ançãlise de checkbox...`);
+                        console.log(`ℹ Criando canvas para ançãlise de checkbox...`);
                     
                         // Criar canvas da imagem para ançãlise de pixels
                         const canvas = document.createElement('canvas');
@@ -4582,16 +4608,16 @@
                         const motivo = detectarCheckboxMarcado(canvas);
                         if (motivo) {
                             motivoDetectado = motivo;
-                            console.log(`?? Motivo detectado VISUALMENTE: ${motivoDetectado}`);
+                            console.log(`ℹ Motivo detectado VISUALMENTE: ${motivoDetectado}`);
                         } else {
-                            console.log(`?? Motivo (padrão, nenhum X detectado): ${motivoDetectado}`);
+                            console.log(`ℹ Motivo (padrão, nenhum X detectado): ${motivoDetectado}`);
                         }
                     } else {
-                        console.log(`?? Motivo detectado pelo TEXTO do Azure: ${motivoDetectado}`);
+                        console.log(`ℹ Motivo detectado pelo TEXTO do Azure: ${motivoDetectado}`);
                     }
                 } catch (err) {
-                    console.warn(`?? Erro ao detectar checkbox visual, usando padrão:`, err);
-                    console.log(`?? Motivo (padrão): ${motivoDetectado}`);
+                    console.warn(`ℹ Erro ao detectar checkbox visual, usando padrão:`, err);
+                    console.log(`ℹ Motivo (padrão): ${motivoDetectado}`);
                 }
                 
                 // EXTRAIR ID
@@ -4599,7 +4625,7 @@
                 const idMatch = fullText.match(/ID\s*IMP\s*:\s*(\d{1,3})/i);
                 if (idMatch) {
                     idDetectado = idMatch[1];
-                    console.log(`?? ID detectado: #${idDetectado}`);
+                    console.log(`ℹ ID detectado: #${idDetectado}`);
                 }
                 
                 // 📝 DETECTAR ASSINATURAS (FUNCIONÁRIO E Líder)
@@ -4628,11 +4654,11 @@
                     console.log('');
                     console.log('📋 RESULTADO DETECçããO DE ASSINATURAS');
                     console.log('');
-                    console.log(`?? FUNCIONÁRIO: ${assinaturaFuncionarioDetectada ? '? ASSINADO' : '? não ASSINADO'}`);
-                console.log(`?? Líder: ${assinaturaLiderDetectada ? '? ASSINADO' : '? não ASSINADO'}`);
+                    console.log(`ℹ FUNCIONÁRIO: ${assinaturaFuncionarioDetectada ? '? ASSINADO' : '? não ASSINADO'}`);
+                console.log(`ℹ Líder: ${assinaturaLiderDetectada ? '? ASSINADO' : '? não ASSINADO'}`);
                 console.log('');
                 } catch (err) {
-                    console.warn('?? Erro ao detectar assinaturas:', err);
+                    console.warn('ℹ Erro ao detectar assinaturas:', err);
                 }
                 
                 // TAREFA 3: INTELIGÊNCIA NA ORDEM DOS HORÁRIOS
@@ -4787,7 +4813,7 @@
         function detectarCaixasAmarelas(canvas) {
             
             
-            // ?? GRID AUTOméTICO: Detecta quantas colunas e linhas existem
+            // ℹ GRID AUTOméTICO: Detecta quantas colunas e linhas existem
             // Baseado na imagem: primeira linha Yçã300, segunda linha Yçã380, etc
             const regioes = [];
             
@@ -4854,7 +4880,7 @@
                         <head><title>Debug - Regiçães de Busca</title></head>
                         <body style="margin:0;background:#000;display:flex;justify-content:center;align-items:center;">
                             <div style="text-align:center;">
-                                <h2 style="color:white;">?? Regiçães de Busca Fixas</h2>
+                                <h2 style="color:white;">ℹ Regiçães de Busca Fixas</h2>
                                 <p style="color:cyan;">ã AZUL = Busca OCR direta (sem detecçãão de cor)</p>
                                 <img src="${debugUrl}" style="border:2px solid white;max-width:100%;"/>
                                 <p style="color:yellow;">Y atual: 460 | Ajuste se necesSório!</p>
@@ -4864,7 +4890,7 @@
                     `);
                 }
             } catch (e) {
-                console.warn('?? não foi posSóvel abrir janela de debug');
+                console.warn('ℹ não foi posSóvel abrir janela de debug');
             }
             
             return regioes; // Retorna TODAS as regiçães (busca direta)
@@ -4931,7 +4957,7 @@
                 { x: Math.round(largura * 0.655), y: Math.round(altura * 0.641), label: 'Registro indevido' }
             ];
             
-            console.log(`?? Analisando ${checkboxes.length} checkboxes...`);
+            console.log(`ℹ Analisando ${checkboxes.length} checkboxes...`);
             
             // 📝 DEBUG VISUAL: Desenhar cçãrculos vermelhos nas coordenadas
             const debugCanvas = document.createElement('canvas');
@@ -4980,7 +5006,7 @@
                 
                 const percentualPreto = (pixelsPretos / pixelsTotal) * 100;
                 
-                console.log(`?? ${cb.label} (${cb.x},${cb.y}): ${percentualPreto.toFixed(1)}% preto`);
+                console.log(`ℹ ${cb.label} (${cb.x},${cb.y}): ${percentualPreto.toFixed(1)}% preto`);
                 
                 // Guardar o que tiver MAIS preto
                 if (percentualPreto > maxPreto) {
@@ -5063,7 +5089,7 @@
             const resultados = {};
             
             regioes.forEach(regiao => {
-                console.log(`\n?? Analisando ${regiao.nome}:`);
+                console.log(`\nℹ Analisando ${regiao.nome}:`);
                 console.log(`   Região: X=${regiao.x}, Y=${regiao.y}, W=${regiao.w}, H=${regiao.h}`);
                 
                 // Extrair dados da região
@@ -5095,8 +5121,8 @@
                 const percentualEscuros = (pixelsEscuros / pixelsTotal) * 100;
                 const percentualMuitoEscuros = (pixelsMuitoEscuros / pixelsTotal) * 100;
                 
-                console.log(`   ?? Pixels escuros (<180): ${percentualEscuros.toFixed(2)}%`);
-                console.log(`   ?? Pixels muito escuros (<100): ${percentualMuitoEscuros.toFixed(2)}%`);
+                console.log(`   ℹ Pixels escuros (<180): ${percentualEscuros.toFixed(2)}%`);
+                console.log(`   ℹ Pixels muito escuros (<100): ${percentualMuitoEscuros.toFixed(2)}%`);
                 
                 // Critério de detecçãão (threshold ajustado para distinguir assinatura manuscrita de texto impresso)
                 // Texto impresso: ~1-2% pixels escuros
@@ -5150,7 +5176,7 @@
                 debugWindow.document.write(`
                     <html>
                         <head>
-                            <title>?? Detecçãão de Assinaturas</title>
+                            <title>ℹ Detecçãão de Assinaturas</title>
                             <style>
                                 body { 
                                     margin: 0; 
@@ -5205,25 +5231,25 @@
                         </head>
                         <body>
                             <div class="container">
-                                <h1>?? Detecçãão de Assinaturas</h1>
+                                <h1>ℹ Detecçãão de Assinaturas</h1>
                                 <div class="stats">
                                     <div class="stat-box ${resultados.funcionario ? 'funcionario' : 'unsigned'}">
-                                        <h3>?? FUNCIONÁRIO</h3>
+                                        <h3>ℹ FUNCIONÁRIO</h3>
                                         <div class="status">${resultados.funcionario ? '?' : '?'}</div>
                                         <div class="label">${resultados.funcionario ? 'ASSINADO' : 'não ASSINADO'}</div>
                                     </div>
                                     <div class="stat-box ${resultados.lider ? 'lider' : 'unsigned'}">
-                                        <h3>?? Líder</h3>
+                                        <h3>ℹ Líder</h3>
                                         <div class="status">${resultados.lider ? '?' : '?'}</div>
                                         <div class="label">${resultados.lider ? 'ASSINADO' : 'não ASSINADO'}</div>
                                     </div>
                                 </div>
                                 <img src="${debugUrl}">
                                 <div class="info">
-                                    <strong>?? Legenda:</strong><br>
-                                    ?? Reténgulo AZUL = Região do FUNCIONÁRIO<br>
-                                    ?? Reténgulo VERDE = Região do Líder<br>
-                                    ?? Reténgulo VERMELHO = Assinatura não detectada<br><br>
+                                    <strong>ℹ Legenda:</strong><br>
+                                    ℹ Reténgulo AZUL = Região do FUNCIONÁRIO<br>
+                                    ℹ Reténgulo VERDE = Região do Líder<br>
+                                    ℹ Reténgulo VERMELHO = Assinatura não detectada<br><br>
                                     <strong>Limiar de detecçãão:</strong> =2% pixels muito escuros OU =6% pixels escuros
                                 </div>
                             </div>
@@ -5253,7 +5279,7 @@
                     h: 40    // Altura maior para garantir captura
                 };
                 
-                console.log(`?? Buscando na região: X=${idRegion.x}, Y=${idRegion.y}, W=${idRegion.w}, H=${idRegion.h}`);
+                console.log(`ℹ Buscando na região: X=${idRegion.x}, Y=${idRegion.y}, W=${idRegion.w}, H=${idRegion.h}`);
                 
                 // Crop da região
                 const cropCanvas = document.createElement('canvas');
@@ -5313,7 +5339,7 @@
                         debugWindow.document.write(`<p>Região: X=${idRegion.x}, Y=${idRegion.y}, W=${idRegion.w}, H=${idRegion.h}</p>`);
                     }
                 } catch (e) {
-                    console.warn('?? não foi posSóvel abrir janela de debug (popup bloqueado?)');
+                    console.warn('ℹ não foi posSóvel abrir janela de debug (popup bloqueado?)');
                 }
                 
                 // ? verificaçãoO SEGURA: checar se result existe antes de acessar propriedades
@@ -5325,11 +5351,11 @@
                 const textoExtraido = result.data.text || '';
                 const confidence = result.data.confidence || 0;
                 
-                console.log(`   ?? Texto extraçãdo: "${textoExtraido.trim()}"`);
-                console.log(`   ?? Confiançãa: ${Math.round(confidence)}%`);
+                console.log(`   ℹ Texto extraçãdo: "${textoExtraido.trim()}"`);
+                console.log(`   ℹ Confiançãa: ${Math.round(confidence)}%`);
                 
                 if (!textoExtraido) {
-                    console.warn('   ?? OCR não retornou texto');
+                    console.warn('   ℹ OCR não retornou texto');
                     return null;
                 }
                 
@@ -5353,10 +5379,10 @@
                         console.log(`? ID detectado: #${id} (confiançãa: ${Math.round(confidence)}%)`);
                         return id.toString();
                     } else {
-                        console.warn(`   ?? Nçãmero encontrado (${id}) mas fora do range válido (1-200)`);
+                        console.warn(`   ℹ Nçãmero encontrado (${id}) mas fora do range válido (1-200)`);
                     }
                 } else {
-                    console.warn('   ?? Nenhum padrão de ID encontrado no texto');
+                    console.warn('   ℹ Nenhum padrão de ID encontrado no texto');
                 }
                 
                 // 📝 FALLBACK: Tentar regiçães alternativas
@@ -5371,7 +5397,7 @@
                 ];
                 
                 for (const altRegion of alternativeRegions) {
-                    console.log(`   ?? Tentando: ${altRegion.desc} (X=${altRegion.x}, Y=${altRegion.y})`);
+                    console.log(`   ℹ Tentando: ${altRegion.desc} (X=${altRegion.x}, Y=${altRegion.y})`);
                     
                     const altCanvas = document.createElement('canvas');
                     const altCtx = altCanvas.getContext('2d');
@@ -5405,7 +5431,7 @@
                     
                     // Se falhar, tentar com PSM.AUTO
                     if (!altResult?.data?.text || altResult.data.text.trim() === '') {
-                        console.log('      ?? PSM.SINGLE_LINE falhou, tentando PSM.AUTO...');
+                        console.log('      ℹ PSM.SINGLE_LINE falhou, tentando PSM.AUTO...');
                         altResult = await Tesseract.recognize(altBlob, 'por', {
                             tessedit_char_whitelist: '0123456789IDIMP: ',
                             tessedit_pageseg_mode: Tesseract.PSM.AUTO
@@ -5414,7 +5440,7 @@
                     
                     if (altResult?.data?.text) {
                         const altTexto = altResult.data.text.trim();
-                        console.log(`      ?? Texto alternativo: "${altTexto}"`);
+                        console.log(`      ℹ Texto alternativo: "${altTexto}"`);
                         
                         const altMatch = altTexto.match(/ID\s*IMP\s*:?\s*(\d{1,3})/i) || 
                                         altTexto.replace(/\d{1,2}\/\d{1,2}/g, '').match(/\b(\d{1,2})\b/);
@@ -5434,7 +5460,7 @@
                 console.error('Stack trace:', err.stack);
             }
             
-            console.warn('?? ID não encontrado no PDF (tentativas esgotadas)');
+            console.warn('ℹ ID não encontrado no PDF (tentativas esgotadas)');
             return null;
         }
 
@@ -5457,7 +5483,7 @@
             // Mostrar status
             document.getElementById('ocrStatus').style.display = 'block';
             document.getElementById('ocrResult').style.display = 'none';
-            document.getElementById('ocrStatusText').textContent = '?? Analisando com Google Vision AI...';
+            document.getElementById('ocrStatusText').textContent = 'ℹ Analisando com Google Vision AI...';
             
             try {
                 // Converter para base64
@@ -5470,7 +5496,7 @@
                 // ======================================
                 // ETAPA 1: VALIDAR ID (mantém légica existente)
                 // ======================================
-                document.getElementById('ocrStatusText').textContent = '?? Verificando ID do formulério...';
+                document.getElementById('ocrStatusText').textContent = 'ℹ Verificando ID do formulério...';
                 
                 const dadosExtraidos = await extrairDadosComGoogleVision(base64Image);
                 
@@ -5484,7 +5510,7 @@
                 // 📝 CASO 1: IDs diferentes OU não detectado = PERGUNTAR
                 if (idEsperado && idEncontrado && parseInt(idEncontrado) !== parseInt(idEsperado)) {
                     const continuar = confirm(
-                        `?? ID DIFERENTE!\n\n` +
+                        `ℹ ID DIFERENTE!\n\n` +
                         `ID esperado: #${idEsperado}\n` +
                         `ID detectado: #${idEncontrado}\n\n` +
                         `Deseja continuar mesmo assim?`
@@ -5499,10 +5525,10 @@
                 // 📝 CASO 2: não leu ID = PERGUNTAR
                 if (idEsperado && !idEncontrado) {
                     const continuar = confirm(
-                        `?? ID não DETECTADO\n\n` +
+                        `ℹ ID não DETECTADO\n\n` +
                         `não foi posSóvel ler o ID automaticamente.\n\n` +
-                        `?? FUNCIONÁRIO: ${currentAnexoEmployee.name}\n` +
-                        `?? ID esperado: #${idEsperado}\n\n` +
+                        `ℹ FUNCIONÁRIO: ${currentAnexoEmployee.name}\n` +
+                        `ℹ ID esperado: #${idEsperado}\n\n` +
                         `Deseja continuar?`
                     );
                     
@@ -5519,7 +5545,7 @@
                 
                 // 📝 CASO 4: Primeiro formulério
                 if (!idEsperado) {
-                    console.log(`?? FUNCIONÁRIO ainda não possui ID no sistema`);
+                    console.log(`ℹ FUNCIONÁRIO ainda não possui ID no sistema`);
                 }
                 
                 // ======================================
@@ -5536,7 +5562,7 @@
             } catch (err) {
                 console.error('? Erro no OCR:', err);
                 console.error('Stack:', err.stack);
-                document.getElementById('ocrStatusText').textContent = '?? Erro - você pode continuar manualmente';
+                document.getElementById('ocrStatusText').textContent = 'ℹ Erro - você pode continuar manualmente';
                 document.getElementById('btnConfirmarAnexo').style.display = 'block';
             }
         }
@@ -5562,7 +5588,7 @@
                     const id = match[1];
                     // Validar que não ã REG, Projeto ou Data
                     if (parseInt(id) < 200 && id.length <= 3) {
-                        console.log(`?? ID encontrado (método 1 - texto): #${id}`);
+                        console.log(`ℹ ID encontrado (método 1 - texto): #${id}`);
                         return id;
                     }
                 }
@@ -5573,7 +5599,7 @@
             if (hashMatch) {
                 const id = hashMatch[1];
                 if (parseInt(id) > 0 && parseInt(id) < 200) {
-                    console.log(`?? ID encontrado (método 2 - hash): #${id}`);
+                    console.log(`ℹ ID encontrado (método 2 - hash): #${id}`);
                     return id;
                 }
             }
@@ -5612,7 +5638,7 @@
                 
                 if (candidatosID.length > 0) {
                     const melhor = candidatosID[0];
-                    console.log(`?? ID encontrado (método 3 - posiçãoo): #${melhor.id}`);
+                    console.log(`ℹ ID encontrado (método 3 - posiçãoo): #${melhor.id}`);
                     console.log(`   X=${Math.round(melhor.x)}, Y=${Math.round(melhor.y)}, Score=${Math.round(melhor.score)}, Confiançãa=${Math.round(melhor.confidence)}%`);
                     if (candidatosID.length > 1) {
                         console.log(`   Rejeitados: ${candidatosID.slice(1).map(c => `#${c.id} (X=${Math.round(c.x)}, Y=${Math.round(c.y)}, Score=${Math.round(c.score)})`).join(', ')}`);
@@ -5621,7 +5647,7 @@
                 }
             }
             
-            console.warn('?? ID não encontrado no PDF');
+            console.warn('ℹ ID não encontrado no PDF');
             return null;
         }
         */
@@ -5707,7 +5733,7 @@
                         const distancia = Math.abs(nextWord.bbox.x0 - (word.bbox.x0 + 30));
                         const distanciaVertical = Math.abs(nextWord.bbox.y0 - word.bbox.y0);
                         
-                        console.log(`?? Par "${word.text}" + "${nextWord.text}": X1=${Math.round(word.bbox.x0)}, X2=${Math.round(nextWord.bbox.x0)}, distH=${Math.round(distancia)}px, distV=${Math.round(distanciaVertical)}px`);
+                        console.log(`ℹ Par "${word.text}" + "${nextWord.text}": X1=${Math.round(word.bbox.x0)}, X2=${Math.round(nextWord.bbox.x0)}, distH=${Math.round(distancia)}px, distV=${Math.round(distanciaVertical)}px`);
                         
                         if (distancia < 80 && distanciaVertical < 20 && hora >= 0 && hora <= 23 && min >= 0 && min <= 59) {
                             horariosEncontrados.push({
@@ -5731,7 +5757,7 @@
             // Ordenar Horários por posiçãoo (esquerda ? direita, cima ? baixo)
             horariosEncontrados.sort((a, b) => a.posicao - b.posicao);
             
-            console.log(`?? Total de Horários válidos encontrados: ${horariosEncontrados.length}`);
+            console.log(`ℹ Total de Horários válidos encontrados: ${horariosEncontrados.length}`);
             
             // Atribuir Horários aos campos (máximo 6: ent1, sai1, ent2, sai2, ent3, sai3)
             const campos = ['ent1', 'sai1', 'ent2', 'sai2', 'ent3', 'sai3'];
@@ -5846,7 +5872,7 @@
                 const hora = parseInt(valor.substring(0, 2));
                 const min = parseInt(valor.substring(2, 4));
                 
-                console.log(`?? Padrão2 encontrado: "${valor}" ? Hora=${hora}, Min=${min}`);
+                console.log(`ℹ Padrão2 encontrado: "${valor}" ? Hora=${hora}, Min=${min}`);
                 
                 // FILTROS DE validaçãoO
                 // 1. Validar se pode ser Horário
@@ -5887,7 +5913,7 @@
                         tipo: '4digitos'
                     });
                 } else {
-                    console.log(`   ?? Duplicado: ${horarioStr}`);
+                    console.log(`   ℹ Duplicado: ${horarioStr}`);
                 }
             }
             
@@ -6007,7 +6033,7 @@
                 const bloqueado = jaBatido ? 'disabled' : '';
                 const corBorda = jaBatido ? '#94a3b8' : getConfidenceColor(confidence || 0);
                 const bgColor = jaBatido ? '#f1f5f9' : 'white';
-                const badge = jaBatido ? '<span style="display: inline-block; margin-left: 8px; padding: 2px 8px; background: #64748b; color: white; border-radius: 12px; font-size: 10px; font-weight: 600;">?? já BATIDO</span>' : getConfidenceBadge(confidence, label);
+                const badge = jaBatido ? '<span style="display: inline-block; margin-left: 8px; padding: 2px 8px; background: #64748b; color: white; border-radius: 12px; font-size: 10px; font-weight: 600;">ℹ já BATIDO</span>' : getConfidenceBadge(confidence, label);
                 
                 return `
                     <div>
@@ -6027,7 +6053,7 @@
                             <span style="font-size: 24px;">${dados.assinaturaFuncionario ? '?' : '?'}</span>
                             <div>
                                 <div style="font-weight: 600; color: ${dados.assinaturaFuncionario ? '#1e40af' : '#991b1b'}; font-size: 14px;">
-                                    ?? FUNCIONÁRIO
+                                    ℹ FUNCIONÁRIO
                                 </div>
                                 <div style="font-size: 11px; color: ${dados.assinaturaFuncionario ? '#1e40af' : '#b91c1c'}; margin-top: 2px;">
                                     ${dados.assinaturaFuncionario ? 'ASSINADO' : 'não ASSINADO'}
@@ -6041,7 +6067,7 @@
                             <span style="font-size: 24px;">${dados.assinaturaLider ? '?' : '?'}</span>
                             <div>
                                 <div style="font-weight: 600; color: ${dados.assinaturaLider ? '#065f46' : '#991b1b'}; font-size: 14px;">
-                                    ?? Líder
+                                    ℹ Líder
                                 </div>
                                 <div style="font-size: 11px; color: ${dados.assinaturaLider ? '#047857' : '#b91c1c'}; margin-top: 2px;">
                                     ${dados.assinaturaLider ? 'ASSINADO' : 'não ASSINADO'}
@@ -6053,7 +6079,7 @@
                 
                 <div style="margin-bottom: 16px;">
                     <label style="display: block; font-weight: 600; color: #065f46; margin-bottom: 8px;">
-                        ?? Motivo: ${getConfidenceBadge(dados.confidence?.motivo, 'Motivo')}
+                        ℹ Motivo: ${getConfidenceBadge(dados.confidence?.motivo, 'Motivo')}
                     </label>
                     <select id="ocrMotivo" style="width: 100%; padding: 8px; border: 2px solid ${getConfidenceColor(dados.confidence?.motivo || 0)}; border-radius: 6px; font-size: 14px;">
                         <option value="">-- Selecione --</option>
@@ -6083,7 +6109,7 @@
                 
                 <div style="margin-top: 12px; padding: 12px; background: #dbeafe; border-left: 4px solid #3b82f6; border-radius: 4px;">
                     <div style="font-size: 12px; color: #1e40af; line-height: 1.5;">
-                        <strong>?? Indicadores:</strong><br>
+                        <strong>ℹ Indicadores:</strong><br>
                         <span style="color: #64748b;"></span> Cinza: Horário já batido (bloqueado)<br>
                         <span style="color: #10b981;">?</span> Verde (=80%): Alta confiançãa<br>
                         <span style="color: #f59e0b;">?</span> Amarelo (60-80%): média confiançãa - revisar<br>
@@ -6106,11 +6132,11 @@
             // 📝 VALIDAR ASSINATURAS ANTES DE ENVIAR
             if (currentOCRData && (currentOCRData.assinaturaFuncionario === false || currentOCRData.assinaturaLider === false)) {
                 const faltantes = [];
-                if (!currentOCRData.assinaturaFuncionario) faltantes.push('?? FUNCIONÁRIO');
-                if (!currentOCRData.assinaturaLider) faltantes.push('?? Líder');
+                if (!currentOCRData.assinaturaFuncionario) faltantes.push('ℹ FUNCIONÁRIO');
+                if (!currentOCRData.assinaturaLider) faltantes.push('ℹ Líder');
                 
                 const confirmar = confirm(
-                    `?? ASSINATURAS FALTANDO\n\n` +
+                    `ℹ ASSINATURAS FALTANDO\n\n` +
                     `As seguintes assinaturas não foram detectadas:\n${faltantes.join('\n')}\n\n` +
                     `Deseja prosseguir mesmo assim?\n\n` +
                     `? OK = Aceitar sem assinatura\n` +
@@ -6155,8 +6181,8 @@
                 // 📝 USAR SEMPRE A DATA DA TABELA, IGNORAR rawData.Data
                 let dataFormatted = currentAnexoEmployee.date;
                 
-                console.log(`?? Data da TABELA (USANDO ESTA): ${currentAnexoEmployee.date}`);
-                console.log(`?? Data da API rawData (IGNORANDO): ${currentAnexoEmployee.rawData?.Data}`);
+                console.log(`ℹ Data da TABELA (USANDO ESTA): ${currentAnexoEmployee.date}`);
+                console.log(`ℹ Data da API rawData (IGNORANDO): ${currentAnexoEmployee.rawData?.Data}`);
                 
                 // Formato estranho da API: 28T00:00:00/10/2025 -> 2025-10-28
                 const strangeMatch = dataFormatted.match(/^(\d{1,2})T\d{2}:\d{2}:\d{2}\/(\d{1,2})\/(\d{4})/);
@@ -6174,11 +6200,11 @@
                     const parts = dataFormatted.split('/');
                     if (parts.length === 3) {
                         dataFormatted = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
-                        console.log(`?? Formato BR detectado, convertido para: ${dataFormatted}`);
+                        console.log(`ℹ Formato BR detectado, convertido para: ${dataFormatted}`);
                     }
                 }
                 
-                console.log(`?? Data formatada final para envio: ${dataFormatted}`);
+                console.log(`ℹ Data formatada final para envio: ${dataFormatted}`);
                 
                 // Preparar dados (usando CPF + DATA como chave ãnica)
                 const payload = {
@@ -6192,7 +6218,8 @@
                     motivo: currentOCRData.motivo,
                     horarios: currentOCRData,
                     ocr_texto: JSON.stringify(currentOCRData),
-                    perguntas_rh: JSON.stringify(currentAnexoEmployee.questions || {})
+                    perguntas_rh: JSON.stringify(currentAnexoEmployee.questions || {}),
+                    created_by: window.CURRENT_USER || 'Sistema'
                 };
                 
                 console.log('📤 Enviando anexo com data:', payload.data);
@@ -6268,8 +6295,8 @@
                             showAlert(
                                 'Sucesso!',
                                 `? Anexo salvo e Horários enviados para Secullum!\n\n` +
-                                `?? Arquivo: ${result.filename}\n` +
-                                `?? Motivo: ${result.motivo || 'não detectado'}\n` +
+                                `ℹ Arquivo: ${result.filename}\n` +
+                                `ℹ Motivo: ${result.motivo || 'não detectado'}\n` +
                                 `? Horários: ${horariosStr}`,
                                 'success'
                             );
@@ -6298,7 +6325,7 @@
         
         // Enviar Horários OCR para Secullum (quando Usuário clica no checkbox verde)
         async function enviarParaSecullum(empRef, autoEnvio = false) {
-            console.log(`?? Enviando Horários para Secullum: REG=${empRef.reg}, Data=${empRef.date}`);
+            console.log(`ℹ Enviando Horários para Secullum: REG=${empRef.reg}, Data=${empRef.date}`);
             
             if (!empRef) {
                 alert('? Erro: FUNCIONÁRIO não encontrado!');
@@ -6492,10 +6519,10 @@
                 // Recarregar dados
                 await searchPeriod();
                 
-                let mensagem = `?? Envio concluçãdo:\n? ${sucessos} Horários enviados\n? ${erros} erros`;
+                let mensagem = `ℹ Envio concluçãdo:\n? ${sucessos} Horários enviados\n? ${erros} erros`;
                 
                 if (periodoEncerrado) {
-                    mensagem += `\n\n?? ATEnãoO: Período encerrado!\nEntre em contato com o RH.`;
+                    mensagem += `\n\nℹ ATEnãoO: Período encerrado!\nEntre em contato com o RH.`;
                 }
                 
                 alert(mensagem);
@@ -6788,7 +6815,7 @@
                     dataFormatted = dataFormatted.split('T')[0];
                 }
                 
-                console.log(`?? Salvando perguntas: ${employee.name} (${dataFormatted})`);
+                console.log(`ℹ Salvando perguntas: ${employee.name} (${dataFormatted})`);
                 
                 // 📝 1. BUSCAR dados existentes primeiro
                 let existingData = {};
@@ -6805,7 +6832,7 @@
                         );
                         if (anexoExistente?.perguntas_rh) {
                             existingData = JSON.parse(anexoExistente.perguntas_rh);
-                            console.log(`?? Dados existentes:`, existingData);
+                            console.log(`ℹ Dados existentes:`, existingData);
                         }
                     }
                 } catch (err) {
@@ -6819,7 +6846,7 @@
                     ...employee.approved
                 };
                 
-                console.log(`?? Dados mesclados a salvar:`, mergedData);
+                console.log(`ℹ Dados mesclados a salvar:`, mergedData);
                 
                 // 📝 3. SALVAR
                 const response = await fetch(
@@ -6883,11 +6910,11 @@
                         );
                         if (anexoExistente && anexoExistente.perguntas_rh) {
                             existingData = JSON.parse(anexoExistente.perguntas_rh);
-                            console.log(`?? Dados existentes encontrados:`, existingData);
+                            console.log(`ℹ Dados existentes encontrados:`, existingData);
                         }
                     }
                 } catch (err) {
-                    console.warn(`?? não foi posSóvel buscar dados existentes:`, err);
+                    console.warn(`ℹ não foi posSóvel buscar dados existentes:`, err);
                 }
                 
                 // Mesclar TUDO: dados existentes + questions atuais + nova aprovação
@@ -6899,7 +6926,7 @@
                     [approvedKey]: approvalComment  // 4. Nova aprovação
                 };
                 
-                console.log(`?? Dados a salvar (mesclados):`, mergedData);
+                console.log(`ℹ Dados a salvar (mesclados):`, mergedData);
                 
                 const response = await fetch(`${API_BASE_URL}/api/anexos/${employee.cpf}/${dataFormatted}/questions`, {
                     method: 'PUT',
@@ -6975,14 +7002,14 @@
             if (currentQuestionContext) {
                 const { reg, date, punchType, isApproval } = currentQuestionContext;
                 
-                console.log(`?? Buscando FUNCIONÁRIO: REG=${reg}, Data=${date}`);
+                console.log(`ℹ Buscando FUNCIONÁRIO: REG=${reg}, Data=${date}`);
                 
                 // 📝 Buscar FUNCIONÁRIO pela DATA E REG (não importa se tem anexo ou não)
                 // Se tiver anexo, vai salvar. Se não tiver, vai avisar.
                 let employee = allEmployees.find(emp => emp.reg === reg && emp.date === date);
                 
                 if (!employee) {
-                    console.warn(`?? FUNCIONÁRIO não encontrado: REG=${reg}, Data=${date}`);
+                    console.warn(`ℹ FUNCIONÁRIO não encontrado: REG=${reg}, Data=${date}`);
                     showAlert('Erro', 'FUNCIONÁRIO não encontrado para esta data.', 'error');
                     return;
                 }
@@ -7469,7 +7496,7 @@
                     return fetch(`${API_BASE_URL}/api/machine-monitor?bancoid=${bancoid}`)
                         .then(async r => {
                             if (!r.ok) {
-                                console.warn(`?? Erro ao consultar banco ${bancoid}: HTTP ${r.status}`);
+                                console.warn(`ℹ Erro ao consultar banco ${bancoid}: HTTP ${r.status}`);
                                 return [];
                             }
                             return r.json();
@@ -7508,10 +7535,10 @@
                             <thead>
                                 <tr style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
                                     <th style="padding: 14px 16px; text-align: left; font-weight: 700; font-size: 13px; letter-spacing: 0.5px;">? EQUIPAMENTO</th>
-                                    <th style="padding: 14px 16px; text-align: center; font-weight: 700; font-size: 13px; letter-spacing: 0.5px;">?? Última SINC</th>
-                                    <th style="padding: 14px 16px; text-align: center; font-weight: 700; font-size: 13px; letter-spacing: 0.5px;">?? QTD BATIDAS</th>
-                                    <th style="padding: 14px 16px; text-align: center; font-weight: 700; font-size: 13px; letter-spacing: 0.5px;">?? Hçã QUANTO TEMPO</th>
-                                    <th style="padding: 14px 16px; text-align: center; font-weight: 700; font-size: 13px; letter-spacing: 0.5px;">?? STATUS</th>
+                                    <th style="padding: 14px 16px; text-align: center; font-weight: 700; font-size: 13px; letter-spacing: 0.5px;">ℹ Última SINC</th>
+                                    <th style="padding: 14px 16px; text-align: center; font-weight: 700; font-size: 13px; letter-spacing: 0.5px;">ℹ QTD BATIDAS</th>
+                                    <th style="padding: 14px 16px; text-align: center; font-weight: 700; font-size: 13px; letter-spacing: 0.5px;">ℹ Hçã QUANTO TEMPO</th>
+                                    <th style="padding: 14px 16px; text-align: center; font-weight: 700; font-size: 13px; letter-spacing: 0.5px;">ℹ STATUS</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -7547,7 +7574,7 @@
                         statusText = '? OFFLINE';
                     } else if (diffMinutes > 30) {
                         statusColor = '#f59e0b'; // Amarelo
-                        statusText = '?? ALERTA';
+                        statusText = 'ℹ ALERTA';
                     }
                     
                     const tempoAtras = lastSync 
@@ -7559,7 +7586,7 @@
                             <td style="padding: 14px 16px; font-weight: 600; color: #1e293b; font-size: 14px;">
                                 ${machine.name}
                                 <div style="font-size: 11px; color: #94a3b8; font-weight: 400; margin-top: 2px;">
-                                    ?? ${machine.id} ã ?? ${machine.ip || 'N/A'}
+                                    ℹ ${machine.id} ã ℹ ${machine.ip || 'N/A'}
                                 </div>
                             </td>
                             <td style="padding: 14px 16px; text-align: center; color: #475569; font-size: 13px;">
@@ -7669,7 +7696,7 @@
                     })
                 });
                 
-                console.log(`?? Status da resposta: ${response.status}`);
+                console.log(`ℹ Status da resposta: ${response.status}`);
                 
                 if (!response.ok) {
                     const errorText = await response.text();
@@ -7867,7 +7894,7 @@
                     Motivo: 'Edição inline via sistema'
                 };
 
-                console.log(`?? Salvando ${colunaMap[punchType]}: ${newValue}`, payload);
+                console.log(`ℹ Salvando ${colunaMap[punchType]}: ${newValue}`, payload);
 
                 const endpoint = `${API_CONFIG.baseURL}/IntegracaoExterna/CartaoPonto/Manual`;
 
@@ -7881,7 +7908,7 @@
                     body: JSON.stringify(payload)
                 });
 
-                console.log(`?? Status da resposta: ${response.status}`);
+                console.log(`ℹ Status da resposta: ${response.status}`);
 
                 if (response.ok) {
                     // ✅ INVALIDAÇÃO CIRÚRGICA: Recarregar apenas este funcionário
@@ -7890,14 +7917,14 @@
                     
                     // Tenta ler como JSON, mas aceita resposta vazia
                     const responseText = await response.text();
-                    console.log(`?? Resposta texto: "${responseText}"`);
+                    console.log(`ℹ Resposta texto: "${responseText}"`);
                     
                     let result = null;
                     if (responseText && responseText.trim() !== '') {
                         try {
                             result = JSON.parse(responseText);
                         } catch (e) {
-                            console.warn('?? Resposta não ã JSON válido, mas status ã OK');
+                            console.warn('ℹ Resposta não ã JSON válido, mas status ã OK');
                         }
                     }
                     
@@ -7968,12 +7995,12 @@
                     
                     // AVISOS
                     if (ordemIncorreta) {
-                        alert(`?? ATEnãoO: ORDEM cronológica INCORRETA!\n\n` +
+                        alert(`ℹ ATEnãoO: ORDEM cronológica INCORRETA!\n\n` +
                               `Os Horários devem estar em ordem crescente.\n` +
                               `Verifique: ${horariosOrdenados.join(' ? ')}\n\n` +
                               `A linha ficou marcada em AMARELO.`);
                     } else if (totalBatidas !== 4) {
-                        alert(`?? ATEnãoO: ${totalBatidas} batidas registradas!\n\n` +
+                        alert(`ℹ ATEnãoO: ${totalBatidas} batidas registradas!\n\n` +
                               `Padrão esperado: 4 batidas (2 pares)\n` +
                               `Atual: ${horariosOrdenados.join(', ')}\n\n` +
                               `A linha ficou marcada em AMARELO.`);
@@ -8069,7 +8096,7 @@
                 
                 if (atual <= anterior) {
                     ordemIncorreta = true;
-                    console.log(`?? ORDEM INCORRETA: ${employee.name} - ${horariosOrdenados[i - 1].nome} (${horariosOrdenados[i - 1].hora}) >= ${horariosOrdenados[i].nome} (${horariosOrdenados[i].hora})`);
+                    console.log(`ℹ ORDEM INCORRETA: ${employee.name} - ${horariosOrdenados[i - 1].nome} (${horariosOrdenados[i - 1].hora}) >= ${horariosOrdenados[i].nome} (${horariosOrdenados[i].hora})`);
                     break;
                 }
             }
@@ -8174,7 +8201,7 @@
                 `Confirma o envio das alteraçães para:\n\n` +
                 `${currentEditEmployee.name} (REG: ${currentEditEmployee.reg})\n` +
                 `Data: ${currentEditEmployee.date}\n\n` +
-                `?? Esta ação irçã atualizar os dados na Secullum!`
+                `ℹ Esta ação irçã atualizar os dados na Secullum!`
             );
 
             if (!confirmacao) return;
@@ -8188,9 +8215,9 @@
                     throw new Error('ID do FUNCIONÁRIO não encontrado! Recarregue os dados.');
                 }
 
-                console.log(`?? Iniciando atualizaçãoo de batidas...`);
-                console.log(`?? FuncionarioId: ${funcionarioId}`);
-                console.log(`?? Data: ${data}`);
+                console.log(`ℹ Iniciando atualizaçãoo de batidas...`);
+                console.log(`ℹ FuncionarioId: ${funcionarioId}`);
+                console.log(`ℹ Data: ${data}`);
 
                 // Endpoint da Secullum para incluir batida manual
                 const endpoint = `${API_CONFIG.baseURL}/IntegracaoExterna/CartaoPonto/Manual`;
@@ -8223,7 +8250,7 @@
                         Motivo: 'IncluSóo manual via sistema'
                     };
 
-                    console.log(`?? Enviando ${batida.label}: ${batida.hora}`, payload);
+                    console.log(`ℹ Enviando ${batida.label}: ${batida.hora}`, payload);
 
                     try {
                         const response = await fetch(endpoint, {
@@ -8236,19 +8263,19 @@
                             body: JSON.stringify(payload)
                         });
 
-                        console.log(`?? Status da resposta: ${response.status}`);
+                        console.log(`ℹ Status da resposta: ${response.status}`);
 
                         if (response.ok) {
                             // Tenta ler como JSON, mas aceita resposta vazia
                             const responseText = await response.text();
-                            console.log(`?? Resposta texto: "${responseText}"`);
+                            console.log(`ℹ Resposta texto: "${responseText}"`);
                             
                             let result = null;
                             if (responseText && responseText.trim() !== '') {
                                 try {
                                     result = JSON.parse(responseText);
                                 } catch (e) {
-                                    console.warn('?? Resposta não ã JSON válido, mas status ã OK');
+                                    console.warn('ℹ Resposta não ã JSON válido, mas status ã OK');
                                 }
                             }
                             
@@ -8271,7 +8298,7 @@
                 if (erros === 0) {
                     alert(`? Todas as batidas foram atualizadas com sucesso!\n\n${sucessos} Horários registrados.`);
                 } else {
-                    alert(`?? atualizaçãoo parcial:\n\n? ${sucessos} registros com sucesso\n? ${erros} erros\n\nVerifique o console para detalhes.`);
+                    alert(`ℹ atualizaçãoo parcial:\n\n? ${sucessos} registros com sucesso\n? ${erros} erros\n\nVerifique o console para detalhes.`);
                 }
 
                 closeEditModal();
@@ -8326,7 +8353,7 @@
         // funçãoo compartilhada de geração de PDF
         async function generatePDFs() {
             console.log('📄 generatePDFs() iniciada');
-            console.log(`?? Selecionados: ${selectedEmployees.length} - ${JSON.stringify(selectedEmployees.slice(0, 3))}`);
+            console.log(`ℹ Selecionados: ${selectedEmployees.length} - ${JSON.stringify(selectedEmployees.slice(0, 3))}`);
             
             // ? VERIFICAR SE Hçã seleçãoãO
             if (selectedEmployees.length === 0) {
@@ -8339,7 +8366,7 @@
                 ? allEmployees.filter(emp => emp.hasInconsistency)
                 : allEmployees;
             
-            console.log(`?? Total displayedEmployees: ${displayedEmployees.length}`);
+            console.log(`ℹ Total displayedEmployees: ${displayedEmployees.length}`);
             
             // ? FILTRAR usando ID único (REG + DATA) para pegar apenas os dias selecionados
             const toGenerate = displayedEmployees.filter(emp => {
@@ -8347,17 +8374,17 @@
                 return selectedEmployees.includes(uniqueId);
             });
             
-            console.log(`?? toGenerate: ${toGenerate.length} registros`);
-            console.log(`?? Primeiro registro:`, toGenerate[0]);
+            console.log(`ℹ toGenerate: ${toGenerate.length} registros`);
+            console.log(`ℹ Primeiro registro:`, toGenerate[0]);
             
             if (toGenerate.length === 0) {
                 showAlert('Atenãoo', 'Nenhum colaborador selecionado encontrado!', 'warning');
                 return;
             }
             
-            // ?? MOSTRAR DIçãLOGO DE CONFIRMaçãO
+            // ℹ MOSTRAR DIçãLOGO DE CONFIRMaçãO
             const confirmar = confirm(
-                `?? GERAR PDF PARA ENVIO?\n\n` +
+                `ℹ GERAR PDF PARA ENVIO?\n\n` +
                 `Os registros Seráo salvos no banco de dados e receberão IDs únicos.\n\n` +
                 `Total: ${toGenerate.length} registro(s)`
             );
@@ -8387,7 +8414,7 @@
                         motivo: emp.motivo || ''
                     };
                     
-                    console.log(`?? Salvando ${emp.name} (CPF: ${emp.cpf})`);
+                    console.log(`ℹ Salvando ${emp.name} (CPF: ${emp.cpf})`);
                     
                     const response = await fetch(`${API_BASE_URL}/api/justificativa/salvar`, {
                         method: 'POST',
@@ -8421,7 +8448,7 @@
                 if (registrosExistentes.length > 0) {
                     const nomes = registrosExistentes.join('\nçã ');
                     const confirmar = confirm(
-                        `?? REIMPRESSóO DETECTADA\n\n` +
+                        `ℹ REIMPRESSóO DETECTADA\n\n` +
                         `Os seguintes registros já FORAM IMPRESSOS:\n\nçã ${nomes}\n\n` +
                         `${registrosNovos.length > 0 ? `\nNovos registros: ${registrosNovos.length}\n\n` : ''}` +
                         `Deseja REIMPRIMIR mesmo assim?`
@@ -8433,7 +8460,7 @@
                     }
                 }
                 
-                console.log(`?? Gerando PDF para ${toGenerate.length} registro(s) selecionado(s)`);
+                console.log(`ℹ Gerando PDF para ${toGenerate.length} registro(s) selecionado(s)`);
                 
                 // Gerar PDFs usando emp.id do banco
                 const pdfPages = document.getElementById('pdfPages');
@@ -8470,7 +8497,7 @@
             if (isAPIConnected) {
                 await searchPeriod();
             } else {
-                alert('?? Primeiro conecte ã API!');
+                alert('ℹ Primeiro conecte ã API!');
             }
         });
 
@@ -8562,9 +8589,9 @@
                     ].filter(h => h).join('\n');
                     
                     alert(
-                        `?? RESULTADO DO TESTE DE OCR\n\n` +
-                        `?? ID: ${resultado.id || 'não DETECTADO'}\n` +
-                        `?? Motivo: ${resultado.motivo || 'PADRãO'} \n` +
+                        `ℹ RESULTADO DO TESTE DE OCR\n\n` +
+                        `ℹ ID: ${resultado.id || 'não DETECTADO'}\n` +
+                        `ℹ Motivo: ${resultado.motivo || 'PADRãO'} \n` +
                         `   (Detecçãão de checkbox visual não implementada no OCR - sempre usa padrão)\n\n` +
                         `? Horários:\n${horariosStr || 'Nenhum Horário detectado'}\n\n` +
                         `? Verifique o console (F12) para detalhes completos!`
@@ -8599,7 +8626,7 @@
             document.getElementById('dateStart').value = formatDate(today);
             document.getElementById('dateEnd').value = formatDate(today);
             
-            console.log(`?? Datas padrão configuradas: ${formatDate(today)} (hoje)`);
+            console.log(`ℹ Datas padrão configuradas: ${formatDate(today)} (hoje)`);
         })();
     </script>
     
@@ -8608,7 +8635,7 @@
         <div style="background: rgba(30, 41, 59, 0.95); backdrop-filter: blur(20px); border: 1px solid rgba(148, 163, 184, 0.1); border-radius: 16px; padding: 24px 32px; max-width: 900px; width: 90%; max-height: 85vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.7); position: relative; margin: 20px auto;">
             <button onclick="fecharModalAnexo()" style="position: absolute; top: 16px; right: 16px; background: none; border: none; font-size: 32px; cursor: pointer; color: #94a3b8; padding: 0; width: 40px; height: 40px; line-height: 1;"></button>
             
-            <h2 style="font-size: 24px; font-weight: bold; background: linear-gradient(135deg, #60a5fa, #a78bfa); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; margin: 0 0 8px 0;">?? Anexar Justificativa</h2>
+            <h2 style="font-size: 24px; font-weight: bold; background: linear-gradient(135deg, #60a5fa, #a78bfa); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; margin: 0 0 8px 0;">ℹ Anexar Justificativa</h2>
             <p style="color: #94a3b8; margin: 0 0 24px 0; font-size: 14px;" id="modalAnexoInfo">REG: 000 | Data: 00/00/0000</p>
             
             <div id="dropZone" style="border: 3px dashed #3b82f6; border-radius: 12px; padding: 32px 24px; text-align: center; background: rgba(59, 130, 246, 0.1); cursor: pointer; transition: all 0.3s; margin-bottom: 16px;">
