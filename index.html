@@ -1515,8 +1515,8 @@
                 
                 <!-- Filtro por Projeto -->
                 <div style="min-width: 150px;">
-                    <label style="display: block; font-size: 12px; font-weight: 500; color: #94a3b8; margin-bottom: 4px;">📊 Projeto</label>
-                    <input type="text" class="date-input" id="searchProject" placeholder="Ex: 400" style="font-size: 13px; padding: 8px 10px; width: 100%; height: 38px;">
+                    <label style="display: block; font-size: 12px; font-weight: 500; color: #94a3b8; margin-bottom: 4px;">📊 Projeto / Depto</label>
+                    <input type="text" class="date-input" id="searchProject" placeholder="Ex: 400 ou DEPTO" style="font-size: 13px; padding: 8px 10px; width: 100%; height: 38px;">
                 </div>
                 
                 <button class="btn-primary" id="btnClearFilter" style="padding: 9px 14px; background: rgba(239, 68, 68, 0.15); color: #fca5a5; border: 2px solid rgba(239, 68, 68, 0.3); border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 13px; height: 38px;">
@@ -2234,14 +2234,13 @@
         }
 
         // ==========================================
-        // 📋 POPULAR DROPDOWNS DE JUSTIFICATIVAS
+        // 📋 POPULAR DROPDOWN DE JUSTIFICATIVAS SECULLUM
         // ==========================================
         function populateJustificativasDropdowns() {
             const selectSecullum = document.getElementById('selectJustificativaSecullum');
-            const selectFolha = document.getElementById('selectJustificativaFolha');
 
-            if (!selectSecullum || !selectFolha) {
-                console.warn('⚠️ Dropdowns de justificativas não encontrados no DOM');
+            if (!selectSecullum) {
+                console.warn('⚠️ Dropdown de justificativas não encontrado no DOM');
                 return;
             }
 
@@ -2249,21 +2248,56 @@
             selectSecullum.innerHTML = '<option value="">Selecione...</option>';
             justificativasSecullum.forEach(just => {
                 const option = document.createElement('option');
-                option.value = just.NomeAbreviado || just.NomeCompleto;
-                option.textContent = `${just.NomeAbreviado} - ${just.NomeCompleto}`;
+                const nomeAbreviado = just.NomeAbreviado || '';
+                const nomeCompleto = just.NomeCompleto || '';
+                
+                // Limpar 'null' dos nomes
+                const abreviadoLimpo = nomeAbreviado === 'null' ? '' : nomeAbreviado;
+                const completoLimpo = nomeCompleto === 'null' ? '' : nomeCompleto;
+                
+                option.value = abreviadoLimpo || completoLimpo;
+                option.textContent = abreviadoLimpo ? `${abreviadoLimpo} - ${completoLimpo}` : completoLimpo;
+                option.dataset.justificativa = JSON.stringify(just);
                 selectSecullum.appendChild(option);
             });
 
-            // Popular Folha
-            selectFolha.innerHTML = '<option value="">Selecione...</option>';
-            justificativasFolha.forEach(just => {
-                const option = document.createElement('option');
-                option.value = just.id;
-                option.textContent = just.nome;
-                selectFolha.appendChild(option);
-            });
-
-            console.log('✅ Dropdowns de justificativas populados');
+            console.log('✅ Dropdown de justificativas Secullum populado');
+        }
+        
+        // ==========================================
+        // 🔄 AUTO-PREENCHER BATIDAS POR JUSTIFICATIVA
+        // ==========================================
+        function autoPreencherBatidas(valorSelecionado) {
+            if (!valorSelecionado) return;
+            
+            console.log('📋 Justificativa selecionada:', valorSelecionado);
+            
+            // Justificativas que preenchem 4 batidas
+            const justificativasComBatidas = [
+                'FOLGA', 'FERIADO', 'DOM', 'FALTA', 'ATESTADO', 'ATESTAD',
+                'A. INSS', 'AT. OBT', 'DECLARAÇÃO JUDICIAL', 'D.JUDIC',
+                'DECL.', 'FOLGABH', 'H P', 'L.MATER'
+            ];
+            
+            // Verificar se a justificativa preenche batidas
+            const devePreencherBatidas = justificativasComBatidas.some(just => 
+                valorSelecionado.toUpperCase().includes(just)
+            );
+            
+            if (devePreencherBatidas) {
+                // Preencher as 4 primeiras batidas com o valor da justificativa
+                const campos = ['ocrEnt1', 'ocrSai1', 'ocrEnt2', 'ocrSai2'];
+                
+                campos.forEach(campoId => {
+                    const campo = document.getElementById(campoId);
+                    if (campo && !campo.disabled) {
+                        campo.value = valorSelecionado.toUpperCase();
+                        console.log(`✅ ${campoId} preenchido com: ${valorSelecionado}`);
+                    }
+                });
+                
+                console.log(`✅ 4 batidas preenchidas com: ${valorSelecionado}`);
+            }
         }
 
         // funçãoo para enriquecer batidas com nomes dos FUNCIONÁRIOs
@@ -3805,8 +3839,12 @@
                         }
                     }
                     
-                    // Adicionar departamento Secullum como fallback para projeto
-                    if (!emp.projeto && emp.rawData?.Departamento) {
+                    // Adicionar departamento Secullum (DEPTO SEC) - buscar sempre, não apenas quando falta projeto
+                    if (emp.projetoSecullum) {
+                        // Usar o projetoSecullum que já vem enriquecido das batidas
+                        emp.departamentoSecullum = emp.projetoSecullum;
+                    } else if (emp.rawData?.Departamento) {
+                        // Fallback: extrair do rawData.Departamento
                         const dept = emp.rawData.Departamento;
                         if (typeof dept === 'object' && dept.Codigo) {
                             emp.departamentoSecullum = dept.Codigo;
@@ -3883,12 +3921,18 @@
                     );
                 }
                 
-                // Filtrar por projeto (se houver busca) - busca em SQL Azure E Secullum
+                // Filtrar por projeto (se houver busca) - busca em PROJ BDO (Azure) E DEPTO SEC (Secullum)
                 if (searchProject) {
                     displayedEmployees = displayedEmployees.filter(emp => {
-                        const projetoSQL = emp.projeto ? String(emp.projeto).includes(searchProject) : false;
-                        const deptSecullum = emp.departamentoSecullum ? String(emp.departamentoSecullum).includes(searchProject) : false;
-                        return projetoSQL || deptSecullum;
+                        const projetoAzure = emp.projeto ? String(emp.projeto).toLowerCase().includes(searchProject.toLowerCase()) : false;
+                        const deptoSecullum = emp.departamentoSecullum ? String(emp.departamentoSecullum).toLowerCase().includes(searchProject.toLowerCase()) : false;
+                        
+                        // Log para debug (remover depois)
+                        if (projetoAzure || deptoSecullum) {
+                            console.log(`✅ Match encontrado: ${emp.name} | PROJ BDO: ${emp.projeto} | DEPTO SEC: ${emp.departamentoSecullum}`);
+                        }
+                        
+                        return projetoAzure || deptoSecullum;
                     });
                 }
                 
@@ -6190,21 +6234,30 @@
                     </div>
                 </div>
                 
-                <div style="margin-bottom: 16px;">
-                    <label style="display: block; font-weight: 600; color: #065f46; margin-bottom: 8px;">
-                        ℹ Motivo: ${getConfidenceBadge(dados.confidence?.motivo, 'Motivo')}
-                    </label>
-                    <select id="ocrMotivo" style="width: 100%; padding: 8px; border: 2px solid ${getConfidenceColor(dados.confidence?.motivo || 0)}; border-radius: 6px; font-size: 14px;">
-                        <option value="">-- Selecione --</option>
-                        <option value="Esqueceu de registrar o Ponto" ${dados.motivo === 'Esqueceu de registrar o Ponto' ? 'selected' : ''}>Esqueceu de registrar o Ponto</option>
-                        <option value="Falha no App" ${dados.motivo === 'Falha no App' ? 'selected' : ''}>Falha no App</option>
-                        <option value="Falta" ${dados.motivo === 'Falta' ? 'selected' : ''}>Falta</option>
-                        <option value="Folga" ${dados.motivo === 'Folga' ? 'selected' : ''}>Folga</option>
-                        <option value="Hora Parada" ${dados.motivo === 'Hora Parada' ? 'selected' : ''}>Hora Parada</option>
-                        <option value="Maquina Ponto com defeito" ${dados.motivo === 'Maquina Ponto com defeito' ? 'selected' : ''}>Maquina Ponto com defeito</option>
-                        <option value="Registro em duplicidade" ${dados.motivo === 'Registro em duplicidade' ? 'selected' : ''}>Registro em duplicidade</option>
-                        <option value="Registro indevido" ${dados.motivo === 'Registro indevido' ? 'selected' : ''}>Registro indevido</option>
-                    </select>
+                <!-- Grid com Motivo e Justificativa Secullum lado a lado -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+                    <div>
+                        <label style="display: block; font-weight: 600; color: #065f46; margin-bottom: 8px;">
+                            ℹ Motivo: ${getConfidenceBadge(dados.confidence?.motivo, 'Motivo')}
+                        </label>
+                        <select id="ocrMotivo" style="width: 100%; padding: 8px; border: 2px solid ${getConfidenceColor(dados.confidence?.motivo || 0)}; border-radius: 6px; font-size: 14px;">
+                            <option value="">-- Selecione --</option>
+                            <option value="Esqueceu de registrar o Ponto" ${dados.motivo === 'Esqueceu de registrar o Ponto' ? 'selected' : ''}>Esqueceu de registrar o Ponto</option>
+                            <option value="Falha no App" ${dados.motivo === 'Falha no App' ? 'selected' : ''}>Falha no App</option>
+                            <option value="Falta" ${dados.motivo === 'Falta' ? 'selected' : ''}>Falta</option>
+                            <option value="Folga" ${dados.motivo === 'Folga' ? 'selected' : ''}>Folga</option>
+                            <option value="Hora Parada" ${dados.motivo === 'Hora Parada' ? 'selected' : ''}>Hora Parada</option>
+                            <option value="Maquina Ponto com defeito" ${dados.motivo === 'Maquina Ponto com defeito' ? 'selected' : ''}>Maquina Ponto com defeito</option>
+                            <option value="Registro em duplicidade" ${dados.motivo === 'Registro em duplicidade' ? 'selected' : ''}>Registro em duplicidade</option>
+                            <option value="Registro indevido" ${dados.motivo === 'Registro indevido' ? 'selected' : ''}>Registro indevido</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="display: block; font-weight: 600; color: #065f46; margin-bottom: 8px;">📋 Justificativa Secullum</label>
+                        <select id="selectJustificativaSecullum" onchange="autoPreencherBatidas(this.value)" style="width: 100%; padding: 8px; border: 2px solid rgba(148, 163, 184, 0.3); border-radius: 6px; font-size: 14px; background: rgba(15, 23, 42, 0.8); color: #e2e8f0; cursor: pointer;">
+                            <option value="">Selecione...</option>
+                        </select>
+                    </div>
                 </div>
                 
                 <div style="margin-bottom: 8px;">
@@ -6319,14 +6372,10 @@
                 
                 console.log(`ℹ Data formatada final para envio: ${dataFormatted}`);
                 
-                // 📋 CAPTURAR JUSTIFICATIVAS SELECIONADAS
+                // 📋 CAPTURAR JUSTIFICATIVA SECULLUM SELECIONADA
                 const justificativaSecullum = document.getElementById('selectJustificativaSecullum')?.value || null;
-                const justificativaFolha = document.getElementById('selectJustificativaFolha')?.value || null;
                 
-                console.log('📋 Justificativas selecionadas:', {
-                    secullum: justificativaSecullum,
-                    folha: justificativaFolha
-                });
+                console.log('📋 Justificativa selecionada:', justificativaSecullum);
                 
                 // Preparar dados (usando CPF + DATA como chave ãnica)
                 const payload = {
@@ -6343,7 +6392,7 @@
                     perguntas_rh: JSON.stringify(currentAnexoEmployee.questions || {}),
                     created_by: window.CURRENT_USER || 'Sistema',
                     justificativa_secullum: justificativaSecullum,
-                    justificativa_folha: justificativaFolha
+                    justificativa_folha: null
                 };
                 
                 console.log('📤 Enviando anexo com data:', payload.data);
@@ -8795,22 +8844,6 @@
                 <input type="file" id="fileInput" accept="image/*" style="display: none;">
             </div>
             
-            <!-- Dropdowns de Justificativas -->
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
-                <div>
-                    <label style="display: block; color: #94a3b8; font-size: 13px; margin-bottom: 6px; font-weight: 500;">📋 Justificativa Secullum</label>
-                    <select id="selectJustificativaSecullum" style="width: 100%; padding: 10px 12px; background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(148, 163, 184, 0.3); border-radius: 8px; color: #e2e8f0; font-size: 14px; cursor: pointer; outline: none; transition: all 0.2s;">
-                        <option value="">Carregando...</option>
-                    </select>
-                </div>
-                <div>
-                    <label style="display: block; color: #94a3b8; font-size: 13px; margin-bottom: 6px; font-weight: 500;">📋 Justificativa Folha</label>
-                    <select id="selectJustificativaFolha" style="width: 100%; padding: 10px 12px; background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(148, 163, 184, 0.3); border-radius: 8px; color: #e2e8f0; font-size: 14px; cursor: pointer; outline: none; transition: all 0.2s;">
-                        <option value="">Carregando...</option>
-                    </select>
-                </div>
-            </div>
-            
             <div id="previewArea" style="display: none; margin-bottom: 16px;">
                 <img id="previewImage" style="max-width: 100%; max-height: 300px; width: auto; height: auto; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); display: block; margin: 0 auto;">
             </div>
@@ -8852,15 +8885,13 @@
             transform: scale(1.05);
         }
         
-        /* Hover effects para dropdowns de justificativas */
-        #selectJustificativaSecullum:hover,
-        #selectJustificativaFolha:hover {
+        /* Hover effects para dropdown de justificativa */
+        #selectJustificativaSecullum:hover {
             border-color: #3b82f6;
             background: rgba(59, 130, 246, 0.1);
         }
         
-        #selectJustificativaSecullum:focus,
-        #selectJustificativaFolha:focus {
+        #selectJustificativaSecullum:focus {
             border-color: #3b82f6;
             background: rgba(59, 130, 246, 0.15);
             box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
