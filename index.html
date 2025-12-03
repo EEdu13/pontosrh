@@ -2962,20 +2962,20 @@
                     return /^\d{1,2}:\d{2}$/.test(val);
                 };
                 
-                // Lista de status especiais (motivos, não Horários)
-                const statusEspeciais = ['FALTA', 'FERIAS', 'A. INSS', 'AFASTAMENTO INSS', 'A.INSS', 'L.MATER', 'L. MATER', 'LIC.MATERNIDADE'];
+                // Pegar Horários válidos (HH:mm) OU texto de justificativa (FOLGA, FALTA, etc)
+                func.punches.ent1 = batida.Entrada1 || '';
+                func.punches.sai1 = batida.Saida1 || '';
+                func.punches.ent2 = batida.Entrada2 || '';
+                func.punches.sai2 = batida.Saida2 || '';
+                func.punches.ent3 = batida.Entrada3 || '';
+                func.punches.sai3 = batida.Saida3 || '';
+                func.punches.ent4 = batida.Entrada4 || '';
+                func.punches.sai4 = batida.Saida4 || '';
+                func.punches.ent5 = batida.Entrada5 || '';
+                func.punches.sai5 = batida.Saida5 || '';
                 
-                // Pegar Horários OU deixar vazio se for status especial
-                func.punches.ent1 = isValidTime(batida.Entrada1) ? batida.Entrada1 : '';
-                func.punches.sai1 = isValidTime(batida.Saida1) ? batida.Saida1 : '';
-                func.punches.ent2 = isValidTime(batida.Entrada2) ? batida.Entrada2 : '';
-                func.punches.sai2 = isValidTime(batida.Saida2) ? batida.Saida2 : '';
-                func.punches.ent3 = isValidTime(batida.Entrada3) ? batida.Entrada3 : '';
-                func.punches.sai3 = isValidTime(batida.Saida3) ? batida.Saida3 : '';
-                func.punches.ent4 = isValidTime(batida.Entrada4) ? batida.Entrada4 : '';
-                func.punches.sai4 = isValidTime(batida.Saida4) ? batida.Saida4 : '';
-                func.punches.ent5 = isValidTime(batida.Entrada5) ? batida.Entrada5 : '';
-                func.punches.sai5 = isValidTime(batida.Saida5) ? batida.Saida5 : '';
+                // Detectar motivos especiais para marcar como FALTA ou AFASTAMENTO
+                const statusEspeciais = ['FALTA', 'FERIAS', 'A. INSS', 'AFASTAMENTO INSS', 'A.INSS', 'L.MATER', 'L. MATER', 'LIC.MATERNIDADE'];
                 
                 // Detectar motivos especiais em qualquer entrada
                 const todasEntradas = [
