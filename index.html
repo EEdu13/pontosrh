@@ -2240,8 +2240,8 @@
             const selectSecullum = document.getElementById('selectJustificativaSecullum');
 
             if (!selectSecullum) {
-                console.warn('⚠️ Dropdown de justificativas não encontrado no DOM');
-                return;
+                console.warn('⚠️ Dropdown de justificativas não encontrado no DOM (modal ainda não aberto)');
+                return false;
             }
 
             // Popular Secullum
@@ -2261,7 +2261,8 @@
                 selectSecullum.appendChild(option);
             });
 
-            console.log('✅ Dropdown de justificativas Secullum populado');
+            console.log(`✅ Dropdown de justificativas Secullum populado com ${justificativasSecullum.length} itens`);
+            return true;
         }
         
         // ==========================================
@@ -4298,6 +4299,9 @@
             }
             
             document.getElementById('modalAnexo').style.display = 'flex';
+            
+            // 📋 Popular dropdown de justificativas quando modal abrir
+            populateJustificativasDropdowns();
             
             // Ativar área de drop
             setupDropZone();
