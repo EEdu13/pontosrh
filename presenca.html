@@ -666,7 +666,23 @@
                 // TAREFA 10: Contar apenas funcionários ativos HOJE (não até dataFim)
                 const hoje = new Date();
                 hoje.setHours(0, 0, 0, 0); // Zerar horas para comparação apenas de data
-                const funcionariosAtivos = funcionarios.filter(f => !f.DataDemissao || new Date(f.DataDemissao) > hoje);
+                
+                console.log(`📊 Total de funcionários retornados: ${funcionarios.length}`);
+                console.log(`📅 Data de referência (hoje): ${hoje.toLocaleDateString('pt-BR')}`);
+                
+                const funcionariosAtivos = funcionarios.filter(f => {
+                    if (!f.DataDemissao) return true; // Sem data de demissão = ativo
+                    
+                    const dataDemissao = new Date(f.DataDemissao);
+                    dataDemissao.setHours(0, 0, 0, 0);
+                    const estaAtivo = dataDemissao > hoje;
+                    
+                    if (!estaAtivo) {
+                        console.log(`❌ Demitido: ${f.Nome} - Demissão: ${dataDemissao.toLocaleDateString('pt-BR')}`);
+                    }
+                    
+                    return estaAtivo;
+                });
                 
                 console.log(`✅ ${funcionariosAtivos.length} funcionários ativos HOJE (${hoje.toLocaleDateString('pt-BR')})`);
 
