@@ -6621,12 +6621,12 @@
                     console.log('   empRef.punches.sai1:', empRef.punches?.sai1);
                     
                     const horariosParaEnviar = [
-                        { coluna: 'Entrada1', hora: empRef.punches?.ent1 || empRef.ent1 },
-                        { coluna: 'Saida1', hora: empRef.punches?.sai1 || empRef.sai1 },
-                        { coluna: 'Entrada2', hora: empRef.punches?.ent2 || empRef.ent2 },
-                        { coluna: 'Saida2', hora: empRef.punches?.sai2 || empRef.sai2 },
-                        { coluna: 'Entrada3', hora: empRef.punches?.ent3 || empRef.ent3 },
-                        { coluna: 'Saida3', hora: empRef.punches?.sai3 || empRef.sai3 }
+                        { coluna: 'Entrada1', hora: empRef.punches?.ent1 || empRef.ent1, grupo: 1 },
+                        { coluna: 'Saida1', hora: empRef.punches?.sai1 || empRef.sai1, grupo: 1 },
+                        { coluna: 'Entrada2', hora: empRef.punches?.ent2 || empRef.ent2, grupo: 2 },
+                        { coluna: 'Saida2', hora: empRef.punches?.sai2 || empRef.sai2, grupo: 2 },
+                        { coluna: 'Entrada3', hora: empRef.punches?.ent3 || empRef.ent3, grupo: 3 },
+                        { coluna: 'Saida3', hora: empRef.punches?.sai3 || empRef.sai3, grupo: 3 }
                     ].filter(item => item.hora);
                     
                     const funcionarioId = empRef.rawData?.FuncionarioId || empRef.dadosCompletos?.FuncionarioId;
@@ -6640,9 +6640,63 @@
                         throw new Error('NumeroFolha não encontrado!');
                     }
                     
-                    // ⚡ ENVIO SEQUENCIAL: Um horário por vez para evitar conflitos na API Secullum
+                    // 🔍 Detectar se são justificativas de texto ou horários
+                    const isHorarioValido = (hora) => /^\d{1,2}:\d{2}$/.test(hora);
+                    const justificativasTexto = horariosParaEnviar.filter(item => !isHorarioValido(item.hora));
+                    const horariosNormais = horariosParaEnviar.filter(item => isHorarioValido(item.hora));
+                    
+                    // ⚡ ENVIO DE JUSTIFICATIVAS (FOLGA, FERIADO, etc) - Endpoint /Justificativa
+                    if (justificativasTexto.length > 0) {
+                        console.log('📋 Enviando justificativas de texto...');
+                        
+                        // Agrupar justificativas por grupo (Ent1+Sai1 = grupo 1)
+                        const gruposProcessados = new Set();
+                        
+                        for (const item of justificativasTexto) {
+                            if (gruposProcessados.has(item.grupo)) continue; // Já processou este grupo
+                            
+                            try {
+                                const payload = {
+                                    NumeroFolha: numeroFolha,
+                                    Data: empRef.rawData?.Data || empRef.date,
+                                    Grupo: item.grupo,
+                                    Justificativa: item.hora.toUpperCase() // "FOLGA", "FERIADO", etc
+                                };
+                                
+                                console.log(`📋 Enviando justificativa Grupo ${item.grupo}: ${item.hora}`);
+                                
+                                const apiResponse = await fetch(`${API_CONFIG.baseURL}/IntegracaoExterna/CartaoPonto/Justificativa`, {
+                                    method: 'POST',
+                                    headers: { 
+                                        'Content-Type': 'application/json',
+                                        'Authorization': `Bearer ${API_CONFIG.token}`,
+                                        'secullumidbancoselecionado': empRef.empresaId || empRef.companyId
+                                    },
+                                    body: JSON.stringify(payload)
+                                });
+                                
+                                if (apiResponse.ok) {
+                                    console.log(`✅ Justificativa Grupo ${item.grupo} enviada: ${item.hora}`);
+                                    sucessos++;
+                                    gruposProcessados.add(item.grupo);
+                                } else {
+                                    const errorText = await apiResponse.text();
+                                    console.warn(`⚠️ Erro ao enviar justificativa Grupo ${item.grupo}: ${apiResponse.status} - ${errorText}`);
+                                    erros++;
+                                }
+                                
+                                await new Promise(resolve => setTimeout(resolve, 300));
+                                
+                            } catch (err) {
+                                console.error(`❌ Erro ao enviar justificativa Grupo ${item.grupo}:`, err);
+                                erros++;
+                            }
+                        }
+                    }
+                    
+                    // ⚡ ENVIO SEQUENCIAL DE HORÁRIOS NORMAIS (HH:mm) - Endpoint /Manual
                     const results = [];
-                    for (const item of horariosParaEnviar) {
+                    for (const item of horariosNormais) {
                         try {
                             const payload = {
                                 FuncionarioId: funcionarioId,
