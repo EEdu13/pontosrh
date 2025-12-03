@@ -1513,10 +1513,16 @@
                     <input type="text" class="date-input" id="searchLider" placeholder="Nome do líder..." style="font-size: 13px; padding: 8px 10px; width: 100%; height: 38px;">
                 </div>
                 
-                <!-- Filtro por Projeto -->
-                <div style="min-width: 150px;">
-                    <label style="display: block; font-size: 12px; font-weight: 500; color: #94a3b8; margin-bottom: 4px;">📊 Projeto / Depto</label>
-                    <input type="text" class="date-input" id="searchProject" placeholder="Ex: 400 ou DEPTO" style="font-size: 13px; padding: 8px 10px; width: 100%; height: 38px;">
+                <!-- Filtro por Projeto (Azure) -->
+                <div style="min-width: 130px;">
+                    <label style="display: block; font-size: 12px; font-weight: 500; color: #94a3b8; margin-bottom: 4px;">📊 Projeto (BDO)</label>
+                    <input type="text" class="date-input" id="searchProject" placeholder="Ex: 400" style="font-size: 13px; padding: 8px 10px; width: 100%; height: 38px;">
+                </div>
+                
+                <!-- Filtro por Departamento (Secullum) -->
+                <div style="min-width: 130px;">
+                    <label style="display: block; font-size: 12px; font-weight: 500; color: #94a3b8; margin-bottom: 4px;">🏢 Depto (SEC)</label>
+                    <input type="text" class="date-input" id="searchDepartamento" placeholder="Ex: DEPTO" style="font-size: 13px; padding: 8px 10px; width: 100%; height: 38px;">
                 </div>
                 
                 <button class="btn-primary" id="btnClearFilter" style="padding: 9px 14px; background: rgba(239, 68, 68, 0.15); color: #fca5a5; border: 2px solid rgba(239, 68, 68, 0.3); border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 13px; height: 38px;">
@@ -3923,8 +3929,9 @@
                 const searchName = document.getElementById('searchName')?.value.toLowerCase().trim() || '';
                 const searchLider = document.getElementById('searchLider')?.value.toLowerCase().trim() || '';
                 const searchProject = document.getElementById('searchProject')?.value.trim() || '';
+                const searchDepartamento = document.getElementById('searchDepartamento')?.value.trim() || '';
                 
-                console.log(`🔍 Filtros: nome="${searchName}", lider="${searchLider}", projeto="${searchProject}", inconsistências=${showOnlyInconsistencies}`);
+                console.log(`🔍 Filtros: nome="${searchName}", lider="${searchLider}", projeto="${searchProject}", departamento="${searchDepartamento}", inconsistências=${showOnlyInconsistencies}`);
                 
                 // Filtrar por Inconsistências
                 let displayedEmployees = showOnlyInconsistencies 
@@ -3947,19 +3954,18 @@
                     );
                 }
                 
-                // Filtrar por projeto (se houver busca) - busca em PROJ BDO (Azure) E DEPTO SEC (Secullum)
+                // Filtrar por Projeto BDO (Azure)
                 if (searchProject) {
-                    displayedEmployees = displayedEmployees.filter(emp => {
-                        const projetoAzure = emp.projeto ? String(emp.projeto).toLowerCase().includes(searchProject.toLowerCase()) : false;
-                        const deptoSecullum = emp.departamentoSecullum ? String(emp.departamentoSecullum).toLowerCase().includes(searchProject.toLowerCase()) : false;
-                        
-                        // Log para debug (remover depois)
-                        if (projetoAzure || deptoSecullum) {
-                            console.log(`✅ Match encontrado: ${emp.name} | PROJ BDO: ${emp.projeto} | DEPTO SEC: ${emp.departamentoSecullum}`);
-                        }
-                        
-                        return projetoAzure || deptoSecullum;
-                    });
+                    displayedEmployees = displayedEmployees.filter(emp => 
+                        emp.projeto && String(emp.projeto).toLowerCase().includes(searchProject.toLowerCase())
+                    );
+                }
+                
+                // Filtrar por Departamento Secullum
+                if (searchDepartamento) {
+                    displayedEmployees = displayedEmployees.filter(emp => 
+                        emp.departamentoSecullum && String(emp.departamentoSecullum).toLowerCase().includes(searchDepartamento.toLowerCase())
+                    );
                 }
                 
                 // ORDENAR ALFABETICAMENTE POR NOME
@@ -4893,7 +4899,8 @@
             console.log('   Horários OCR extraídos:', horariosOCR);
             
             if (!employee || !employee.punches) {
-                console.log('   ⚠️ Sem dados do funcionário, usando ordem sequencial');
+                console.log('   ⚠️ Sem dados do funcionário, usando lógica de pares');
+                // Preencher em PARES: ent1+sai1, ent2+sai2, ent3+sai3
                 return {
                     ent1: horariosOCR[0] || null,
                     sai1: horariosOCR[1] || null,
@@ -4929,10 +4936,10 @@
                 }
             });
 
-            // ESTRATÉGIA: 
+            // ESTRATÉGIA NOVA: 
             // 1. Identificar quais slots estão vazios no Secullum
-            // 2. Preencher apenas os slots vazios com os horários do OCR
-            // 3. Manter ordem cronológica (mais cedo primeiro)
+            // 2. Ordenar horários do OCR cronologicamente
+            // 3. Preencher mantendo PARES completos (ent1+sai1, ent2+sai2, etc)
             
             const slotsVazios = batidosSecullum
                 .filter(b => !b.horario || b.horario === '--:--')
@@ -4980,9 +4987,14 @@
                 sai5: employee.punches.sai5 || null
             };
 
-            // Preencher slots vazios com horários do OCR
+            // 🔧 LÓGICA CORRIGIDA: Preencher mantendo pares (ent+sai juntos)
+            // Se tem ent1 mas não tem sai1 → preencher sai1 primeiro
+            // Se tem ent1+sai1 mas não tem ent2 → preencher ent2 primeiro
+            const ordemPreferencial = ['ent1', 'sai1', 'ent2', 'sai2', 'ent3', 'sai3', 'ent4', 'sai4', 'ent5', 'sai5'];
+            const vaziosOrdenados = ordemPreferencial.filter(slot => slotsVazios.includes(slot));
+
             let indiceOCR = 0;
-            for (const slot of slotsVazios) {
+            for (const slot of vaziosOrdenados) {
                 if (indiceOCR < horariosOrdenados.length) {
                     resultado[slot] = horariosOrdenados[indiceOCR];
                     console.log(`   📝 Preenchendo ${slot} com ${horariosOrdenados[indiceOCR]}`);
@@ -5690,43 +5702,24 @@
                 
                 console.log('');
                 
-                // 📝 CASO 1: IDs diferentes OU não detectado = PERGUNTAR
+                // 📝 CASO 1: IDs diferentes OU não detectado = AVISAR MAS CONTINUAR
                 if (idEsperado && idEncontrado && parseInt(idEncontrado) !== parseInt(idEsperado)) {
-                    const continuar = confirm(
-                        `ℹ ID DIFERENTE!\n\n` +
-                        `ID esperado: #${idEsperado}\n` +
-                        `ID detectado: #${idEncontrado}\n\n` +
-                        `Deseja continuar mesmo assim?`
-                    );
-                    
-                    if (!continuar) {
-                        document.getElementById('ocrStatus').style.display = 'none';
-                        return;
-                    }
+                    console.warn(`⚠️ ID DIFERENTE! Esperado: #${idEsperado}, Detectado: #${idEncontrado}`);
+                    alert(`⚠️ ATENÇÃO: ID diferente!\n\nEsperado: #${idEsperado}\nDetectado: #${idEncontrado}\n\nVerifique os dados antes de enviar.`);
                 }
                 
-                // 📝 CASO 2: não leu ID = PERGUNTAR
+                // 📝 CASO 2: não leu ID = AVISAR MAS CONTINUAR
                 if (idEsperado && !idEncontrado) {
-                    const continuar = confirm(
-                        `ℹ ID não DETECTADO\n\n` +
-                        `não foi posSóvel ler o ID automaticamente.\n\n` +
-                        `ℹ FUNCIONÁRIO: ${currentAnexoEmployee.name}\n` +
-                        `ℹ ID esperado: #${idEsperado}\n\n` +
-                        `Deseja continuar?`
-                    );
-                    
-                    if (!continuar) {
-                        document.getElementById('ocrStatus').style.display = 'none';
-                        return;
-                    }
+                    console.warn(`⚠️ ID não detectado. Esperado: #${idEsperado}`);
+                    alert(`⚠️ ID não detectado automaticamente.\n\nFUNCIONÁRIO: ${currentAnexoEmployee.name}\nID esperado: #${idEsperado}\n\nVerifique os dados antes de enviar.`);
                 }
                 
-                // ? CASO 3: IDs batem
+                // ✅ CASO 3: IDs batem
                 if (idEncontrado && idEsperado && parseInt(idEncontrado) === parseInt(idEsperado)) {
-                    console.log(`? ID VALIDADO COM SUCESSO! ?`);
+                    console.log(`✅ ID VALIDADO COM SUCESSO! ✅`);
                 }
                 
-                // 📝 CASO 4: Primeiro formulério
+                // 📝 CASO 4: Primeiro formulário
                 if (!idEsperado) {
                     console.log(`ℹ FUNCIONÁRIO ainda não possui ID no sistema`);
                 }
@@ -8800,11 +8793,17 @@
             document.getElementById('searchName').value = '';
             document.getElementById('searchLider').value = '';
             document.getElementById('searchProject').value = '';
+            document.getElementById('searchDepartamento').value = '';
             renderTable();
         });
         
         // Filtro de projeto (atualizar em tempo real)
         document.getElementById('searchProject')?.addEventListener('input', () => {
+            renderTable();
+        });
+        
+        // Filtro de departamento (atualizar em tempo real)
+        document.getElementById('searchDepartamento')?.addEventListener('input', () => {
             renderTable();
         });
 
