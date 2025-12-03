@@ -2504,6 +2504,12 @@
                         const data = await response.json();
                         console.log(`✅ ${empresa.name}: ${data.length} batidas recebidas`);
                         
+                        // 🔍 DEBUG: Ver JOCELIA especificamente
+                        const jocelia = data.find(b => b.Funcionario?.Nome?.includes('JOCELIA') || b.Nome?.includes('JOCELIA'));
+                        if (jocelia) {
+                            console.log(`🔍 JOCELIA encontrada:`, jocelia);
+                        }
+                        
                         // 🔍 DEBUG: Ver estrutura completa de uma batida
                         if (data.length > 0) {
                             console.log(`🔍 Estrutura da primeira batida:`, data[0]);
