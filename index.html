@@ -3051,12 +3051,22 @@
             
             // Clique simples: Abrir modal de perguntas/aprovação
             tableBody.addEventListener('click', (e) => {
+                console.log('🖱️ CLICK detectado:', e.target);
+                
                 // Verificar se é uma célula de horário
                 const cell = e.target.closest('td[data-punch]');
-                if (!cell) return;
+                if (!cell) {
+                    console.log('❌ Não é uma célula de horário');
+                    return;
+                }
+                
+                console.log('✅ É uma célula de horário:', cell.dataset.punch);
                 
                 // Ignorar se clicou em um ícone ou botão dentro da célula
-                if (e.target.closest('.question-icon, .check-icon, button, .arrow')) return;
+                if (e.target.closest('.question-icon, .check-icon, button, .arrow')) {
+                    console.log('❌ Clicou em ícone/botão, ignorando');
+                    return;
+                }
                 
                 const reg = cell.dataset.reg;
                 const date = cell.dataset.date;
@@ -3064,16 +3074,25 @@
                 
                 // Buscar funcionário
                 const employee = allEmployees.find(emp => emp.reg === reg && emp.date === date);
-                if (!employee) return;
+                if (!employee) {
+                    console.log('❌ Funcionário não encontrado');
+                    return;
+                }
+                
+                console.log(`🖱️ Clique na célula: ${employee.name} - ${punchType} - ${employee.punches[punchType]}`);
                 
                 // Se a célula tem class 'swapped', abrir modal de aprovação
                 if (cell.classList.contains('swapped')) {
+                    console.log('✅ Abrindo modal de aprovação (horário trocado)');
                     approveSwappedTime(e, reg, date, punchType, employee.name);
                 } else if (employee.punches[punchType] && employee.punches[punchType] !== '--:--') {
                     // Se tem horário, abrir modal de pergunta
-                    openQuestionModal(reg, date, punchType, employee.name, employee.punches[punchType]);
+                    console.log('✅ Abrindo modal de pergunta');
+                    askQuestion(e, reg, date, punchType, employee.name);
+                } else {
+                    console.log('❌ Célula vazia, não fazer nada');
                 }
-            });
+            }, true); // USE CAPTURE PHASE para capturar antes do drag
             
             // Edição inline (duplo clique)
             tableBody.addEventListener('dblclick', (e) => {
