@@ -3967,9 +3967,16 @@
                 
                 // Filtrar por Departamento Secullum
                 if (searchDepartamento) {
-                    displayedEmployees = displayedEmployees.filter(emp => 
-                        emp.departamentoSecullum && String(emp.departamentoSecullum).toLowerCase().includes(searchDepartamento.toLowerCase())
-                    );
+                    console.log(`🔍 Filtrando por departamento: "${searchDepartamento}"`);
+                    const antes = displayedEmployees.length;
+                    displayedEmployees = displayedEmployees.filter(emp => {
+                        const match = emp.departamentoSecullum && String(emp.departamentoSecullum).toLowerCase().includes(searchDepartamento.toLowerCase());
+                        if (match) {
+                            console.log(`✅ Match: ${emp.name} | Depto: ${emp.departamentoSecullum}`);
+                        }
+                        return match;
+                    });
+                    console.log(`🔍 Resultado filtro depto: ${antes} → ${displayedEmployees.length}`);
                 }
                 
                 // ORDENAR ALFABETICAMENTE POR NOME
