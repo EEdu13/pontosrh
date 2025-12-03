@@ -2914,6 +2914,7 @@
                         city: batida._empresa || 'N/A',
                         project: 'N/A',
                         projetoSecullum: batida._projetoSecullum || null, // ? PROJETO DA API SECULLUM
+                        departamentoSecullum: batida._projetoSecullum ? String(batida._projetoSecullum) : null, // ? DEPTO SECULLUM
                         date: formatDateBR(dataFormatada),
                         day: getDayOfWeek(dataFormatada),
                         punches: {
@@ -3968,6 +3969,9 @@
                 // Filtrar por Departamento Secullum
                 if (searchDepartamento) {
                     console.log(`🔍 Filtrando por departamento: "${searchDepartamento}"`);
+                    console.log(`🔍 Exemplo de emp[0]:`, displayedEmployees[0]);
+                    console.log(`🔍 emp[0].departamentoSecullum:`, displayedEmployees[0]?.departamentoSecullum);
+                    console.log(`🔍 emp[0].projetoSecullum:`, displayedEmployees[0]?.projetoSecullum);
                     const antes = displayedEmployees.length;
                     displayedEmployees = displayedEmployees.filter(emp => {
                         const match = emp.departamentoSecullum && String(emp.departamentoSecullum).toLowerCase().includes(searchDepartamento.toLowerCase());
