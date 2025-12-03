@@ -2455,19 +2455,35 @@
         // ==========================================
         // ✅ FUNÇÃO OTIMIZADA - USA RANGE DE DATAS
         // ==========================================
-        async function loadFullHistoricalCache() {
+        async function loadFullHistoricalCache(dateStart, dateEnd) {
             console.log('🚀 [OTIMIZADO] Iniciando carga com date range...');
             showLoading('⚡ Carregando dados otimizados...');
             
-            const now = new Date();
-            const startDate = new Date(now);
-            startDate.setDate(startDate.getDate() - parseInt(CACHE_CONFIG.daysToLoad) + 1);
+            let dataInicio, dataFim;
             
-            // Formatar datas para API (YYYY-MM-DD)
-            const dataInicio = formatDateForAPI(startDate);
-            const dataFim = formatDateForAPI(now);
-            
-            console.log(`📅 Range solicitado: ${dataInicio} até ${dataFim} (${CACHE_CONFIG.daysToLoad} dias)`);
+            // Se recebeu datas específicas, usar elas
+            if (dateStart && dateEnd) {
+                dataInicio = dateStart;
+                dataFim = dateEnd;
+                
+                // Calcular diferença em dias
+                const start = new Date(dateStart);
+                const end = new Date(dateEnd);
+                const diffTime = Math.abs(end - start);
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+                
+                console.log(`📅 Range solicitado (usuário): ${dataInicio} até ${dataFim} (${diffDays} dias)`);
+            } else {
+                // Fallback: usar CACHE_CONFIG.daysToLoad
+                const now = new Date();
+                const startDate = new Date(now);
+                startDate.setDate(startDate.getDate() - parseInt(CACHE_CONFIG.daysToLoad) + 1);
+                
+                dataInicio = formatDateForAPI(startDate);
+                dataFim = formatDateForAPI(now);
+                
+                console.log(`📅 Range solicitado (padrão): ${dataInicio} até ${dataFim} (${CACHE_CONFIG.daysToLoad} dias)`);
+            }
             
             // Buscar empresas selecionadas
             const empresas = API_CONFIG.selectedCompanies.includes('all')
@@ -2854,8 +2870,8 @@
                 
                 // 📦 STEP 1: Carregar cache histórico (se não existir)
                 if (!SMART_CACHE.metadata.lastFullLoad) {
-                    console.log('📥 PRIMEIRA CARGA: Buscando 60 dias...');
-                    await loadFullHistoricalCache();
+                    console.log('📥 PRIMEIRA CARGA: Buscando período selecionado...');
+                    await loadFullHistoricalCache(dateStart, dateEnd);
                 }
                 
                 // 🔄 STEP 2: Atualizar APENAS os dados recentes
