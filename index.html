@@ -6579,6 +6579,11 @@
                 
                 console.log('📋 Justificativa selecionada:', justificativaSecullum);
                 
+                // 🔍 VERIFICAR USUÁRIO LOGADO
+                console.log('👤 Usuário atual (window.CURRENT_USER):', window.CURRENT_USER);
+                const createdBy = window.CURRENT_USER || 'Sistema';
+                console.log('👤 created_by que será enviado:', createdBy);
+                
                 // Preparar dados (usando CPF + DATA como chave ãnica)
                 const payload = {
                     cpf: currentAnexoEmployee.cpf,  // ? CPF como identificador único
@@ -6592,7 +6597,7 @@
                     horarios: currentOCRData,
                     ocr_texto: JSON.stringify(currentOCRData),
                     perguntas_rh: JSON.stringify(currentAnexoEmployee.questions || {}),
-                    created_by: window.CURRENT_USER || 'Sistema',
+                    created_by: createdBy,
                     justificativa_secullum: justificativaSecullum,
                     justificativa_folha: null
                 };
