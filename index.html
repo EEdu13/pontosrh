@@ -3871,18 +3871,22 @@
                         }
                     }
                     
-                    // Adicionar departamento Secullum (DEPTO SEC) - buscar sempre, não apenas quando falta projeto
+                    // Adicionar departamento Secullum (DEPTO SEC) - buscar sempre
                     if (emp.projetoSecullum) {
                         // Usar o projetoSecullum que já vem enriquecido das batidas
-                        emp.departamentoSecullum = emp.projetoSecullum;
+                        emp.departamentoSecullum = String(emp.projetoSecullum);
                     } else if (emp.rawData?.Departamento) {
                         // Fallback: extrair do rawData.Departamento
                         const dept = emp.rawData.Departamento;
                         if (typeof dept === 'object' && dept.Codigo) {
-                            emp.departamentoSecullum = dept.Codigo;
+                            emp.departamentoSecullum = String(dept.Codigo);
                         } else if (typeof dept === 'string') {
                             emp.departamentoSecullum = dept;
+                        } else {
+                            emp.departamentoSecullum = null;
                         }
+                    } else {
+                        emp.departamentoSecullum = null;
                     }
                 });
                 
@@ -6838,42 +6842,45 @@
         function generateTimeSlots(punches, questions = {}) {
             let html = '';
             
-            // Coletar TODAS as batidas (entrada e SAÍda) em ordem com seus tipos
-            const todasBatidas = [
+            // 🔧 CORREÇÃO: Manter ordem EXATA dos slots, mostrando vazios no lugar certo
+            const todosSlots = [
                 { time: punches.ent1, type: 'ent1', label: 'Entrada 1' },
-                { time: punches.sai1, type: 'sai1', label: 'SAÍda 1' },
+                { time: punches.sai1, type: 'sai1', label: 'Saída 1' },
                 { time: punches.ent2, type: 'ent2', label: 'Entrada 2' },
-                { time: punches.sai2, type: 'sai2', label: 'SAÍda 2' },
+                { time: punches.sai2, type: 'sai2', label: 'Saída 2' },
                 { time: punches.ent3, type: 'ent3', label: 'Entrada 3' },
-                { time: punches.sai3, type: 'sai3', label: 'SAÍda 3' },
+                { time: punches.sai3, type: 'sai3', label: 'Saída 3' },
                 { time: punches.ent4, type: 'ent4', label: 'Entrada 4' },
-                { time: punches.sai4, type: 'sai4', label: 'SAÍda 4' },
+                { time: punches.sai4, type: 'sai4', label: 'Saída 4' },
                 { time: punches.ent5, type: 'ent5', label: 'Entrada 5' },
-                { time: punches.sai5, type: 'sai5', label: 'SAÍda 5' }
-            ].filter(p => p.time && p.time !== '--:--');
+                { time: punches.sai5, type: 'sai5', label: 'Saída 5' }
+            ];
             
-            const totalBatidas = todasBatidas.length;
-            
-            // Se tiver batidas ãmpares (5, 7, 9...), adicionar um slot vazio para justificar
-            const totalSlots = (totalBatidas % 2 === 1) ? totalBatidas + 1 : Math.max(totalBatidas, 4);
-            
-            // Gerar slots para todas as batidas reais
-            for (let i = 0; i < totalBatidas; i++) {
-                const question = questions[todasBatidas[i].type];
-                html += generateTimeSlot(todasBatidas[i].time, todasBatidas[i].label, question);
+            // Encontrar até onde tem batidas (último slot preenchido)
+            let ultimoSlotPreenchido = -1;
+            for (let i = todosSlots.length - 1; i >= 0; i--) {
+                if (todosSlots[i].time && todosSlots[i].time !== '--:--' && todosSlots[i].time !== '') {
+                    ultimoSlotPreenchido = i;
+                    break;
+                }
             }
             
-            // Se for ãmpar, adicionar slot vazio para justificar o par
-            if (totalBatidas % 2 === 1) {
-                html += generateTimeSlot(null, null, null);
-            }
-            
-            // Se tiver menos de 4 batidas (e for par), preencher até 4
-            const slotsGerados = (totalBatidas % 2 === 1) ? totalBatidas + 1 : totalBatidas;
-            if (slotsGerados < 4) {
-                for (let i = slotsGerados; i < 4; i++) {
+            // Se não tem nenhuma batida, mostrar só 4 slots vazios
+            if (ultimoSlotPreenchido === -1) {
+                for (let i = 0; i < 4; i++) {
                     html += generateTimeSlot(null, null, null);
                 }
+                return html;
+            }
+            
+            // Mostrar todos os slots até o último preenchido + garantir mínimo de 4
+            const totalSlots = Math.max(ultimoSlotPreenchido + 1, 4);
+            
+            for (let i = 0; i < totalSlots; i++) {
+                const slot = todosSlots[i];
+                const time = (slot.time && slot.time !== '--:--' && slot.time !== '') ? slot.time : null;
+                const question = questions[slot.type];
+                html += generateTimeSlot(time, slot.label, question);
             }
             
             return html;
