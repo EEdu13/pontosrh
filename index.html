@@ -378,6 +378,10 @@
             transition: all 0.2s;
             z-index: 10;
         }
+        
+        .approve-icon::before {
+            content: '✅';
+        }
 
         .approve-icon:hover {
             opacity: 1;
@@ -411,6 +415,10 @@
             opacity: 0.6;
             transition: all 0.2s;
             z-index: 10;
+        }
+        
+        .question-icon::before {
+            content: '❓';
         }
 
         .question-icon:hover {
@@ -3063,7 +3071,7 @@
                 console.log('✅ É uma célula de horário:', cell.dataset.punch);
                 
                 // Ignorar se clicou em um ícone ou botão dentro da célula
-                if (e.target.closest('.question-icon, .check-icon, button, .arrow')) {
+                if (e.target.closest('.question-icon, .approve-icon, button, .arrow')) {
                     console.log('❌ Clicou em ícone/botão, ignorando');
                     return;
                 }
@@ -6974,10 +6982,16 @@
         }
 
         function askQuestion(event, reg, date, punchType, name) {
+            console.log('🎯 askQuestion CHAMADA:', { reg, date, punchType, name });
             event.stopPropagation(); // Evitar duplo clique na cçãlula
             
             const employee = allEmployees.find(emp => emp.reg === reg && emp.date === date);
-            if (!employee) return;
+            if (!employee) {
+                console.error('❌ Funcionário não encontrado em askQuestion');
+                return;
+            }
+
+            console.log('✅ Funcionário encontrado:', employee.name);
 
             const punchTime = employee.punches[punchType] || '--:--';
             const punchLabel = {
@@ -6993,19 +7007,39 @@
                 'sai5': 'SAÍda 5'
             }[punchType];
 
+            console.log('📝 Preparando modal:', { punchLabel, punchTime });
+
             // Armazenar contexto
             currentQuestionContext = { reg, date, punchType };
 
             // Atualizar modal
-            document.getElementById('questionContext').textContent = 
-                `${name} - ${punchLabel}: ${punchTime} (${date})`;
+            const contextEl = document.getElementById('questionContext');
+            const inputEl = document.getElementById('questionInput');
+            const modalEl = document.getElementById('questionModal');
+            
+            console.log('🔍 Elementos do modal:', { 
+                contextEl: !!contextEl, 
+                inputEl: !!inputEl, 
+                modalEl: !!modalEl 
+            });
+            
+            if (!modalEl) {
+                console.error('❌ Modal questionModal não encontrado no DOM!');
+                return;
+            }
+            
+            contextEl.textContent = `${name} - ${punchLabel}: ${punchTime} (${date})`;
             
             // Limpar input anterior
-            document.getElementById('questionInput').value = employee.questions?.[punchType] || '';
+            inputEl.value = employee.questions?.[punchType] || '';
 
+            console.log('🎬 Adicionando classe active ao modal');
             // Mostrar modal
-            document.getElementById('questionModal').classList.add('active');
-            document.getElementById('questionInput').focus();
+            modalEl.classList.add('active');
+            
+            console.log('✅ Modal deve estar visível agora. Classes:', modalEl.className);
+            
+            inputEl.focus();
         }
 
         // botãoo OK do modal
