@@ -1789,6 +1789,12 @@
         };
 
         // ==========================================
+        // 📋 JUSTIFICATIVAS SECULLUM
+        // ==========================================
+        let justificativasSecullum = [];
+        let justificativasFolha = [];
+
+        // ==========================================
         // 🚀 CACHE HÍBRIDO INTELIGENTE - 60 DIAS
         // ==========================================
         const CACHE_STRATEGY = {
@@ -2130,6 +2136,9 @@
                 // Buscar empresas disponçãveis apés autenticaçãoO
                 await loadCompanies();
                 
+                // Buscar justificativas
+                await fetchJustificativas();
+                
                 return true;
             } catch (error) {
                 console.error('? Erro na autenticaçãoO:', error);
@@ -2178,6 +2187,83 @@
                 ];
                 initCompanyButtons();
             }
+        }
+
+        // ==========================================
+        // 📋 BUSCAR JUSTIFICATIVAS DA SECULLUM
+        // ==========================================
+        async function fetchJustificativas() {
+            try {
+                console.log('📋 Buscando justificativas...');
+                
+                // Buscar justificativas Secullum
+                const response = await fetch(`${API_CONFIG.baseURL}/IntegracaoExterna/Justificativas`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${API_CONFIG.token}`,
+                        'secullumidbancoselecionado': API_CONFIG.companies[0]?.id || '3',
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (response.ok) {
+                    justificativasSecullum = await response.json();
+                    console.log(`✅ ${justificativasSecullum.length} justificativas Secullum carregadas`);
+                } else {
+                    console.warn('⚠️ Erro ao buscar justificativas Secullum:', response.status);
+                }
+
+                // Justificativas Folha (hardcoded por enquanto)
+                justificativasFolha = [
+                    { id: 'atestado_medico', nome: 'Atestado Médico' },
+                    { id: 'falta_justificada', nome: 'Falta Justificada' },
+                    { id: 'ferias', nome: 'Férias' },
+                    { id: 'licenca', nome: 'Licença' },
+                    { id: 'compensacao', nome: 'Compensação' },
+                    { id: 'trabalho_remoto', nome: 'Trabalho Remoto' },
+                    { id: 'ajuste_ponto', nome: 'Ajuste de Ponto' }
+                ];
+                console.log(`✅ ${justificativasFolha.length} justificativas Folha carregadas`);
+
+                // Popular dropdowns
+                populateJustificativasDropdowns();
+
+            } catch (error) {
+                console.error('❌ Erro ao buscar justificativas:', error);
+            }
+        }
+
+        // ==========================================
+        // 📋 POPULAR DROPDOWNS DE JUSTIFICATIVAS
+        // ==========================================
+        function populateJustificativasDropdowns() {
+            const selectSecullum = document.getElementById('selectJustificativaSecullum');
+            const selectFolha = document.getElementById('selectJustificativaFolha');
+
+            if (!selectSecullum || !selectFolha) {
+                console.warn('⚠️ Dropdowns de justificativas não encontrados no DOM');
+                return;
+            }
+
+            // Popular Secullum
+            selectSecullum.innerHTML = '<option value="">Selecione...</option>';
+            justificativasSecullum.forEach(just => {
+                const option = document.createElement('option');
+                option.value = just.NomeAbreviado || just.NomeCompleto;
+                option.textContent = `${just.NomeAbreviado} - ${just.NomeCompleto}`;
+                selectSecullum.appendChild(option);
+            });
+
+            // Popular Folha
+            selectFolha.innerHTML = '<option value="">Selecione...</option>';
+            justificativasFolha.forEach(just => {
+                const option = document.createElement('option');
+                option.value = just.id;
+                option.textContent = just.nome;
+                selectFolha.appendChild(option);
+            });
+
+            console.log('✅ Dropdowns de justificativas populados');
         }
 
         // funçãoo para enriquecer batidas com nomes dos FUNCIONÁRIOs
@@ -6233,6 +6319,15 @@
                 
                 console.log(`ℹ Data formatada final para envio: ${dataFormatted}`);
                 
+                // 📋 CAPTURAR JUSTIFICATIVAS SELECIONADAS
+                const justificativaSecullum = document.getElementById('selectJustificativaSecullum')?.value || null;
+                const justificativaFolha = document.getElementById('selectJustificativaFolha')?.value || null;
+                
+                console.log('📋 Justificativas selecionadas:', {
+                    secullum: justificativaSecullum,
+                    folha: justificativaFolha
+                });
+                
                 // Preparar dados (usando CPF + DATA como chave ãnica)
                 const payload = {
                     cpf: currentAnexoEmployee.cpf,  // ? CPF como identificador único
@@ -6246,7 +6341,9 @@
                     horarios: currentOCRData,
                     ocr_texto: JSON.stringify(currentOCRData),
                     perguntas_rh: JSON.stringify(currentAnexoEmployee.questions || {}),
-                    created_by: window.CURRENT_USER || 'Sistema'
+                    created_by: window.CURRENT_USER || 'Sistema',
+                    justificativa_secullum: justificativaSecullum,
+                    justificativa_folha: justificativaFolha
                 };
                 
                 console.log('📤 Enviando anexo com data:', payload.data);
@@ -8698,6 +8795,22 @@
                 <input type="file" id="fileInput" accept="image/*" style="display: none;">
             </div>
             
+            <!-- Dropdowns de Justificativas -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+                <div>
+                    <label style="display: block; color: #94a3b8; font-size: 13px; margin-bottom: 6px; font-weight: 500;">📋 Justificativa Secullum</label>
+                    <select id="selectJustificativaSecullum" style="width: 100%; padding: 10px 12px; background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(148, 163, 184, 0.3); border-radius: 8px; color: #e2e8f0; font-size: 14px; cursor: pointer; outline: none; transition: all 0.2s;">
+                        <option value="">Carregando...</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="display: block; color: #94a3b8; font-size: 13px; margin-bottom: 6px; font-weight: 500;">📋 Justificativa Folha</label>
+                    <select id="selectJustificativaFolha" style="width: 100%; padding: 10px 12px; background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(148, 163, 184, 0.3); border-radius: 8px; color: #e2e8f0; font-size: 14px; cursor: pointer; outline: none; transition: all 0.2s;">
+                        <option value="">Carregando...</option>
+                    </select>
+                </div>
+            </div>
+            
             <div id="previewArea" style="display: none; margin-bottom: 16px;">
                 <img id="previewImage" style="max-width: 100%; max-height: 300px; width: auto; height: auto; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); display: block; margin: 0 auto;">
             </div>
@@ -8737,6 +8850,20 @@
             border-color: #10b981;
             background: rgba(16, 185, 129, 0.15);
             transform: scale(1.05);
+        }
+        
+        /* Hover effects para dropdowns de justificativas */
+        #selectJustificativaSecullum:hover,
+        #selectJustificativaFolha:hover {
+            border-color: #3b82f6;
+            background: rgba(59, 130, 246, 0.1);
+        }
+        
+        #selectJustificativaSecullum:focus,
+        #selectJustificativaFolha:focus {
+            border-color: #3b82f6;
+            background: rgba(59, 130, 246, 0.15);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
         }
     </style>
 </body>

@@ -501,7 +501,7 @@ app.delete('/api/colaboradores/:id', async (req, res) => {
 // POST - Upload de anexo (imagem) - SEM AUTENTICAÇÃO JWT (usa apenas validação de dados)
 app.post('/api/anexos/upload', async (req, res) => {
     try {
-        let { reg, cpf, data, empresa_id, empresa_nome, funcionario_nome, imageBase64, motivo, ocr_texto, horarios, created_by } = req.body;
+        let { reg, cpf, data, empresa_id, empresa_nome, funcionario_nome, imageBase64, motivo, ocr_texto, horarios, created_by, justificativa_secullum, justificativa_folha } = req.body;
         
         if (!cpf || !data || !imageBase64) {
             return res.status(400).json({ error: 'CPF, data e imagem são obrigatórios' });
@@ -547,6 +547,8 @@ app.post('/api/anexos/upload', async (req, res) => {
                 .input('ocr_texto_completo', sql.NVarChar, ocr_texto)
                 .input('perguntas_rh', sql.NVarChar, req.body.perguntas_rh || '{}')
                 .input('created_by', sql.VarChar, userName)
+                .input('justificativa_secullum', sql.VarChar, justificativa_secullum)
+                .input('justificativa_folha', sql.VarChar, justificativa_folha)
                 .query(`
                     IF EXISTS (SELECT 1 FROM ANEXOS WHERE reg = @reg AND data = @data AND empresa_id = @empresa_id)
                         UPDATE ANEXOS SET 
@@ -559,14 +561,16 @@ app.post('/api/anexos/upload', async (req, res) => {
                             horarios_detectados = @horarios_detectados,
                             ocr_texto_completo = @ocr_texto_completo,
                             created_by = @created_by,
+                            justificativa_secullum = @justificativa_secullum,
+                            justificativa_folha = @justificativa_folha,
                             perguntas_rh = CASE 
                                 WHEN @perguntas_rh != '{}' THEN @perguntas_rh 
                                 ELSE COALESCE(perguntas_rh, '{}') 
                             END
                         WHERE reg = @reg AND data = @data AND empresa_id = @empresa_id
                     ELSE
-                        INSERT INTO ANEXOS (cpf, reg, data, empresa_id, empresa_nome, funcionario_nome, blob_url, blob_filename, motivo_detectado, horarios_detectados, ocr_texto_completo, perguntas_rh, created_by)
-                        VALUES (@cpf, @reg, @data, @empresa_id, @empresa_nome, @funcionario_nome, @blob_url, @blob_filename, @motivo_detectado, @horarios_detectados, @ocr_texto_completo, @perguntas_rh, @created_by)
+                        INSERT INTO ANEXOS (cpf, reg, data, empresa_id, empresa_nome, funcionario_nome, blob_url, blob_filename, motivo_detectado, horarios_detectados, ocr_texto_completo, perguntas_rh, created_by, justificativa_secullum, justificativa_folha)
+                        VALUES (@cpf, @reg, @data, @empresa_id, @empresa_nome, @funcionario_nome, @blob_url, @blob_filename, @motivo_detectado, @horarios_detectados, @ocr_texto_completo, @perguntas_rh, @created_by, @justificativa_secullum, @justificativa_folha)
                 `);
         }
         
