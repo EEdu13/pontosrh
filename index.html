@@ -3064,6 +3064,20 @@
                 // TAREFA 6: Verificar pontos ímpares (entrada sem saída)
                 const pontosImpares = totalBatidas % 2 !== 0; // Ímpar = falta entrada ou saída
                 
+                // 🔍 DEBUG: Log para investigar inconsistências
+                if (func.name.includes('NAGILA') || func.name.includes('Nagila')) {
+                    console.log(`🔍 DEBUG NAGILA:`, {
+                        nome: func.name,
+                        totalBatidas: totalBatidas,
+                        batidas: batidas,
+                        pontosImpares: pontosImpares,
+                        ordemIncorreta: ordemIncorreta,
+                        temMotivoEspecial: temMotivoEspecial,
+                        isDept400: isDept400,
+                        ignorarDomingo: ignorarDomingo
+                    });
+                }
+                
                 // REGRAS DE INCONSISTÊNCIA:
                 let batidaIncorreta = false;
                 
@@ -4299,9 +4313,6 @@
             }
             
             document.getElementById('modalAnexo').style.display = 'flex';
-            
-            // 📋 Popular dropdown de justificativas quando modal abrir
-            populateJustificativasDropdowns();
             
             // Ativar área de drop
             setupDropZone();
@@ -6290,6 +6301,11 @@
             
             document.getElementById('ocrResultContent').innerHTML = html;
             document.getElementById('ocrResult').style.display = 'block';
+            
+            // 📋 Popular dropdown de justificativas APÓS renderizar o HTML
+            setTimeout(() => {
+                populateJustificativasDropdowns();
+            }, 50);
         }
         
         // Confirmar e enviar anexo
