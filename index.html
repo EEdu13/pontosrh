@@ -2504,6 +2504,12 @@
                         const data = await response.json();
                         console.log(`✅ ${empresa.name}: ${data.length} batidas recebidas`);
                         
+                        // 🔍 DEBUG: Ver justificativas retornadas pela API
+                        const batidasComJustificativa = data.filter(b => b.Justificativa || b.JustificativaAbreviacao);
+                        if (batidasComJustificativa.length > 0) {
+                            console.log(`🔍 ${batidasComJustificativa.length} batidas com justificativa:`, batidasComJustificativa[0]);
+                        }
+                        
                         return {
                             empresaId: empresa.id,
                             empresaNome: empresa.name,
