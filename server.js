@@ -1,5 +1,10 @@
 require('dotenv').config();
 
+// POLYFILL para crypto no Node.js (necessário para @azure/storage-blob no Railway)
+if (typeof globalThis.crypto === 'undefined') {
+    globalThis.crypto = require('crypto').webcrypto;
+}
+
 const express = require('express');
 const sql = require('mssql');
 const cors = require('cors');
