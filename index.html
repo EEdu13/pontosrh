@@ -3237,7 +3237,14 @@
                 
                 // ✅ VERIFICAR SE ORDEM INCORRETA FOI APROVADA PELO RH
                 const ordemAprovada = func.approved && func.approved['ordem_horarios'] === true;
+                console.log(`🔍 Verificando aprovação de ordem para ${func.name}:`, {
+                    hasApproved: !!func.approved,
+                    ordemHorarios: func.approved?.ordem_horarios,
+                    ordemAprovada: ordemAprovada,
+                    ordemIncorreta: ordemIncorreta
+                });
                 if (ordemAprovada) {
+                    console.log(`✅ ${func.name}: Ordem de horários APROVADA, removendo inconsistência`);
                     ordemIncorreta = false; // Se foi aprovado, não é mais inconsistência
                 }
                 
@@ -3667,6 +3674,9 @@
                                                         // ã uma aprovação (ex: "ent1_approved")
                                                         const punchType = key.replace('_approved', '');
                                                         emp.approved[punchType] = value;
+                                                    } else if (key === 'ordem_horarios') {
+                                                        // ✅ Flag especial: ordem_horarios aprovada
+                                                        emp.approved['ordem_horarios'] = value;
                                                     } else {
                                                         // ã uma pergunta normal
                                                         emp.questions[key] = value;
@@ -3812,6 +3822,9 @@
                                                 if (key.endsWith('_approved')) {
                                                     const punchType = key.replace('_approved', '');
                                                     emp.approved[punchType] = value;
+                                                } else if (key === 'ordem_horarios') {
+                                                    // ✅ Flag especial: ordem_horarios aprovada
+                                                    emp.approved['ordem_horarios'] = value;
                                                 } else {
                                                     emp.questions[key] = value;
                                                 }
