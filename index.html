@@ -2765,6 +2765,7 @@
             }
             
             console.log(`📅 Período completo: ${allDates.length} dias (${formatDateBR(dateStart)} a ${formatDateBR(dateEnd)})`);
+            console.log(`📋 Funcionários recebidos: ${employees.length} registros`);
             
             // Agrupar funcionários por REG + Empresa
             const employeesByRegAndCompany = new Map();
@@ -2776,6 +2777,8 @@
                 }
                 employeesByRegAndCompany.get(key).push(emp);
             });
+            
+            console.log(`👥 Funcionários únicos: ${employeesByRegAndCompany.size}`);
             
             const result = [...employees]; // Começar com todos os registros existentes
             let addedDays = 0;
@@ -2810,6 +2813,8 @@
                     
                     if (!existingDates.has(dateStr)) {
                         // Dia faltando! Criar registro vazio
+                        console.log(`➕ Preenchendo dia faltante: ${firstRecord.name} - ${formatDateBR(dateStr)} (${dateStr})`);
+                        
                         const emptyRecord = {
                             reg: reg,
                             pis: firstRecord.pis || '',
@@ -3228,6 +3233,12 @@
                         console.log(` Ordem incorreta: ${func.name} - ${horariosOrdenados[i - 1].nome} (${horariosOrdenados[i - 1].hora}) >= ${horariosOrdenados[i].nome} (${horariosOrdenados[i].hora})`);
                         break;
                     }
+                }
+                
+                // ✅ VERIFICAR SE ORDEM INCORRETA FOI APROVADA PELO RH
+                const ordemAprovada = func.approved && func.approved['ordem_horarios'] === true;
+                if (ordemAprovada) {
+                    ordemIncorreta = false; // Se foi aprovado, não é mais inconsistência
                 }
                 
                 // TAREFA 6: Verificar pontos ímpares (entrada sem saída)
@@ -7355,7 +7366,8 @@
                     ...existingData,           // 1. Dados que já estavam no banco
                     ...employee.questions,     // 2. Perguntas atuais do objeto
                     ...employee.approved,      // 3. Aprovaçães atuais do objeto
-                    [approvedKey]: approvalComment  // 4. Nova aprovação
+                    [approvedKey]: approvalComment,  // 4. Nova aprovação
+                    ordem_horarios: true       // 5. ✅ Marcar que horários invertidos foram aprovados
                 };
                 
                 console.log(`ℹ Dados a salvar (mesclados):`, mergedData);
