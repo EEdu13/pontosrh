@@ -3860,9 +3860,39 @@
                 }
                 
                 console.log('? Perguntas e aprovaçães carregadas!');
+                
+                // 🔄 RECALCULAR inconsistências após carregar aprovações
+                recalcularInconsistenciasComAprovacoes();
             } catch (err) {
                 console.error('? Erro ao carregar perguntas/aprovaçães:', err);
             }
+        }
+        
+        // 🔄 Recalcular inconsistências considerando aprovações carregadas
+        function recalcularInconsistenciasComAprovacoes() {
+            console.log('🔄 Recalculando inconsistências após carregar aprovações...');
+            
+            allEmployees.forEach(emp => {
+                if (!emp.approved || Object.keys(emp.approved).length === 0) return;
+                
+                // Se tem ordem_horarios aprovada e estava com ordemIncorreta, limpar
+                if (emp.approved.ordem_horarios === true) {
+                    const tinhaInconsistencia = emp.hasInconsistency;
+                    
+                    // Recalcular hasInconsistency sem considerar ordemIncorreta
+                    const pontosImpares = emp.totalBatidas % 2 !== 0;
+                    const batidaIncorreta = emp.temHorarioNaoNumerico;
+                    const semJustificativa = pontosImpares && !emp.justificativa && !emp.falta && !emp.temMotivoEspecial;
+                    
+                    emp.hasInconsistency = semJustificativa || batidaIncorreta;
+                    
+                    if (tinhaInconsistencia && !emp.hasInconsistency) {
+                        console.log(`✅ ${emp.name}: Inconsistência removida após aprovação de ordem_horarios`);
+                    }
+                }
+            });
+            
+            console.log('✅ Recálculo de inconsistências concluído!');
         }
 
         // ℹ Carregar IDs de impresSóo (alias para carregarIdsImpressao)
