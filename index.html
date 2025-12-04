@@ -3555,6 +3555,7 @@
                 
                 // CARREGAR ANEXOS E IDS EM PARALELO
                 await carregarAnexos().catch(err => console.error('? Erro ao carregar anexos:', err));
+                await carregarPerguntasEAprovacoes().catch(err => console.error('? Erro ao carregar perguntas:', err));
                 await carregarIDs().catch(err => console.error('? Erro ao carregar IDs:', err));
                 
                 hideLoading();
@@ -7414,9 +7415,10 @@
                 const result = await response.json();
                 console.log(`? Aprovação salva:`, result);
                 
-                // ✅ RECARREGAR ANEXOS para atualizar aprovações
-                console.log('🔄 Recarregando anexos para atualizar aprovações...');
+                // ✅ RECARREGAR ANEXOS E PERGUNTAS para atualizar aprovações
+                console.log('🔄 Recarregando anexos e aprovações...');
                 await carregarAnexos();
+                await carregarPerguntasEAprovacoes();
                 
                 showAlert('Sucesso', `Horário ${punchType} aprovado para ${employee.name}!`, 'success');
                 
