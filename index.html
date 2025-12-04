@@ -3273,6 +3273,14 @@
                 }
                 
                 if (batidaIncorreta && !temMotivoEspecial) {
+                    console.log(`❌ ${func.name} marcado como INCONSISTÊNCIA:`, {
+                        pontosImpares,
+                        ordemIncorreta,
+                        batidaIncorreta,
+                        temMotivoEspecial,
+                        totalBatidas,
+                        ordemAprovada: func.approved?.ordem_horarios
+                    });
                     func.hasInconsistency = true;
                 }
             });
