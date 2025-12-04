@@ -3836,10 +3836,13 @@
                                                 } else if (key === 'ordem_horarios') {
                                                     // ✅ Flag especial: ordem_horarios aprovada
                                                     emp.approved['ordem_horarios'] = value;
+                                                    console.log(`✅ ${emp.name}: ordem_horarios carregado = ${value}`);
                                                 } else {
                                                     emp.questions[key] = value;
                                                 }
                                             }
+                                            
+                                            console.log(`? ${emp.name}: aprovações carregadas:`, emp.approved);
                                             
                                         } catch (err) {
                                             console.warn(`ℹ Erro ao parsear perguntas_rh:`, err);
