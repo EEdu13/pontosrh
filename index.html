@@ -3872,27 +3872,23 @@
         function recalcularInconsistenciasComAprovacoes() {
             console.log('🔄 Recalculando inconsistências após carregar aprovações...');
             
+            let removidos = 0;
             allEmployees.forEach(emp => {
-                if (!emp.approved || Object.keys(emp.approved).length === 0) return;
-                
-                // Se tem ordem_horarios aprovada e estava com ordemIncorreta, limpar
-                if (emp.approved.ordem_horarios === true) {
+                // ✅ LÓGICA SIMPLES: Se tem ordem_horarios aprovada, NÃO É INCONSISTÊNCIA
+                if (emp.approved && emp.approved.ordem_horarios === true) {
                     const tinhaInconsistencia = emp.hasInconsistency;
                     
-                    // Recalcular hasInconsistency sem considerar ordemIncorreta
-                    const pontosImpares = emp.totalBatidas % 2 !== 0;
-                    const batidaIncorreta = emp.temHorarioNaoNumerico;
-                    const semJustificativa = pontosImpares && !emp.justificativa && !emp.falta && !emp.temMotivoEspecial;
+                    // ✅ REMOVE A INCONSISTÊNCIA COMPLETAMENTE
+                    emp.hasInconsistency = false;
                     
-                    emp.hasInconsistency = semJustificativa || batidaIncorreta;
-                    
-                    if (tinhaInconsistencia && !emp.hasInconsistency) {
-                        console.log(`✅ ${emp.name}: Inconsistência removida após aprovação de ordem_horarios`);
+                    if (tinhaInconsistencia) {
+                        console.log(`✅ ${emp.name}: Inconsistência REMOVIDA (ordem_horarios aprovada)`);
+                        removidos++;
                     }
                 }
             });
             
-            console.log('✅ Recálculo de inconsistências concluído!');
+            console.log(`✅ Recálculo concluído! ${removidos} inconsistências removidas por aprovação`);
         }
 
         // ℹ Carregar IDs de impresSóo (alias para carregarIdsImpressao)
