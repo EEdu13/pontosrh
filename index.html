@@ -3237,12 +3237,14 @@
                 
                 // ✅ VERIFICAR SE ORDEM INCORRETA FOI APROVADA PELO RH
                 const ordemAprovada = func.approved && func.approved['ordem_horarios'] === true;
-                console.log(`🔍 Verificando aprovação de ordem para ${func.name}:`, {
-                    hasApproved: !!func.approved,
-                    ordemHorarios: func.approved?.ordem_horarios,
-                    ordemAprovada: ordemAprovada,
-                    ordemIncorreta: ordemIncorreta
-                });
+                if (ordemIncorreta) {
+                    console.log(`🔍 ${func.name} - Ordem incorreta detectada. Verificando aprovação:`, {
+                        hasApproved: !!func.approved,
+                        approvedKeys: func.approved ? Object.keys(func.approved) : [],
+                        ordemHorarios: func.approved?.ordem_horarios,
+                        ordemAprovada: ordemAprovada
+                    });
+                }
                 if (ordemAprovada) {
                     console.log(`✅ ${func.name}: Ordem de horários APROVADA, removendo inconsistência`);
                     ordemIncorreta = false; // Se foi aprovado, não é mais inconsistência
@@ -7403,6 +7405,11 @@
                 
                 const result = await response.json();
                 console.log(`? Aprovação salva:`, result);
+                
+                // ✅ RECARREGAR ANEXOS para atualizar aprovações
+                console.log('🔄 Recarregando anexos para atualizar aprovações...');
+                await carregarAnexos();
+                
                 showAlert('Sucesso', `Horário ${punchType} aprovado para ${employee.name}!`, 'success');
                 
             } catch (err) {
