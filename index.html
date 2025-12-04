@@ -2963,15 +2963,18 @@
         // 🔄 ATUALIZAR FUNCIONÁRIO INDIVIDUAL
         async function refreshEmployee(reg, date, empresaId) {
             try {
+                console.log(`🔄 refreshEmployee chamado:`, { reg, date, empresaId });
                 showLoading(`⚡ Atualizando ${reg}...`);
                 
                 // Invalidar e recarregar
                 const newData = await invalidateSingleEmployee(reg, date, empresaId);
+                console.log(`📦 Dados recebidos:`, newData);
                 
                 // Atualizar objeto em allEmployees
                 const employee = allEmployees.find(e => 
                     e.reg === reg && e.date === date && e.empresaId === empresaId
                 );
+                console.log(`👤 Funcionário encontrado:`, employee ? 'SIM' : 'NÃO');
                 
                 if (employee && newData) {
                     // Atualizar punches com dados da API
@@ -3185,6 +3188,11 @@
                 const dataBatida = new Date(func.rawData?.Data || func.date);
                 const diaSemana = dataBatida.getDay(); // 0 = Domingo, 6 = Sábado
                 const isDomingo = diaSemana === 0;
+                const isSegundaASabado = diaSemana >= 1 && diaSemana <= 6;
+                
+                // 🏢 REGRA ALR: Segunda a Sábado = 4 batidas obrigatórias
+                const empresaNome = func.rawData?.['Empresa Nome'] || func.empresaNome || func.empresa || '';
+                const isALR = empresaNome.includes('ALR');
                 
                 // Departamentos que não contabilizam domingos como inconsistência
                 const deptsSemDomingo = {
@@ -3269,6 +3277,12 @@
                 } else if (ignorarDomingo) {
                     // Domingo nos departamentos especificados: não é inconsistência
                     batidaIncorreta = false;
+                } else if (isALR && isSegundaASabado) {
+                    // 🏢 ALR: Segunda a Sábado = EXATAMENTE 4 batidas (menos ou mais é inconsistência)
+                    batidaIncorreta = totalBatidas !== 4 || ordemIncorreta;
+                    if (batidaIncorreta && totalBatidas !== 4) {
+                        console.log(`⚠️ ALR ${func.name}: ${totalBatidas} batidas (esperado: 4)`);
+                    }
                 } else {
                     // Regra geral:
                     // - SEM BATIDA = inconsistência
