@@ -2994,6 +2994,10 @@
                     // Recalcular status
                     updateEmployeeStatus(employee);
                     
+                    // 🔄 RECARREGAR APROVAÇÕES E RECALCULAR
+                    await carregarPerguntasEAprovacoes().catch(err => console.error('⚠️ Erro ao recarregar aprovações:', err));
+                    recalcularInconsistenciasComAprovacoes();
+                    
                     // Re-renderizar tabela
                     renderTable();
                     
@@ -3167,9 +3171,12 @@
                 
                 const totalBatidas = batidas.length;
                 
+                // ❌ SEM BATIDA NENHUMA = INCONSISTÊNCIA (exceto se tiver motivo especial)
                 // Se tem motivo especial (férias, afastamento, falta justificada, etc), NÃO é inconsistência
                 const motivosEspeciais = ['FALTA', 'FÉRIAS', 'AFASTAMENTO INSS', 'LICENÇA MATERNIDADE', 'FOLGA'];
                 const temMotivoEspecial = motivosEspeciais.includes(func.motivo);
+                
+                const semBatidaNenhuma = totalBatidas === 0 && !temMotivoEspecial;
                 
                 // TAREFA 8: Departamento 400 permite apenas 2 batidas (ent1 + sai1)
                 const isDept400 = String(func.Departamento || '').includes('400') || String(func.projetoSecullum || '').includes('400');
@@ -3264,12 +3271,13 @@
                     batidaIncorreta = false;
                 } else {
                     // Regra geral:
+                    // - SEM BATIDA = inconsistência
                     // - Pontos ímpares = inconsistência
                     // - Ordem incorreta = inconsistência  
                     // - 6 batidas = OK (não é inconsistência)
                     // - 4 batidas = OK (não é inconsistência)
                     // - Outros números pares >= 2 = OK
-                    batidaIncorreta = pontosImpares || ordemIncorreta;
+                    batidaIncorreta = semBatidaNenhuma || pontosImpares || ordemIncorreta;
                 }
                 
                 if (batidaIncorreta && !temMotivoEspecial) {
