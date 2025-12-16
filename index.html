@@ -1075,7 +1075,7 @@
             font-size: 13px;
         }
 
-        /* botãoo API */
+        /* botão API */
         .api-status {
             display: inline-flex;
             align-items: center;
@@ -1339,10 +1339,10 @@
 </head>
 <body>
     <!-- ==========================================
-         autenticaçãoO - Verificar login Secullum
+         autenticação - Verificar login Secullum
          ========================================== -->
     <script>
-        // Verificar autenticaçãoO ANTES de carregar a página
+        // Verificar autenticação ANTES de carregar a página
         (function() {
             const token = localStorage.getItem('secullum_token');
             const expiry = localStorage.getItem('secullum_token_expiry');
@@ -1421,7 +1421,7 @@
         </div>
     </div>
 
-    <!-- Modal Monitor de méquinas -->
+    <!-- Modal Monitor de máquinas -->
     <div class="custom-alert" id="machineMonitorModal">
         <div class="alert-content" style="min-width: 900px; max-width: 95vw;">
             <div class="alert-header" style="background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);">
@@ -1555,7 +1555,7 @@
                     ❌ Limpar
                 </button>
                 
-                <!-- botãoo de filtro -->
+                <!-- botão de filtro -->
                 <button class="btn btn-filter" id="btnFilter" style="height: 38px;">
                     <span>⚠️</span>
                     <span id="filterText">Mostrar Só Inconsistências</span>
@@ -1742,13 +1742,13 @@
             const titles = {
                 success: 'Sucesso',
                 error: 'Erro',
-                warning: 'Atenãoo',
+                warning: 'Atenção',
                 info: 'Informação'
             };
             showAlert(titles[type] || titles.info, message, type);
         }
 
-        // Fechar alert ao clicar no botãoo OK
+        // Fechar alert ao clicar no botão OK
         document.getElementById('alertOkBtn').addEventListener('click', () => {
             document.getElementById('customAlert').classList.remove('active');
         });
@@ -1794,7 +1794,7 @@
         };
 
         // ==========================================
-        // configuraçãoO DA API SECULLUM
+        // configuração DA API SECULLUM
         // ==========================================
         const API_CONFIG = {
             authURL: 'https://autenticador.secullum.com.br/Token',
@@ -2021,7 +2021,7 @@
             };
         }
 
-        // Helper para fetch com autenticaçãoO (retorna null se não autenticado)
+        // Helper para fetch com autenticação (retorna null se não autenticado)
         async function authenticatedFetch(url, options = {}) {
             const headers = getAuthHeaders(options.headers || {});
             if (!headers) {
@@ -2032,14 +2032,14 @@
         }
 
         // ==========================================
-        // configuraçãoO GLOBAL DA API
+        // configuração GLOBAL DA API
         // ==========================================
         const API_BASE_URL = window.location.hostname === 'localhost' 
             ? 'http://localhost:3000' 
             : 'https://justificativas.up.railway.app';
 
         // ==========================================
-        // configuraçãoO SQL AZURE (Node.js API)
+        // configuração SQL AZURE (Node.js API)
         // ==========================================
         const SQL_API = {
             baseURL: `${API_BASE_URL}/api`,
@@ -2053,7 +2053,7 @@
         // Cache de dados do SQL Azure
         let sqlColaboradoresCache = {};
 
-        // funçãoo para buscar colaborador por CPF no SQL Azure
+        // função para buscar colaborador por CPF no SQL Azure
         async function getColaboradorByCPF(cpf) {
             try {
                 // Verificar se já esté no cache
@@ -2077,7 +2077,7 @@
             }
         }
 
-        // funçãoo para buscar méltiplos colaboradores por CPFs (batch - mais rápido)
+        // função para buscar múltiplos colaboradores por CPFs (batch - mais rápido)
         async function getColaboradoresBatchCPF(cpfs) {
             try {
                 const response = await fetch(`${SQL_API.baseURL}${SQL_API.endpoints.colaboradoresBatchCPF}`, {
@@ -2108,7 +2108,7 @@
             }
         }
 
-        // funçãoo para autenticar na API Secullum
+        // função para autenticar na API Secullum
         async function authenticateAPI() {
             try {
                 const body = new URLSearchParams({
@@ -2128,7 +2128,7 @@
 
                 if (!response.ok) {
                     const errorText = await response.text();
-                    throw new Error(`Falha na autenticaçãoO: ${response.status} - ${errorText}`);
+                    throw new Error(`Falha na autenticação: ${response.status} - ${errorText}`);
                 }
 
                 const data = await response.json();
@@ -2165,7 +2165,7 @@
                     console.warn('⚠️ Erro ao autenticar no backend:', err.message);
                 }
                 
-                // Buscar empresas disponçãveis apés autenticaçãoO
+                // Buscar empresas disponíveis após autenticação
                 await loadCompanies();
                 
                 // Buscar justificativas
@@ -2173,13 +2173,13 @@
                 
                 return true;
             } catch (error) {
-                console.error('? Erro na autenticaçãoO:', error);
+                console.error('? Erro na autenticação:', error);
                 alert(`Erro ao conectar com a API Secullum:\n\n${error.message}\n\nVerifique as credenciais.`);
                 return false;
             }
         }
 
-        // funçãoo para buscar empresas (bancos) disponçãveis
+        // função para buscar empresas (bancos) disponíveis
         async function loadCompanies() {
             try {
                 
@@ -2341,7 +2341,7 @@
             }
         }
 
-        // funçãoo para enriquecer batidas com nomes dos FUNCIONÁRIOs
+        // função para enriquecer batidas com nomes dos funcionários
         async function enrichWithEmployeeNames(batidas, companies) {
             // Enriquecer com nomes dos funcionários
             
@@ -2364,21 +2364,21 @@
                     if (response.ok) {
                         const funcionarios = await response.json();
                         
-                        // FILTRAR: Apenas FUNCIONÁRIOs ATIVOS (sem data de demisSóo)
+                        // FILTRAR: Apenas funcionários ATIVOS (sem data de demissão)
                         const funcionariosAtivos = funcionarios.filter(func => {
                             // ? CAMPO CORRETO: "Demissao" (conforme documentação Secullum)
                             const dataDemissao = func.Demissao || null;
                             
-                            // Se tem data de demisSóo preenchida, EXCLUIR (não mostrar)
+                            // Se tem data de demissão preenchida, EXCLUIR (não mostrar)
                             if (dataDemissao && dataDemissao !== '0001-01-01T00:00:00' && dataDemissao !== null) {
                                 return false; // Demitido - não mostrar
                             }
                             
-                            // Se não tem demisSóo, ã ATIVO
+                            // Se não tem demissão, ã ATIVO
                             return true;
                         });
                         
-                        console.log(`? ${company.name}: ${funcionariosAtivos.length} FUNCIONÁRIOs ativos (total: ${funcionarios.length})`);
+                        console.log(`? ${company.name}: ${funcionariosAtivos.length} funcionários ativos (total: ${funcionarios.length})`);
                         
                         funcionariosAtivos.forEach(func => {
                             const reg = func.NumeroIdentificador || func.NumeroFolha;
@@ -2414,11 +2414,11 @@
                         });
                     }
                 } catch (error) {
-                    console.warn(`⚠️ Erro ao buscar FUNCIONÁRIOs de ${company.name}`);
+                    console.warn(`⚠️ Erro ao buscar funcionários de ${company.name}`);
                 }
             }
             
-            // ? FILTRAR batidas: mostrar APENAS FUNCIONÁRIOs ATIVOS (silencioso)
+            // ? FILTRAR batidas: mostrar APENAS funcionários ATIVOS (silencioso)
             const batidasFiltradas = batidas.filter(batida => {
                 const reg = batida.Funcionario?.NumeroIdentificador || batida.Funcionario?.NumeroFolha;
                 const key = `${batida._empresaId}_${reg}`;
@@ -2439,7 +2439,7 @@
                 return true;
             });
             
-            console.log(`? Nomes carregados! ${batidasFiltradas.length} registros (apenas FUNCIONÁRIOs ativos)`);
+            console.log(`? Nomes carregados! ${batidasFiltradas.length} registros (apenas funcionários ativos)`);
             
             // ? SUBSTITUIR array original
             batidas.length = 0;
@@ -2774,7 +2774,7 @@
         }
 
         // 📊 PEGAR DADOS DO CACHE (INSTANTÂNEO)
-        // funçãoo para buscar batidas de todas as empresas selecionadas
+        // função para buscar batidas de todas as empresas selecionadas
         // 📅 PREENCHER DIAS FALTANTES NO PERÍODO
         // Se um funcionário tem batidas no período mas falta um dia específico,
         // criar registro vazio para esse dia aparecer na tabela
@@ -3068,7 +3068,7 @@
         // Limpar ao sair da página
         window.addEventListener('beforeunload', stopAutoRefresh);
 
-        // funçãoo para converter dados da Secullum para formato interno
+        // função para converter dados da Secullum para formato interno
         function parseSecullumData(batidas, dataRef) {
             // Agrupar batidas por FUNCIONÁRIO + data
             const funcionariosMap = new Map();
@@ -3243,7 +3243,7 @@
                     }
                 }
                 
-                // funçãoo para converter HH:MM em minutos
+                // função para converter HH:MM em minutos
                 const timeToMinutes = (time) => {
                     if (!time) return 0;
                     const [h, m] = time.split(':').map(Number);
@@ -3495,7 +3495,7 @@
             if (row) row.classList.toggle('selected', e.target.checked);
         }
 
-        // Conectar ã API (apenas autenticaçãoO)
+        // Conectar ã API (apenas autenticação)
         async function connectToAPI() {
             const apiStatus = document.getElementById('apiStatus');
             
@@ -3526,7 +3526,7 @@
             const apiStatus = document.getElementById('apiStatus');
             
             if (!dateStart || !dateEnd) {
-                showAlert('Atenãoo', 'Por favor, selecione as datas de Início e fim!', 'warning');
+                showAlert('Atenção', 'Por favor, selecione as datas de Início e fim!', 'warning');
                 return;
             }
             
@@ -3724,7 +3724,7 @@
                                             try {
                                                 const allData = JSON.parse(anexo.perguntas_rh);
                                                 
-                                                // Separar perguntas de aprovaçães
+                                                // Separar perguntas de aprovações
                                                 emp.questions = {};
                                                 emp.approved = {};
                                                 
@@ -3777,7 +3777,7 @@
                     }
                 }
                 
-                console.log('? Carregamento de anexos concluçãdo!');
+                console.log('? Carregamento de anexos concluído!');
                 
             } catch (err) {
                 console.error('? Erro ao carregar anexos:', err);
@@ -3786,7 +3786,7 @@
             }
         }
 
-        // Carregar perguntas e aprovaçães de TODOS os FUNCIONÁRIOs (mesmo sem anexo)
+        // Carregar perguntas e aprovações de TODOS os funcionários (mesmo sem anexo)
         async function carregarPerguntasEAprovacoes() {
             try {
                 const dataInicio = document.getElementById('dateStart').value;
@@ -3798,7 +3798,7 @@
                 
                 const empresasSelecionadas = companies.map(c => c.id);
                 
-                // ? ADICIONAR empresa_id = 0 (registros sem empresa especçãfica)
+                // ? ADICIONAR empresa_id = 0 (registros sem empresa específica)
                 if (!empresasSelecionadas.includes('0')) {
                     empresasSelecionadas.push('0');
                 }
@@ -3907,12 +3907,12 @@
                     }
                 }
                 
-                console.log('? Perguntas e aprovaçães carregadas!');
+                console.log('? Perguntas e aprovações carregadas!');
                 
                 // 🔄 RECALCULAR inconsistências após carregar aprovações
                 recalcularInconsistenciasComAprovacoes();
             } catch (err) {
-                console.error('? Erro ao carregar perguntas/aprovaçães:', err);
+                console.error('? Erro ao carregar perguntas/aprovações:', err);
             }
         }
         
@@ -3939,12 +3939,12 @@
             console.log(`✅ Recálculo concluído! ${removidos} inconsistências removidas por aprovação`);
         }
 
-        // ℹ Carregar IDs de impresSóo (alias para carregarIdsImpressao)
+        // ℹ Carregar IDs de impressão (alias para carregarIdsImpressao)
         async function carregarIDs() {
             return await carregarIdsImpressao();
         }
         
-        // ℹ Carregar IDs de impresSóo de TODOS os FUNCIONÁRIOs
+        // ℹ Carregar IDs de impressão de TODOS os funcionários
         async function carregarIdsImpressao() {
             try {
                 // Carregar IDs do banco de dados
@@ -3973,7 +3973,7 @@
                 
                 const { ids } = await response.json();
                 
-                // Atribuir IDs aos FUNCIONÁRIOs
+                // Atribuir IDs aos funcionários
                 allEmployees.forEach(emp => {
                     // Normalizar data
                     let dataNormalizada = emp.date;
@@ -4052,7 +4052,7 @@
                     document.querySelector('.btn-company[data-company="all"]').classList.remove('active');
                 }
 
-                // Toggle empresa especçãfica
+                // Toggle empresa específica
                 const index = API_CONFIG.selectedCompanies.indexOf(companyId);
                 if (index > -1) {
                     API_CONFIG.selectedCompanies.splice(index, 1);
@@ -4075,7 +4075,7 @@
         function initCompanyButtons() {
             const container = document.getElementById('companyButtons');
             
-            // Limpar botées existentes (exceto o botãoo "TODAS")
+            // Limpar botões existentes (exceto o botão "TODAS")
             const allButton = container.querySelector('[data-company="all"]');
             container.innerHTML = '';
             if (allButton) {
@@ -4165,11 +4165,11 @@
                     console.error('? Erro ao carregar anexos:', err);
                 }
                 
-                // 📝 CARREGAR IDs DE IMPRESSóO
+                // 📝 CARREGAR IDs DE IMPRESSÃO
                 try {
                     await carregarIdsImpressao();
                 } catch (err) {
-                    console.error('? Erro ao carregar IDs de impresSóo:', err);
+                    console.error('? Erro ao carregar IDs de impressão:', err);
                 }
                 
                 renderTable();
@@ -4278,7 +4278,7 @@
                     return h * 60 + m;
                 };
                 
-                // funçãoo helper: retorna motivo se existir, senão retorna Horário
+                // função helper: retorna motivo se existir, senão retorna Horário
                 const getMotivoOuHorario = (horario, motivo) => {
                     const motivosEspeciais = ['FALTA', 'FçãRIAS', 'AFASTAMENTO INSS', 'LICENçãA MATERNIDADE', 'FOLGA'];
                     if (motivosEspeciais.includes(motivo)) {
@@ -4313,7 +4313,7 @@
                     }
                 }
                 
-                // funçãoo para retornar classe correta
+                // função para retornar classe correta
                 const getTimeClass = (punchType, value) => {
                     if (colunasErradas.has(punchType)) {
                         return 'error-time'; // VERMELHO ESCURO
@@ -4871,7 +4871,7 @@
                     
                     
                     if (result.status === 'succeeded') {
-                        console.log('? OCR concluçãdo pelo Azure Computer Vision!');
+                        console.log('? OCR concluído pelo Azure Computer Vision!');
                         break;
                     } else if (result.status === 'failed') {
                         console.error('? Azure OCR falhou:', result);
@@ -4925,7 +4925,7 @@
                     'Registro indevido'
                 ];
                 
-                // 📝 NOVA ESTRatéGIA: Bolinha marcada ã a que não tem "O" antes do texto
+                // 📝 NOVA ESTRATÉGIA: Bolinha marcada ã a que não tem "O" antes do texto
                 // Azure lé "O Motivo" para bolinhas vazias, e apenas "Motivo" para marcada
                 const linhasTexto = fullText.split('\n');
                 const motivosSemBolinha = [];
@@ -4963,14 +4963,14 @@
                     motivoDetectadoPorTexto = true;
                     console.log(`   ℹ DETECTADO: ${motivoDetectado}`);
                 } else if (motivosSemBolinha.length > 1) {
-                    console.log(`   ℹ méltiplos motivos sem "O": ${motivosSemBolinha.join(', ')}`);
+                    console.log(`   ℹ múltiplos motivos sem "O": ${motivosSemBolinha.join(', ')}`);
                     motivoDetectado = motivosSemBolinha[0]; // Pega o primeiro
                     motivoDetectadoPorTexto = true;
                 } else {
                     console.log('   ℹ Nenhum motivo sem "O" detectado, usando ançãlise visual...');
                 }
                 
-                // 📝 ESTRatéGIA FINAL: DETECTAR HorárioS ApéS "BATIDO"
+                // 📝 ESTRATÉGIA FINAL: DETECTAR HorárioS ApéS "BATIDO"
                 // Layout do formulério:
                 // - Horários preenchidos aparecem primeiro (07:05, 12:40, 07:05)
                 // - Depois aparecem as palavras "BATIDO BATIDO BATIDO"
@@ -5062,7 +5062,7 @@
                 
                 
                 
-                // EXTRAIR MOTIVO COM DETECçããO VISUAL DO CHECKBOX MARCADO
+                // EXTRAIR MOTIVO COM DETECÇÃO VISUAL DO CHECKBOX MARCADO
                 // 📝 Se não foi detectado pelo texto, usar ançãlise de pixels
                 
                 try {
@@ -5073,7 +5073,7 @@
                         // Criar canvas da imagem para ançãlise de pixels
                         const canvas = document.createElement('canvas');
                         const img = new Image();
-                        img.src = imageBase64; // ? USAR O PARçãMETRO DA funçãoO
+                        img.src = imageBase64; // ? USAR O PARÂMETRO DA função
                         
                         await new Promise((resolve, reject) => {
                             img.onload = () => {
@@ -5141,7 +5141,7 @@
                     assinaturaLiderDetectada = resultados.lider;
                     
                     console.log('');
-                    console.log('📋 RESULTADO DETECçããO DE ASSINATURAS');
+                    console.log('📋 RESULTADO DETECÇÃO DE ASSINATURAS');
                     console.log('');
                     console.log(`ℹ FUNCIONÁRIO: ${assinaturaFuncionarioDetectada ? '? ASSINADO' : '? não ASSINADO'}`);
                 console.log(`ℹ Líder: ${assinaturaLiderDetectada ? '? ASSINADO' : '? não ASSINADO'}`);
@@ -5353,7 +5353,7 @@
             debugCanvas.height = canvas.height;
             debugCtx.drawImage(canvas, 0, 0);
             
-            // Desenhar TODAS as regiçães em azul (busca direta, sem detecçãão de cor)
+            // Desenhar TODAS as regiões em azul (busca direta, sem detecção de cor)
             for (const regiao of regioes) {
                 debugCtx.strokeStyle = 'blue';
                 debugCtx.lineWidth = 3;
@@ -5372,11 +5372,11 @@
                 if (debugWindow) {
                     debugWindow.document.write(`
                         <html>
-                        <head><title>Debug - Regiçães de Busca</title></head>
+                        <head><title>Debug - Regiões de Busca</title></head>
                         <body style="margin:0;background:#000;display:flex;justify-content:center;align-items:center;">
                             <div style="text-align:center;">
-                                <h2 style="color:white;">ℹ Regiçães de Busca Fixas</h2>
-                                <p style="color:cyan;">ã AZUL = Busca OCR direta (sem detecçãão de cor)</p>
+                                <h2 style="color:white;">ℹ Regiões de Busca Fixas</h2>
+                                <p style="color:cyan;">ã AZUL = Busca OCR direta (sem detecção de cor)</p>
                                 <img src="${debugUrl}" style="border:2px solid white;max-width:100%;"/>
                                 <p style="color:yellow;">Y atual: 460 | Ajuste se necesSório!</p>
                             </div>
@@ -5388,10 +5388,10 @@
                 console.warn('ℹ não foi posSóvel abrir janela de debug');
             }
             
-            return regioes; // Retorna TODAS as regiçães (busca direta)
+            return regioes; // Retorna TODAS as regiões (busca direta)
         }
         
-        // OCR em região especçãfica (crop)
+        // OCR em região específica (crop)
         async function ocrRegion(canvas, region) {
             const cropCanvas = document.createElement('canvas');
             const ctx = cropCanvas.getContext('2d');
@@ -5454,7 +5454,7 @@
             
             console.log(`ℹ Analisando ${checkboxes.length} checkboxes...`);
             
-            // 📝 DEBUG VISUAL: Desenhar cçãrculos vermelhos nas coordenadas
+            // 📝 DEBUG VISUAL: Desenhar círculos vermelhos nas coordenadas
             const debugCanvas = document.createElement('canvas');
             const debugCtx = debugCanvas.getContext('2d');
             debugCanvas.width = canvas.width;
@@ -5471,7 +5471,7 @@
             let checkboxMarcado = null;
             
             checkboxes.forEach((cb, index) => {
-                // Desenhar cçãrculo vermelho
+                // Desenhar círculo vermelho
                 debugCtx.beginPath();
                 debugCtx.arc(cb.x, cb.y, 10, 0, 2 * Math.PI);
                 debugCtx.stroke();
@@ -5513,7 +5513,7 @@
             // 📝 Abrir imagem de debug automaticamente em nova aba
             const debugUrl = debugCanvas.toDataURL('image/png');
             console.log('✅ IMAGEM DE DEBUG GERADA!');
-            console.log('? Abrindo imagem com cçãrculos vermelhos em nova aba...');
+            console.log('? Abrindo imagem com círculos vermelhos em nova aba...');
             console.log('📋 Legenda: 1=Esqueceu, 2=Falha no App, 3=Falta, 4=Folga, 5=Hora Parada, 6=Maquina defeito, 7=Duplicidade, 8=Indevido');
             
             // Abrir em nova aba automaticamente
@@ -5537,16 +5537,16 @@
         }
         
         // ==========================================
-        // DETECçããO DE ASSINATURAS (FUNCIONÁRIO E Líder)
+        // DETECÇÃO DE ASSINATURAS (FUNCIONÁRIO E Líder)
         // ==========================================
         function detectarAssinaturas(canvas) {
-            console.log('🔍 Iniciando detecçãão de assinaturas (FUNCIONÁRIO + Líder)...');
+            console.log('🔍 Iniciando detecção de assinaturas (FUNCIONÁRIO + Líder)...');
             
             const ctx = canvas.getContext('2d', { willReadFrequently: true });
             const largura = canvas.width;
             const altura = canvas.height;
             
-            // 📝 REGIçãES DAS ASSINATURAS
+            // 📝 REGIÕES DAS ASSINATURAS
             // Baseado na imagem fornecida:
             
             // FUNCIONÁRIO (lado esquerdo inferior)
@@ -5757,7 +5757,7 @@
         }
         
         // ==========================================
-        // EXTRaçãO DE ID DO PDF (VERSóO CORRIGIDA FINAL)
+        // EXTRAÇÃO DE ID DO PDF (VERSóO CORRIGIDA FINAL)
         // ==========================================
         async function extrairIdDoPDF(canvas) {
             console.log('🔍 Iniciando extração de ID (posiçãoo: ID IMP)...');
@@ -5846,8 +5846,8 @@
                 const textoExtraido = result.data.text || '';
                 const confidence = result.data.confidence || 0;
                 
-                console.log(`   ℹ Texto extraçãdo: "${textoExtraido.trim()}"`);
-                console.log(`   ℹ Confiançãa: ${Math.round(confidence)}%`);
+                console.log(`   ℹ Texto extraído: "${textoExtraido.trim()}"`);
+                console.log(`   ℹ Confiança: ${Math.round(confidence)}%`);
                 
                 if (!textoExtraido) {
                     console.warn('   ℹ OCR não retornou texto');
@@ -5858,12 +5858,12 @@
                 // Padrão 1: "ID IMP: 22" ou "ID IMP 22" ou "IDIMP:22"
                 let match = textoExtraido.match(/ID\s*IMP\s*:?\s*(\d{1,3})/i);
                 
-                // Padrão 2: Nçãmero ISOLADO de 1-2 dçãgitos (ID IMP geralmente ã < 100)
-                // IMPORTANTE: não capturar nçãmeros de data (evita "17" de "17/11")
+                // Padrão 2: Número ISOLADO de 1-2 dígitos (ID IMP geralmente ã < 100)
+                // IMPORTANTE: não capturar números de data (evita "17" de "17/11")
                 if (!match) {
-                    // Procurar nçãmero que não esté próximo de barra (/)
+                    // Procurar número que não esté próximo de barra (/)
                     const textoLimpo = textoExtraido.replace(/\d{1,2}\/\d{1,2}(\/\d{2,4})?/g, ''); // Remove datas
-                    match = textoLimpo.match(/\b(\d{1,2})\b/); // Nçãmeros de 1-2 dçãgitos SOMENTE
+                    match = textoLimpo.match(/\b(\d{1,2})\b/); // Números de 1-2 dígitos SOMENTE
                 }
                 
                 if (match && match[1]) {
@@ -5871,7 +5871,7 @@
                     
                     // Validar se esté em range válido (1-99, expandido para permitir até 200 se necesSório)
                     if (id > 0 && id <= 200) {
-                        console.log(`? ID detectado: #${id} (confiançãa: ${Math.round(confidence)}%)`);
+                        console.log(`? ID detectado: #${id} (confiança: ${Math.round(confidence)}%)`);
                         return id.toString();
                     } else {
                         console.warn(`   ℹ Nçãmero encontrado (${id}) mas fora do range válido (1-200)`);
@@ -5880,8 +5880,8 @@
                     console.warn('   ℹ Nenhum padrão de ID encontrado no texto');
                 }
                 
-                // 📝 FALLBACK: Tentar regiçães alternativas
-                console.log('🔍 Tentando regiçães alternativas...');
+                // 📝 FALLBACK: Tentar regiões alternativas
+                console.log('🔍 Tentando regiões alternativas...');
                 
                 const alternativeRegions = [
                     { x: 650, y: 175, w: 200, h: 40, desc: 'Região ampla esquerda' },
@@ -6080,14 +6080,14 @@
                 }
             }
             
-            // méTODO 3: Buscar em palavras com alta confiançãa no CANTO SUPERIOR DIREITO
+            // MÉTODO 3: Buscar em palavras com alta confiança no CANTO SUPERIOR DIREITO
             if (palavrasComConfidencia && palavrasComConfidencia.length > 0) {
                 console.log('📊 Analisando posiçãoes das palavras...');
                 
                 const candidatosID = [];
                 
                 palavrasComConfidencia.forEach((word, index) => {
-                    // Procurar nçãmeros de 1-3 dçãgitos no canto superior direito
+                    // Procurar números de 1-3 dígitos no canto superior direito
                     const match = word.text.match(/^#?(\d{1,3})$/);
                     if (match && word.confidence > 80) {
                         const id = match[1];
@@ -6115,7 +6115,7 @@
                 if (candidatosID.length > 0) {
                     const melhor = candidatosID[0];
                     console.log(`ℹ ID encontrado (método 3 - posiçãoo): #${melhor.id}`);
-                    console.log(`   X=${Math.round(melhor.x)}, Y=${Math.round(melhor.y)}, Score=${Math.round(melhor.score)}, Confiançãa=${Math.round(melhor.confidence)}%`);
+                    console.log(`   X=${Math.round(melhor.x)}, Y=${Math.round(melhor.y)}, Score=${Math.round(melhor.score)}, Confiança=${Math.round(melhor.confidence)}%`);
                     if (candidatosID.length > 1) {
                         console.log(`   Rejeitados: ${candidatosID.slice(1).map(c => `#${c.id} (X=${Math.round(c.x)}, Y=${Math.round(c.y)}, Score=${Math.round(c.score)})`).join(', ')}`);
                     }
@@ -6128,9 +6128,9 @@
         }
         */
 
-        // 📝 funçãoO ANTIGA - não MAIS USADA (sistema hçãbrido agora detecta caixas automaticamente)
+        // 📝 função ANTIGA - não MAIS USADA (sistema hçãbrido agora detecta caixas automaticamente)
         /*
-        // 📝 EXTRaçãO MELHORADA COM validaçãoO INTELIGENTE
+        // 📝 EXTRAÇÃO MELHORADA COM validação INTELIGENTE
         function extrairDadosOCRMelhorado(texto, palavrasFiltradas, ocrData) {
             console.log('🔍 Iniciando extração melhorada de dados...');
             
@@ -6156,7 +6156,7 @@
             // EXTRaçãO DE HorárioS COM validaçãoO
             const horariosEncontrados = [];
             
-            // Buscar Horários nas palavras filtradas (confiançãa > 70%)
+            // Buscar Horários nas palavras filtradas (confiança > 70%)
             for (let i = 0; i < palavrasFiltradas.length; i++) {
                 const word = palavrasFiltradas[i];
                 
@@ -6172,11 +6172,11 @@
                             confidence: word.confidence,
                             posicao: word.bbox.x0
                         });
-                        console.log(`? Horário detectado: ${hora}:${min} (confiançãa: ${Math.round(word.confidence)}%)`);
+                        console.log(`? Horário detectado: ${hora}:${min} (confiança: ${Math.round(word.confidence)}%)`);
                     }
                 }
                 
-                // Padrão 2: HHMM (4 dçãgitos)
+                // Padrão 2: HHMM (4 dígitos)
                 const match2 = word.text.match(/^(\d{4})$/);
                 if (match2) {
                     const valor = match2[1];
@@ -6190,7 +6190,7 @@
                                 confidence: word.confidence,
                                 posicao: word.bbox.x0
                             });
-                            console.log(`? Horário detectado (4 dçãgitos): ${hora}:${min} (confiançãa: ${Math.round(word.confidence)}%)`);
+                            console.log(`? Horário detectado (4 dígitos): ${hora}:${min} (confiança: ${Math.round(word.confidence)}%)`);
                         }
                     }
                 }
@@ -6217,7 +6217,7 @@
                                 confidence: (word.confidence + nextWord.confidence) / 2,
                                 posicao: word.bbox.x0
                             });
-                            console.log(`? Horário detectado (espaçãado): ${hora}:${min} (confiançãa: ${Math.round((word.confidence + nextWord.confidence) / 2)}%)`);
+                            console.log(`? Horário detectado (espaçado): ${hora}:${min} (confiança: ${Math.round((word.confidence + nextWord.confidence) / 2)}%)`);
                             i++; // Pular prçãxima palavra já processada
                         } else {
                             const motivos = [];
@@ -6284,7 +6284,7 @@
                                 menorDistancia = dist;
                                 motivoDetectado = item.motivo;
                                 confidenciaMotivo = Math.round(xWord.confidence);
-                                console.log(`? Motivo detectado: "${item.motivo}" (confiançãa: ${confidenciaMotivo}%, disténcia: ${dist})`);
+                                console.log(`? Motivo detectado: "${item.motivo}" (confiança: ${confidenciaMotivo}%, distância: ${dist})`);
                             }
                         });
                     }
@@ -6317,8 +6317,8 @@
                 motivo: null
             };
             
-            // MELHORAR DETECçããO DE HorárioS
-            // Procurar méltiplos padrçães
+            // MELHORAR DETECÇÃO DE HorárioS
+            // Procurar múltiplos padrões
             const horariosEncontrados = [];
             
             // Padrão 1: HH:MM ou HH MM (com separador)
@@ -6340,7 +6340,7 @@
                 }
             }
             
-            // Padrão 2: HHMM (4 dçãgitos juntos) - NOVO!
+            // Padrão 2: HHMM (4 dígitos juntos) - NOVO!
             const regex2 = /\b(\d{4})\b/g;
             
             while ((match = regex2.exec(texto)) !== null) {
@@ -6475,9 +6475,9 @@
             return dados;
         }
         
-        // 📝 Mostrar resultado do OCR COM INDICADORES DE CONFIANçãA
+        // 📝 Mostrar resultado do OCR COM INDICADORES DE CONFIANÇA
         function mostrarResultadoOCR(dados) {
-            // funçãoo auxiliar para cor do indicador baseado na confiançãa
+            // função auxiliar para cor do indicador baseado na confiança
             const getConfidenceColor = (confidence) => {
                 if (confidence >= 80) return '#10b981'; // Verde
                 if (confidence >= 60) return '#f59e0b'; // Amarelo
@@ -6502,7 +6502,7 @@
             
             console.log('⏰ Horários já batidos:', horariosJaBatidos);
             
-            // funçãoo para criar campo (bloqueado se já batido, editével se vazio)
+            // função para criar campo (bloqueado se já batido, editável se vazio)
             const criarCampo = (id, label, valorOCR, valorJaBatido, confidence) => {
                 const jaBatido = valorJaBatido && valorJaBatido !== '--:--';
                 const valor = jaBatido ? valorJaBatido : (valorOCR || '');
@@ -6596,9 +6596,9 @@
                     <div style="font-size: 12px; color: #1e40af; line-height: 1.5;">
                         <strong>ℹ Indicadores:</strong><br>
                         <span style="color: #64748b;"></span> Cinza: Horário já batido (bloqueado)<br>
-                        <span style="color: #10b981;">?</span> Verde (=80%): Alta confiançãa<br>
-                        <span style="color: #f59e0b;">?</span> Amarelo (60-80%): média confiançãa - revisar<br>
-                        <span style="color: #ef4444;">?</span> Vermelho (<60%): Baixa confiançãa - corrigir
+                        <span style="color: #10b981;">?</span> Verde (=80%): Alta confiança<br>
+                        <span style="color: #f59e0b;">?</span> Amarelo (60-80%): média confiança - revisar<br>
+                        <span style="color: #ef4444;">?</span> Vermelho (<60%): Baixa confiança - corrigir
                     </div>
                 </div>
             `;
@@ -7509,7 +7509,7 @@
                 const mergedData = {
                     ...existingData,           // 1. Dados que já estavam no banco
                     ...employee.questions,     // 2. Perguntas atuais do objeto
-                    ...employee.approved,      // 3. Aprovaçães atuais do objeto
+                    ...employee.approved,      // 3. Aprovações atuais do objeto
                     [approvedKey]: approvalComment,  // 4. Nova aprovação
                     ordem_horarios: true       // 5. ✅ Marcar que horários invertidos foram aprovados
                 };
@@ -7550,7 +7550,7 @@
 
         function askQuestion(event, reg, date, punchType, name) {
             console.log('🎯 askQuestion CHAMADA:', { reg, date, punchType, name });
-            event.stopPropagation(); // Evitar duplo clique na cçãlula
+            event.stopPropagation(); // Evitar duplo clique na célula
             
             const employee = allEmployees.find(emp => emp.reg === reg && emp.date === date);
             if (!employee) {
@@ -7801,7 +7801,7 @@
             document.getElementById('questionInput').focus();
         }
 
-        // Variçãvel global para rastrear cçãlula selecionada
+        // Variável global para rastrear célula selecionada
         let selectedCell = null;
 
         // ============================================
@@ -7984,7 +7984,7 @@
             }, 1000); // 1 segundo (otimizado)
         }
 
-        // Mostrar setas de navegação ao clicar na cçãlula (igual Secullum)
+        // Mostrar setas de navegação ao clicar na célula (igual Secullum)
         function showSwapMenu(event, cell) {
             event.stopPropagation();
             
@@ -8011,7 +8011,7 @@
                 selectedCell.classList.remove('selected-cell');
             }
             
-            // Marcar cçãlula como selecionada
+            // Marcar célula como selecionada
             cell.classList.add('selected-cell');
             selectedCell = cell;
             
@@ -8021,7 +8021,7 @@
             rowCells.forEach(targetCell => {
                 const targetPunch = targetCell.dataset.punch;
                 
-                // Ignorar a prçãpria cçãlula
+                // Ignorar a própria célula
                 if (targetCell === cell) return;
                 
                 // Verificar se tem Horário
@@ -8432,7 +8432,7 @@
         let currentEditingCell = null;
 
         function startInlineEdit(cell) {
-            // Se já esté editando outra cçãlula, cancela
+            // Se já esté editando outra célula, cancela
             if (currentEditingCell && currentEditingCell !== cell) {
                 cancelInlineEdit(currentEditingCell);
             }
@@ -8447,7 +8447,7 @@
             // Valor atual
             const currentValue = employee.punches[punchType] || '';
 
-            // Marcar cçãlula como editando
+            // Marcar célula como editando
             cell.classList.add('editing');
             currentEditingCell = cell;
 
@@ -8457,7 +8457,7 @@
             input.className = 'inline-input';
             input.value = currentValue;
             
-            // Limpar cçãlula e adicionar input
+            // Limpar célula e adicionar input
             cell.innerHTML = '';
             cell.appendChild(input);
             input.focus();
@@ -8491,7 +8491,7 @@
                     saving = true; // Prevenir blur
                     input.removeEventListener('blur', save);
                     saveInlineEdit(cell, reg, date, punchType, input.value);
-                    // Mover para prçãxima cçãlula editével
+                    // Mover para próxima célula editável
                     const nextCell = e.shiftKey ? getPreviousEditableCell(cell) : getNextEditableCell(cell);
                     if (nextCell) {
                         setTimeout(() => startInlineEdit(nextCell), 100);
@@ -9277,7 +9277,7 @@
                     console.log('   Sai2:', resultado.sai2 || 'vazio');
                     console.log('   Ent3:', resultado.ent3 || 'vazio');
                     console.log('   Sai3:', resultado.sai3 || 'vazio');
-                    console.log('🎯 Confiançãa:');
+                    console.log('🎯 Confiança:');
                     console.log('   ID:', resultado.confidence?.id || 0, '%');
                     console.log('   Motivo:', resultado.confidence?.motivo || 0, '%');
                     console.log('   Ent1:', resultado.confidence?.ent1 || 0, '%');
