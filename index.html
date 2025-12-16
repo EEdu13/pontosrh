@@ -441,6 +441,27 @@
             50% { transform: scale(1.1); }
         }
 
+        .delete-question-icon {
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            cursor: pointer;
+            font-size: 14px;
+            opacity: 0.7;
+            transition: all 0.2s;
+            z-index: 10;
+            color: #ef4444;
+        }
+        
+        .delete-question-icon::before {
+            content: '❌';
+        }
+
+        .delete-question-icon:hover {
+            opacity: 1;
+            transform: scale(1.2);
+        }
+
         .editable-cell.editing {
             padding: 0 !important;
             background: rgba(15, 23, 42, 1) !important;
@@ -673,6 +694,11 @@
             #pdfPages {
                 margin: 0 !important;
                 padding: 0 !important;
+            }
+            
+            /* Esconder comentários HTML do Cache Buster na impressão */
+            body::after {
+                display: none !important;
             }
         }
 
@@ -4340,6 +4366,7 @@
                         data-punch="ent1"
                         data-name="${emp.name}">
                         ${colunasErradas.has('ent1') && !emp.approved?.ent1 ? '<span class="approve-icon" onclick="approveSwappedTime(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'ent1\', \'' + emp.name + '\')" title="Aprovar Horário trocado"></span>' : ''}
+                        ${emp.questions?.ent1 ? '<span class="delete-question-icon" onclick="deleteQuestion(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'ent1\')" title="Excluir pergunta"></span>' : ''}
                         ${emp.punches.ent1 ? '<span class="question-icon" onclick="askQuestion(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'ent1\', \'' + emp.name + '\')" title="Adicionar pergunta"></span>' : ''}
                         <span class="punch-time ${emp.approved?.ent1 ? 'approved' : getTimeClass('ent1', emp.punches.ent1)}" style="font-size: 13px; font-family: 'Courier New', monospace;">
                             ${getMotivoOuHorario(emp.punches.ent1, emp.motivo)}
@@ -4349,65 +4376,74 @@
                     </td>
                     <td class="center punch-cell" style="width: 100px; position: relative;" data-reg="${emp.reg}" data-date="${emp.date}" data-punch="sai1" data-name="${emp.name}">
                         ${colunasErradas.has('sai1') && !emp.approved?.sai1 ? '<span class="approve-icon" onclick="approveSwappedTime(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'sai1\', \'' + emp.name + '\')" title="Aprovar Horário trocado"></span>' : ''}
+                        ${emp.questions?.sai1 ? '<span class="delete-question-icon" onclick="deleteQuestion(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'sai1\')" title="Excluir pergunta"></span>' : ''}
                         ${emp.punches.sai1 ? '<span class="question-icon" onclick="askQuestion(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'sai1\', \'' + emp.name + '\')" title="Adicionar pergunta"></span>' : ''}
                         <span class="punch-time ${emp.approved?.sai1 ? 'approved' : getTimeClass('sai1', emp.punches.sai1)}">${getMotivoOuHorario(emp.punches.sai1, emp.motivo)}</span>
-                        ${emp.questions?.sai1 ? '<span class="has-question" title="$1">💬</span>' : ''}
+                        ${emp.questions?.sai1 ? '<span class="has-question" title="' + emp.questions.sai1 + '">💬</span>' : ''}
                         ${emp.approved?.sai1 ? '<span class="approved-badge" title="Aprovado por RH: ' + emp.approved.sai1 + '">✅</span>' : ''}
                     </td>
                     <td class="center punch-cell" style="width: 100px; position: relative;" data-reg="${emp.reg}" data-date="${emp.date}" data-punch="ent2" data-name="${emp.name}">
                         ${colunasErradas.has('ent2') && !emp.approved?.ent2 ? '<span class="approve-icon" onclick="approveSwappedTime(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'ent2\', \'' + emp.name + '\')" title="Aprovar Horário trocado"></span>' : ''}
+                        ${emp.questions?.ent2 ? '<span class="delete-question-icon" onclick="deleteQuestion(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'ent2\')" title="Excluir pergunta"></span>' : ''}
                         ${emp.punches.ent2 ? '<span class="question-icon" onclick="askQuestion(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'ent2\', \'' + emp.name + '\')" title="Adicionar pergunta"></span>' : ''}
                         <span class="punch-time ${emp.approved?.ent2 ? 'approved' : getTimeClass('ent2', emp.punches.ent2)}">${getMotivoOuHorario(emp.punches.ent2, emp.motivo)}</span>
-                        ${emp.questions?.ent2 ? '<span class="has-question" title="$1">💬</span>' : ''}
+                        ${emp.questions?.ent2 ? '<span class="has-question" title="' + emp.questions.ent2 + '">💬</span>' : ''}
                         ${emp.approved?.ent2 ? '<span class="approved-badge" title="Aprovado por RH: ' + emp.approved.ent2 + '">✅</span>' : ''}
                     </td>
                     <td class="center punch-cell" style="width: 100px; position: relative;" data-reg="${emp.reg}" data-date="${emp.date}" data-punch="sai2" data-name="${emp.name}">
                         ${colunasErradas.has('sai2') && !emp.approved?.sai2 ? '<span class="approve-icon" onclick="approveSwappedTime(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'sai2\', \'' + emp.name + '\')" title="Aprovar Horário trocado"></span>' : ''}
+                        ${emp.questions?.sai2 ? '<span class="delete-question-icon" onclick="deleteQuestion(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'sai2\')" title="Excluir pergunta"></span>' : ''}
                         ${emp.punches.sai2 ? '<span class="question-icon" onclick="askQuestion(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'sai2\', \'' + emp.name + '\')" title="Adicionar pergunta"></span>' : ''}
                         <span class="punch-time ${emp.approved?.sai2 ? 'approved' : getTimeClass('sai2', emp.punches.sai2)}">${getMotivoOuHorario(emp.punches.sai2, emp.motivo)}</span>
-                        ${emp.questions?.sai2 ? '<span class="has-question" title="$1">💬</span>' : ''}
+                        ${emp.questions?.sai2 ? '<span class="has-question" title="' + emp.questions.sai2 + '">💬</span>' : ''}
                         ${emp.approved?.sai2 ? '<span class="approved-badge" title="Aprovado por RH: ' + emp.approved.sai2 + '">✅</span>' : ''}
                     </td>
                     <td class="center punch-cell" style="width: 100px; position: relative;" data-reg="${emp.reg}" data-date="${emp.date}" data-punch="ent3" data-name="${emp.name}">
                         ${colunasErradas.has('ent3') && !emp.approved?.ent3 ? '<span class="approve-icon" onclick="approveSwappedTime(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'ent3\', \'' + emp.name + '\')" title="Aprovar Horário trocado"></span>' : ''}
+                        ${emp.questions?.ent3 ? '<span class="delete-question-icon" onclick="deleteQuestion(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'ent3\')" title="Excluir pergunta"></span>' : ''}
                         ${emp.punches.ent3 ? '<span class="question-icon" onclick="askQuestion(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'ent3\', \'' + emp.name + '\')" title="Adicionar pergunta"></span>' : ''}
                         <span class="punch-time ${emp.approved?.ent3 ? 'approved' : getTimeClass('ent3', emp.punches.ent3)}">${getMotivoOuHorario(emp.punches.ent3, emp.motivo)}</span>
-                        ${emp.questions?.ent3 ? '<span class="has-question" title="$1">💬</span>' : ''}
+                        ${emp.questions?.ent3 ? '<span class="has-question" title="' + emp.questions.ent3 + '">💬</span>' : ''}
                         ${emp.approved?.ent3 ? '<span class="approved-badge" title="Aprovado por RH: ' + emp.approved.ent3 + '">✅</span>' : ''}
                     </td>
                     <td class="center punch-cell" style="width: 100px; position: relative;" data-reg="${emp.reg}" data-date="${emp.date}" data-punch="sai3" data-name="${emp.name}">
                         ${colunasErradas.has('sai3') && !emp.approved?.sai3 ? '<span class="approve-icon" onclick="approveSwappedTime(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'sai3\', \'' + emp.name + '\')" title="Aprovar Horário trocado"></span>' : ''}
+                        ${emp.questions?.sai3 ? '<span class="delete-question-icon" onclick="deleteQuestion(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'sai3\')" title="Excluir pergunta"></span>' : ''}
                         ${emp.punches.sai3 ? '<span class="question-icon" onclick="askQuestion(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'sai3\', \'' + emp.name + '\')" title="Adicionar pergunta"></span>' : ''}
                         <span class="punch-time ${emp.approved?.sai3 ? 'approved' : getTimeClass('sai3', emp.punches.sai3)}">${getMotivoOuHorario(emp.punches.sai3, emp.motivo)}</span>
-                        ${emp.questions?.sai3 ? '<span class="has-question" title="$1">💬</span>' : ''}
+                        ${emp.questions?.sai3 ? '<span class="has-question" title="' + emp.questions.sai3 + '">💬</span>' : ''}
                         ${emp.approved?.sai3 ? '<span class="approved-badge" title="Aprovado por RH: ' + emp.approved.sai3 + '">✅</span>' : ''}
                     </td>
                     <td class="center punch-cell" style="width: 100px; position: relative;" data-reg="${emp.reg}" data-date="${emp.date}" data-punch="ent4" data-name="${emp.name}">
                         ${colunasErradas.has('ent4') && !emp.approved?.ent4 ? '<span class="approve-icon" onclick="approveSwappedTime(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'ent4\', \'' + emp.name + '\')" title="Aprovar Horário trocado"></span>' : ''}
+                        ${emp.questions?.ent4 ? '<span class="delete-question-icon" onclick="deleteQuestion(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'ent4\')" title="Excluir pergunta"></span>' : ''}
                         ${emp.punches.ent4 ? '<span class="question-icon" onclick="askQuestion(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'ent4\', \'' + emp.name + '\')" title="Adicionar pergunta"></span>' : ''}
                         <span class="punch-time ${emp.approved?.ent4 ? 'approved' : getTimeClass('ent4', emp.punches.ent4)}">${getMotivoOuHorario(emp.punches.ent4, emp.motivo)}</span>
-                        ${emp.questions?.ent4 ? '<span class="has-question" title="$1">💬</span>' : ''}
+                        ${emp.questions?.ent4 ? '<span class="has-question" title="' + emp.questions.ent4 + '">💬</span>' : ''}
                         ${emp.approved?.ent4 ? '<span class="approved-badge" title="Aprovado por RH: ' + emp.approved.ent4 + '">✅</span>' : ''}
                     </td>
                     <td class="center punch-cell" style="width: 100px; position: relative;" data-reg="${emp.reg}" data-date="${emp.date}" data-punch="sai4" data-name="${emp.name}">
                         ${colunasErradas.has('sai4') && !emp.approved?.sai4 ? '<span class="approve-icon" onclick="approveSwappedTime(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'sai4\', \'' + emp.name + '\')" title="Aprovar Horário trocado"></span>' : ''}
+                        ${emp.questions?.sai4 ? '<span class="delete-question-icon" onclick="deleteQuestion(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'sai4\')" title="Excluir pergunta"></span>' : ''}
                         ${emp.punches.sai4 ? '<span class="question-icon" onclick="askQuestion(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'sai4\', \'' + emp.name + '\')" title="Adicionar pergunta"></span>' : ''}
                         <span class="punch-time ${emp.approved?.sai4 ? 'approved' : getTimeClass('sai4', emp.punches.sai4)}">${getMotivoOuHorario(emp.punches.sai4, emp.motivo)}</span>
-                        ${emp.questions?.sai4 ? '<span class="has-question" title="$1">💬</span>' : ''}
+                        ${emp.questions?.sai4 ? '<span class="has-question" title="' + emp.questions.sai4 + '">💬</span>' : ''}
                         ${emp.approved?.sai4 ? '<span class="approved-badge" title="Aprovado por RH: ' + emp.approved.sai4 + '">✅</span>' : ''}
                     </td>
                     <td class="center punch-cell" style="width: 100px; position: relative;" data-reg="${emp.reg}" data-date="${emp.date}" data-punch="ent5" data-name="${emp.name}">
                         ${colunasErradas.has('ent5') && !emp.approved?.ent5 ? '<span class="approve-icon" onclick="approveSwappedTime(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'ent5\', \'' + emp.name + '\')" title="Aprovar Horário trocado"></span>' : ''}
+                        ${emp.questions?.ent5 ? '<span class="delete-question-icon" onclick="deleteQuestion(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'ent5\')" title="Excluir pergunta"></span>' : ''}
                         ${emp.punches.ent5 ? '<span class="question-icon" onclick="askQuestion(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'ent5\', \'' + emp.name + '\')" title="Adicionar pergunta"></span>' : ''}
                         <span class="punch-time ${emp.approved?.ent5 ? 'approved' : getTimeClass('ent5', emp.punches.ent5)}">${getMotivoOuHorario(emp.punches.ent5, emp.motivo)}</span>
-                        ${emp.questions?.ent5 ? '<span class="has-question" title="$1">💬</span>' : ''}
+                        ${emp.questions?.ent5 ? '<span class="has-question" title="' + emp.questions.ent5 + '">💬</span>' : ''}
                         ${emp.approved?.ent5 ? '<span class="approved-badge" title="Aprovado por RH: ' + emp.approved.ent5 + '">✅</span>' : ''}
                     </td>
                     <td class="center punch-cell" style="width: 100px; position: relative;" data-reg="${emp.reg}" data-date="${emp.date}" data-punch="sai5" data-name="${emp.name}">
                         ${colunasErradas.has('sai5') && !emp.approved?.sai5 ? '<span class="approve-icon" onclick="approveSwappedTime(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'sai5\', \'' + emp.name + '\')" title="Aprovar Horário trocado"></span>' : ''}
+                        ${emp.questions?.sai5 ? '<span class="delete-question-icon" onclick="deleteQuestion(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'sai5\')" title="Excluir pergunta"></span>' : ''}
                         ${emp.punches.sai5 ? '<span class="question-icon" onclick="askQuestion(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'sai5\', \'' + emp.name + '\')" title="Adicionar pergunta"></span>' : ''}
                         <span class="punch-time ${emp.approved?.sai5 ? 'approved' : getTimeClass('sai5', emp.punches.sai5)}">${getMotivoOuHorario(emp.punches.sai5, emp.motivo)}</span>
-                        ${emp.questions?.sai5 ? '<span class="has-question" title="$1">💬</span>' : ''}
+                        ${emp.questions?.sai5 ? '<span class="has-question" title="' + emp.questions.sai5 + '">💬</span>' : ''}
                         ${emp.approved?.sai5 ? '<span class="approved-badge" title="Aprovado por RH: ' + emp.approved.sai5 + '">✅</span>' : ''}
                     </td>
                     <td class="center" style="width: 70px; font-weight: bold; color: #7c3aed; font-size: 14px;">
@@ -6970,48 +7006,78 @@
                     
                     // ⚡ ENVIO SEQUENCIAL DE HORÁRIOS NORMAIS (HH:mm) - Endpoint /Manual
                     const results = [];
-                    for (const item of horariosNormais) {
-                        try {
-                            const payload = {
-                                FuncionarioId: funcionarioId,
-                                NumeroFolha: numeroFolha,
-                                Data: empRef.rawData?.Data || empRef.date,
-                                Coluna: item.coluna,
-                                Hora: item.hora,
-                                Motivo: empRef.motivo || 'Justificativa anexada via OCR',
-                                created_by: window.CURRENT_USER || 'Sistema'
-                            };
+                    let tentativasRestantes = 3; // Retry até 3 vezes em caso de erro
+                    
+                    for (let i = 0; i < horariosNormais.length; i++) {
+                        const item = horariosNormais[i];
+                        let enviado = false;
+                        let tentativa = 0;
+                        
+                        // 📊 Atualizar progresso visual
+                        showLoading(`⚡ Enviando ${i + 1}/${horariosNormais.length}: ${item.coluna} (${item.hora})...`);
+                        
+                        while (!enviado && tentativa < tentativasRestantes) {
+                            tentativa++;
                             
-                            const apiResponse = await fetch(`${API_CONFIG.baseURL}/IntegracaoExterna/CartaoPonto/Manual`, {
-                                method: 'POST',
-                                headers: { 
-                                    'Content-Type': 'application/json',
-                                    'Authorization': `Bearer ${API_CONFIG.token}`,
-                                    'secullumidbancoselecionado': empRef.empresaId || empRef.companyId
-                                },
-                                body: JSON.stringify(payload)
-                            });
-                            
-                            if (apiResponse.ok) {
-                                console.log(`✅ ${item.coluna} enviada: ${item.hora}`);
-                                results.push({ success: true, coluna: item.coluna });
-                            } else {
-                                const errorText = await apiResponse.text();
-                                console.warn(`⚠️ Erro ao enviar ${item.coluna}: ${apiResponse.status} - ${errorText}`);
-                                results.push({ 
-                                    success: false, 
-                                    coluna: item.coluna, 
-                                    error: errorText,
-                                    periodoEncerrado: errorText.includes('Período encerrado') || errorText.includes('Período fechado')
+                            try {
+                                const payload = {
+                                    FuncionarioId: funcionarioId,
+                                    NumeroFolha: numeroFolha,
+                                    Data: empRef.rawData?.Data || empRef.date,
+                                    Coluna: item.coluna,
+                                    Hora: item.hora,
+                                    Motivo: empRef.motivo || 'Justificativa anexada via OCR',
+                                    created_by: window.CURRENT_USER || 'Sistema'
+                                };
+                                
+                                const apiResponse = await fetch(`${API_CONFIG.baseURL}/IntegracaoExterna/CartaoPonto/Manual`, {
+                                    method: 'POST',
+                                    headers: { 
+                                        'Content-Type': 'application/json',
+                                        'Authorization': `Bearer ${API_CONFIG.token}`,
+                                        'secullumidbancoselecionado': empRef.empresaId || empRef.companyId
+                                    },
+                                    body: JSON.stringify(payload)
                                 });
+                                
+                                if (apiResponse.ok) {
+                                    console.log(`✅ ${item.coluna} enviada: ${item.hora}`);
+                                    results.push({ success: true, coluna: item.coluna });
+                                    enviado = true;
+                                } else if (apiResponse.status === 429) {
+                                    // 🚨 RATE LIMIT - Aguardar mais tempo
+                                    const waitTime = tentativa * 2000; // 2s, 4s, 6s...
+                                    console.warn(`⏳ Rate limit detectado (429). Aguardando ${waitTime/1000}s antes de tentar novamente...`);
+                                    await new Promise(resolve => setTimeout(resolve, waitTime));
+                                    // Não marca como enviado, vai tentar novamente
+                                } else {
+                                    const errorText = await apiResponse.text();
+                                    console.warn(`⚠️ Erro ao enviar ${item.coluna}: ${apiResponse.status} - ${errorText}`);
+                                    results.push({ 
+                                        success: false, 
+                                        coluna: item.coluna, 
+                                        error: errorText,
+                                        periodoEncerrado: errorText.includes('Período encerrado') || errorText.includes('Período fechado')
+                                    });
+                                    enviado = true; // Não retenta em outros erros (não é rate limit)
+                                }
+                                
+                            } catch (err) {
+                                console.error(`❌ Erro ao enviar ${item.coluna} (tentativa ${tentativa}/${tentativasRestantes}):`, err);
+                                
+                                if (tentativa >= tentativasRestantes) {
+                                    results.push({ success: false, coluna: item.coluna, error: err.message });
+                                    enviado = true;
+                                } else {
+                                    // Aguardar antes de retry
+                                    await new Promise(resolve => setTimeout(resolve, 1000 * tentativa));
+                                }
                             }
-                            
-                            // Pequeno delay entre requisições para evitar race conditions
-                            await new Promise(resolve => setTimeout(resolve, 300));
-                            
-                        } catch (err) {
-                            console.error(`❌ Erro ao enviar ${item.coluna}:`, err);
-                            results.push({ success: false, coluna: item.coluna, error: err.message });
+                        }
+                        
+                        // ⏱️ Delay entre requisições (aumentado para evitar sobrecarga)
+                        if (i < horariosNormais.length - 1) {
+                            await new Promise(resolve => setTimeout(resolve, 500)); // 500ms
                         }
                     }
                     
@@ -7034,13 +7100,16 @@
                 // Recarregar dados
                 await searchPeriod();
                 
-                let mensagem = `ℹ Envio concluçãdo:\n? ${sucessos} Horários enviados\n? ${erros} erros`;
+                let titulo = sucessos > 0 && erros === 0 ? '✅ Envio Concluído' : erros > 0 ? '⚠️ Envio Parcial' : '❌ Erro no Envio';
+                let tipo = sucessos > 0 && erros === 0 ? 'success' : erros > 0 ? 'warning' : 'error';
+                let mensagem = `✅ ${sucessos} horário(s) enviado(s)\n❌ ${erros} erro(s)`;
                 
                 if (periodoEncerrado) {
-                    mensagem += `\n\nℹ ATEnãoO: Período encerrado!\nEntre em contato com o RH.`;
+                    mensagem += `\n\n⚠️ ATENÇÃO: Período encerrado!\nEntre em contato com o RH.`;
+                    tipo = 'warning';
                 }
                 
-                alert(mensagem);
+                showAlert(titulo, mensagem, tipo);
                 
             } catch (err) {
                 hideLoading();
@@ -7611,6 +7680,88 @@
             }
         });
 
+        // 🗑️ DELETAR PERGUNTA DO RH
+        async function deleteQuestion(event, reg, date, punchType) {
+            event.stopPropagation();
+            
+            if (!confirm('❌ Deseja realmente excluir esta pergunta?')) {
+                return;
+            }
+            
+            showLoading('🗑️ Excluindo pergunta...');
+            
+            try {
+                const employee = allEmployees.find(emp => emp.reg === reg && emp.date === date);
+                if (!employee) {
+                    throw new Error('Funcionário não encontrado');
+                }
+                
+                // Remover do objeto local
+                if (employee.questions && employee.questions[punchType]) {
+                    delete employee.questions[punchType];
+                }
+                
+                // Atualizar no banco de dados
+                const anexoResponse = await fetch(`${API_BASE_URL}/api/anexos/${reg}/${employee.rawData?.Data || date}`, {
+                    headers: getAuthHeaders()
+                });
+                
+                let anexoId = null;
+                if (anexoResponse.ok) {
+                    const anexo = await anexoResponse.json();
+                    anexoId = anexo?.id;
+                }
+                
+                if (!anexoId) {
+                    hideLoading();
+                    showAlert('⚠️ Aviso', 'Pergunta removida localmente, mas não foi encontrada no banco de dados.', 'warning');
+                    renderTable();
+                    return;
+                }
+                
+                // Buscar perguntas_rh atual
+                let perguntasRH = {};
+                const anexoAtual = await fetch(`${API_BASE_URL}/api/anexos/${reg}/${employee.rawData?.Data || date}`, {
+                    headers: getAuthHeaders()
+                });
+                if (anexoAtual.ok) {
+                    const data = await anexoAtual.json();
+                    if (data.perguntas_rh) {
+                        try {
+                            perguntasRH = JSON.parse(data.perguntas_rh);
+                        } catch (e) {
+                            perguntasRH = {};
+                        }
+                    }
+                }
+                
+                // Remover a pergunta específica
+                delete perguntasRH[punchType];
+                
+                // Atualizar no banco
+                const updateResponse = await fetch(`${API_BASE_URL}/api/anexos/${anexoId}`, {
+                    method: 'PUT',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify({
+                        perguntas_rh: JSON.stringify(perguntasRH)
+                    })
+                });
+                
+                if (!updateResponse.ok) {
+                    throw new Error('Erro ao atualizar banco de dados');
+                }
+                
+                hideLoading();
+                showAlert('✅ Sucesso', 'Pergunta excluída com sucesso!', 'success');
+                renderTable();
+                
+            } catch (error) {
+                hideLoading();
+                console.error('❌ Erro ao deletar pergunta:', error);
+                showAlert('❌ Erro', `Erro ao excluir pergunta:\n${error.message}`, 'error');
+            }
+        }
+
         // ==========================================
         // APROVaçãO DE HorárioS TROCADOS
         // ==========================================
@@ -7816,17 +7967,18 @@
             }
 
             sendToSecullumTimer = setTimeout(async () => {
-                // Mostrar popup de loading
-                showAlert('Aguarde', '🔄 Enviando horário para Secullum...', 'info');
+                showLoading('🔄 Enviando para Secullum...');
                 
                 try {
                     await enviarParaSecullum(employee);
-                    showAlert('Sucesso', `✅ Horário enviado!\n${punchLabels[sourcePunch]} → ${punchLabels[targetPunch]}`, 'success');
+                    hideLoading();
+                    showAlert('✅ Sucesso', `Horário enviado para Secullum!\n${punchLabels[sourcePunch]} → ${punchLabels[targetPunch]}`, 'success');
                     // Atualizar dados automaticamente
                     await searchPeriod();
                 } catch (error) {
+                    hideLoading();
                     console.error('❌ Erro ao enviar para Secullum:', error);
-                    showAlert('Erro', `❌ Erro ao enviar:\n${error.message}`, 'error');
+                    showAlert('❌ Erro no Envio', `Falha ao enviar para Secullum:\n${error.message}\n\nVerifique a conexão e tente novamente.`, 'error');
                 }
                 sendToSecullumTimer = null;
             }, 1000); // 1 segundo (otimizado)
