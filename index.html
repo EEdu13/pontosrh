@@ -696,9 +696,24 @@
                 padding: 0 !important;
             }
             
-            /* Esconder comentários HTML do Cache Buster na impressão */
-            body::after {
+            /* Esconder Cache Buster e qualquer conteúdo após o body */
+            html::after,
+            body::after,
+            body ~ * {
                 display: none !important;
+                visibility: hidden !important;
+                position: absolute !important;
+                left: -9999px !important;
+            }
+            
+            /* Garantir que apenas pdfPages seja impresso */
+            body > *:not(#pdfPreview) {
+                display: none !important;
+            }
+            
+            #pdfPreview {
+                display: block !important;
+                position: static !important;
             }
         }
 
