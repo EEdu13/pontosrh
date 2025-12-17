@@ -3172,11 +3172,11 @@
                         if (entrada === 'FALTA') {
                             func.motivo = 'FALTA';
                         } else if (entrada === 'FERIAS') {
-                            func.motivo = 'FçãRIAS';
+                            func.motivo = 'FÉRIAS';
                         } else if (entrada === 'A. INSS' || entrada === 'AFASTAMENTO INSS' || entrada === 'A.INSS') {
                             func.motivo = 'AFASTAMENTO INSS';
                         } else if (entrada === 'L.MATER' || entrada === 'L. MATER' || entrada === 'LIC.MATERNIDADE') {
-                            func.motivo = 'LICENçãA MATERNIDADE';
+                            func.motivo = 'LICENÇA MATERNIDADE';
                         }
                         break; // já encontrou o motivo, não precisa continuar
                     }
@@ -4280,7 +4280,7 @@
                 
                 // função helper: retorna motivo se existir, senão retorna Horário
                 const getMotivoOuHorario = (horario, motivo) => {
-                    const motivosEspeciais = ['FALTA', 'FçãRIAS', 'AFASTAMENTO INSS', 'LICENçãA MATERNIDADE', 'FOLGA'];
+                    const motivosEspeciais = ['FALTA', 'FÉRIAS', 'AFASTAMENTO INSS', 'LICENÇA MATERNIDADE', 'FOLGA'];
                     if (motivosEspeciais.includes(motivo)) {
                         return motivo;
                     }
@@ -4908,7 +4908,7 @@
                 console.log('');
                 console.log(`📊 Total de caracteres: ${fullText.length}`);
                 
-                // ? DETECTAR CHECKBOX MARCADO PELO TEXTO DO AZURE (antes da ançãlise de pixels)
+                // ? DETECTAR CHECKBOX MARCADO PELO TEXTO DO AZURE (antes da análise de pixels)
                 let motivoDetectado = 'Esqueceu de registrar o Ponto'; // Default
                 let motivoDetectadoPorTexto = false;
                 
@@ -4967,7 +4967,7 @@
                     motivoDetectado = motivosSemBolinha[0]; // Pega o primeiro
                     motivoDetectadoPorTexto = true;
                 } else {
-                    console.log('   ℹ Nenhum motivo sem "O" detectado, usando ançãlise visual...');
+                    console.log('   ℹ Nenhum motivo sem "O" detectado, usando análise visual...');
                 }
                 
                 // 📝 ESTRATÉGIA FINAL: DETECTAR HorárioS ApéS "BATIDO"
@@ -5063,14 +5063,14 @@
                 
                 
                 // EXTRAIR MOTIVO COM DETECÇÃO VISUAL DO CHECKBOX MARCADO
-                // 📝 Se não foi detectado pelo texto, usar ançãlise de pixels
+                // 📝 Se não foi detectado pelo texto, usar análise de pixels
                 
                 try {
-                    // Só fazer ançãlise visual se não detectou pelo texto
+                    // Só fazer análise visual se não detectou pelo texto
                     if (!motivoDetectadoPorTexto) {
-                        console.log(`ℹ Criando canvas para ançãlise de checkbox...`);
+                        console.log(`ℹ Criando canvas para análise de checkbox...`);
                     
-                        // Criar canvas da imagem para ançãlise de pixels
+                        // Criar canvas da imagem para análise de pixels
                         const canvas = document.createElement('canvas');
                         const img = new Image();
                         img.src = imageBase64; // ? USAR O PARÂMETRO DA função
@@ -5421,11 +5421,11 @@
             return result.data;
         }
         
-        // Detectar checkbox marcado - ANçãLISE PERCENTUAL MELHORADA
+        // Detectar checkbox marcado - ANÁLISE PERCENTUAL MELHORADA
         function detectarCheckboxMarcado(canvas) {
             const ctx = canvas.getContext('2d', { willReadFrequently: true });
             
-            console.log(`? Ançãlise de checkbox em imagem ${canvas.width}x${canvas.height}`);
+            console.log(`📋 Análise de checkbox em imagem ${canvas.width}x${canvas.height}`);
             
             // ? COORDENADAS DOS CHECKBOXES (quadradinhos, não o texto)
             // Baseado na imagem 954x641:
@@ -5439,7 +5439,7 @@
             
             const checkboxes = [
                 // Linha 1 (Y = 60%)
-                // ? AJUSTE CRçãTICO: Quadradinhos ficam BEM ã ESQUERDA, antes do texto
+                // ? AJUSTE CRÍTICO: Quadradinhos ficam BEM à ESQUERDA, antes do texto
                 // Baseado na imagem: checkbox tem ~15px, fica a ~50px da esquerda
                 { x: Math.round(largura * 0.045), y: Math.round(altura * 0.601), label: 'Esqueceu de registrar o Ponto' },
                 { x: Math.round(largura * 0.275), y: Math.round(altura * 0.601), label: 'Falha no App' },
@@ -5466,7 +5466,7 @@
             debugCtx.fillStyle = 'red';
             debugCtx.font = '14px Arial';
             
-            // ? NOVA ESTRatéGIA: Pegar o checkbox com MAIOR % de preto
+            // ? NOVA ESTRATÉGIA: Pegar o checkbox com MAIOR % de preto
             let maxPreto = 0;
             let checkboxMarcado = null;
             
@@ -5476,7 +5476,7 @@
                 debugCtx.arc(cb.x, cb.y, 10, 0, 2 * Math.PI);
                 debugCtx.stroke();
                 
-                // Desenhar nçãmero
+                // Desenhar número
                 debugCtx.fillText(`${index + 1}`, cb.x + 15, cb.y + 5);
                 
                 // Analisar área 18x18
@@ -5520,19 +5520,19 @@
             const debugWindow = window.open();
             if (debugWindow) {
                 debugWindow.document.write(`<img src="${debugUrl}" style="max-width:100%; height:auto;">`);
-                debugWindow.document.title = 'Debug - posiçãoes dos Checkboxes';
+                debugWindow.document.title = 'Debug - Posições dos Checkboxes';
             } else {
                 console.log('⚠️ Pop-up bloqueado! Cole este link numa nova aba:');
                 console.log(debugUrl);
             }
             
-            // ? Retornar o checkbox com MAIOR concentração de preto (se > 15%)
-            if (maxPreto > 15) {
-                
+            // ✅ Retornar o checkbox com MAIOR concentração de preto (se > 8% - threshold mais sensível)
+            if (maxPreto > 8) {
+                console.log(`✅ Checkbox marcado detectado: "${checkboxMarcado}" (${maxPreto.toFixed(1)}% preto)`);
                 return checkboxMarcado;
             }
             
-            console.log('⚠️ Nenhum checkbox com concentração suficiente, usando padrão');
+            console.log(`⚠️ Nenhum checkbox com concentração suficiente de preto (máximo: ${maxPreto.toFixed(1)}%), usando padrão`);
             return 'Esqueceu de registrar o Ponto';
         }
         
@@ -5591,7 +5591,7 @@
                 const imageData = ctx.getImageData(regiao.x, regiao.y, regiao.w, regiao.h);
                 const data = imageData.data;
                 
-                // Ançãlise de pixels
+                // Análise de pixels
                 let pixelsEscuros = 0;
                 let pixelsTotal = 0;
                 let pixelsMuitoEscuros = 0;
@@ -8805,7 +8805,7 @@
             }
             
             // Verificar se tem motivo especial
-            const motivosEspeciais = ['FALTA', 'FçãRIAS', 'AFASTAMENTO INSS', 'LICENçãA MATERNIDADE'];
+            const motivosEspeciais = ['FALTA', 'FÉRIAS', 'AFASTAMENTO INSS', 'LICENÇA MATERNIDADE'];
             const temMotivoEspecial = motivosEspeciais.includes(employee.motivo);
             
             // Marca inconsisténcia se:
