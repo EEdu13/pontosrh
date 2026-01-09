@@ -7716,25 +7716,7 @@
                     delete employee.questions[punchType];
                 }
                 
-                // Atualizar no banco de dados
-                const anexoResponse = await fetch(`${API_BASE_URL}/api/anexos/${reg}/${employee.rawData?.Data || date}`, {
-                    headers: getAuthHeaders()
-                });
-                
-                let anexoId = null;
-                if (anexoResponse.ok) {
-                    const anexo = await anexoResponse.json();
-                    anexoId = anexo?.id;
-                }
-                
-                if (!anexoId) {
-                    hideLoading();
-                    showAlert('⚠️ Aviso', 'Pergunta removida localmente, mas não foi encontrada no banco de dados.', 'warning');
-                    renderTable();
-                    return;
-                }
-                
-                // Buscar perguntas_rh atual
+                // Buscar perguntas_rh atual do banco de dados
                 let perguntasRH = {};
                 const anexoAtual = await fetch(`${API_BASE_URL}/api/anexos/${reg}/${employee.rawData?.Data || date}`, {
                     headers: getAuthHeaders()
@@ -7753,17 +7735,26 @@
                 // Remover a pergunta específica
                 delete perguntasRH[punchType];
                 
-                // Atualizar no banco
-                const updateResponse = await fetch(`${API_BASE_URL}/api/anexos/${anexoId}`, {
+                // Atualizar no banco usando a rota correta: /api/anexos/:cpf/:data/questions
+                const updateResponse = await fetch(`${API_BASE_URL}/api/anexos/${reg}/${employee.rawData?.Data || date}/questions`, {
                     method: 'PUT',
-                    headers: getAuthHeaders(),
+                    headers: {
+                        ...getAuthHeaders(),
+                        'Content-Type': 'application/json'
+                    },
                     body: JSON.stringify({
-                        perguntas_rh: JSON.stringify(perguntasRH)
+                        perguntas_rh: JSON.stringify(perguntasRH),
+                        reg: reg,
+                        empresa_id: employee.rawData?.EmpresaId || 0,
+                        empresa_nome: employee.rawData?.EmpresaNome || 'N/A',
+                        funcionario_nome: employee.name || 'N/A',
+                        created_by: localStorage.getItem('userName') || 'Sistema'
                     })
                 });
                 
                 if (!updateResponse.ok) {
-                    throw new Error('Erro ao atualizar banco de dados');
+                    const errorData = await updateResponse.json().catch(() => ({}));
+                    throw new Error(errorData.error || 'Erro ao atualizar banco de dados');
                 }
                 
                 hideLoading();
