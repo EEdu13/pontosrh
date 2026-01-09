@@ -3452,7 +3452,7 @@
                 console.log('✅ É uma célula de horário:', cell.dataset.punch);
                 
                 // Ignorar se clicou em um ícone ou botão dentro da célula
-                if (e.target.closest('.question-icon, .approve-icon, button, .arrow')) {
+                if (e.target.closest('.question-icon, .approve-icon, .delete-question-icon, button, .arrow')) {
                     console.log('❌ Clicou em ícone/botão, ignorando');
                     return;
                 }
