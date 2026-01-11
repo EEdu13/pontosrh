@@ -719,6 +719,120 @@ app.put('/api/anexos/:cpf/:data/questions', async (req, res) => {
     }
 });
 
+// POST - Buscar dados em batch (anexos, perguntas, IDs) por período - OTIMIZADO
+app.post('/api/anexos/batch-period', async (req, res) => {
+    try {
+        if (!sqlConnected || !poolPromise) {
+            return res.status(503).json({ error: 'SQL não conectado' });
+        }
+
+        const { dateStart, dateEnd, empresaIds } = req.body;
+
+        if (!dateStart || !dateEnd) {
+            return res.status(400).json({ error: 'dateStart e dateEnd são obrigatórios' });
+        }
+
+        const pool = await poolPromise;
+        
+        // 🚀 QUERY OTIMIZADA: 1 única chamada ao banco
+        let query = `
+            SELECT 
+                id,
+                cpf,
+                reg,
+                data,
+                perguntas_rh,
+                aprovacoes_horarios,
+                empresa_id,
+                empresa_nome,
+                funcionario_nome,
+                blob_url,
+                blob_filename,
+                created_by,
+                created_at
+            FROM ANEXOS 
+            WHERE data BETWEEN @dateStart AND @dateEnd
+        `;
+
+        const request = pool.request()
+            .input('dateStart', sql.Date, dateStart)
+            .input('dateEnd', sql.Date, dateEnd);
+
+        // Adicionar filtro de empresas se fornecido
+        if (empresaIds && empresaIds.length > 0) {
+            const empresaIdsStr = empresaIds.join(',');
+            query += ` AND empresa_id IN (${empresaIdsStr})`;
+        }
+
+        query += ` ORDER BY data DESC, empresa_id, reg`;
+
+        const result = await request.query(query);
+
+        // Processar resultados em estruturas organizadas
+        const anexos = {};
+        const perguntas = {};
+        const aprovacoes = {};
+
+        result.recordset.forEach(row => {
+            const dataKey = row.data.toISOString().split('T')[0];
+            const empresaId = row.empresa_id;
+            
+            // Organizar anexos por data e empresa
+            if (!anexos[dataKey]) anexos[dataKey] = {};
+            if (!anexos[dataKey][empresaId]) anexos[dataKey][empresaId] = [];
+            
+            anexos[dataKey][empresaId].push({
+                id: row.id,
+                cpf: row.cpf,
+                reg: row.reg,
+                data: dataKey,
+                empresa_id: row.empresa_id,
+                empresa_nome: row.empresa_nome,
+                funcionario_nome: row.funcionario_nome,
+                blob_url: row.blob_url,
+                blob_filename: row.blob_filename,
+                created_by: row.created_by,
+                created_at: row.created_at
+            });
+
+            // Extrair perguntas se existirem
+            if (row.perguntas_rh) {
+                try {
+                    const perguntasObj = JSON.parse(row.perguntas_rh);
+                    const key = `${row.reg}_${dataKey}`;
+                    perguntas[key] = perguntasObj;
+                } catch (e) {
+                    // Ignorar JSON inválido
+                }
+            }
+
+            // Extrair aprovações se existirem
+            if (row.aprovacoes_horarios) {
+                try {
+                    const aprovacoesObj = JSON.parse(row.aprovacoes_horarios);
+                    const key = `${row.reg}_${dataKey}`;
+                    aprovacoes[key] = aprovacoesObj;
+                } catch (e) {
+                    // Ignorar JSON inválido
+                }
+            }
+        });
+
+        // Retornar tudo de uma vez
+        res.json({
+            success: true,
+            anexos: anexos,
+            perguntas: perguntas,
+            aprovacoes: aprovacoes,
+            totalRecords: result.recordset.length
+        });
+
+    } catch (err) {
+        console.error('❌ Erro ao buscar dados em batch:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // DELETE - Remover anexo
 app.delete('/api/anexos/:id', async (req, res) => {
     try {

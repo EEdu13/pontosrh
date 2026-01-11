@@ -1615,6 +1615,9 @@
                     <!-- Será preenchido pelo JavaScript -->
                 </tbody>
             </table>
+            
+            <!-- Controles de Paginação -->
+            <div id="paginationControls" style="display: none; margin-top: 20px;"></div>
         </div>
 
         <!-- Modal de Edição de Batidas -->
@@ -3038,8 +3041,8 @@
                     // Recalcular status
                     updateEmployeeStatus(employee);
                     
-                    // 🔄 RECARREGAR APROVAÇÕES E RECALCULAR
-                    await carregarPerguntasEAprovacoes().catch(err => console.error('⚠️ Erro ao recarregar aprovações:', err));
+                    // 🔄 RECARREGAR DADOS E RECALCULAR
+                    await carregarDadosCompletos().catch(err => console.error('⚠️ Erro ao recarregar dados:', err));
                     recalcularInconsistenciasComAprovacoes();
                     
                     // Re-renderizar tabela
@@ -3428,7 +3431,11 @@
         let renderingTable = false;
         let loadingAnexos = false;
 
-        // 🔧 CORREÇÃO: Event delegation - executar apenas UMA VEZ
+        // � PAGINAÇÃO: Controles de página
+        let currentPage = 1;
+        const ITEMS_PER_PAGE = 100; // Mostrar 100 linhas por página
+
+        // �🔧 CORREÇÃO: Event delegation - executar apenas UMA VEZ
         (function initEventListeners() {
             const tableBody = document.getElementById('employeeTable');
             
@@ -3616,9 +3623,8 @@
                     }
                 });
                 
-                // CARREGAR ANEXOS E IDS EM PARALELO
-                await carregarAnexos().catch(err => console.error('? Erro ao carregar anexos:', err));
-                await carregarPerguntasEAprovacoes().catch(err => console.error('? Erro ao carregar perguntas:', err));
+                // 🚀 CARREGAR TODOS OS DADOS EM BATCH (1 request ao invés de 180+)
+                await carregarDadosCompletos().catch(err => console.error('❌ Erro ao carregar dados:', err));
                 await carregarIDs().catch(err => console.error('? Erro ao carregar IDs:', err));
                 
                 hideLoading();
@@ -3648,6 +3654,126 @@
         }
         
         // 📎 CARREGAR ANEXOS DIRETO DO AZURE SQL (TABELA ANEXOS)
+        // 🚀 FUNÇÃO UNIFICADA: Carregar todos os dados em BATCH (1 request ao invés de 180+)
+        async function carregarDadosCompletos() {
+            loadingAnexos = true;
+            
+            try {
+                const dataInicio = document.getElementById('dateStart').value;
+                const dataFim = document.getElementById('dateEnd').value;
+                
+                // Buscar empresas selecionadas
+                const companies = API_CONFIG.selectedCompanies.includes('all') 
+                    ? API_CONFIG.companies 
+                    : API_CONFIG.companies.filter(c => API_CONFIG.selectedCompanies.includes(c.id));
+                
+                const empresaIds = companies.map(c => c.id);
+                
+                console.log('🚀 Carregando dados em BATCH:', { dataInicio, dataFim, empresaIds });
+                
+                // 🎯 1 ÚNICO REQUEST ao backend
+                const response = await fetch(`${API_BASE_URL}/api/anexos/batch-period`, {
+                    method: 'POST',
+                    headers: {
+                        ...getAuthHeaders(),
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        dateStart: dataInicio,
+                        dateEnd: dataFim,
+                        empresaIds: empresaIds
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Erro ao carregar dados em batch');
+                }
+                
+                const { anexos, perguntas, aprovacoes, totalRecords } = await response.json();
+                
+                console.log(`✅ Dados carregados: ${totalRecords} registros no banco`);
+                
+                // 📋 Aplicar dados aos funcionários
+                allEmployees.forEach(emp => {
+                    // Normalizar data do funcionário
+                    let dataEmp = '';
+                    if (emp.rawData?.Data) {
+                        // Formato estranho: 27T00:00:00/10/2025 -> 2025-10-27
+                        const partsStrange = emp.rawData.Data.match(/(\d+)T\d{2}:\d{2}:\d{2}\/(\d+)\/(\d{4})/);
+                        if (partsStrange) {
+                            const dia = partsStrange[1].padStart(2, '0');
+                            const mes = partsStrange[2].padStart(2, '0');
+                            const ano = partsStrange[3];
+                            dataEmp = `${ano}-${mes}-${dia}`;
+                        } else {
+                            dataEmp = emp.rawData.Data.split('T')[0];
+                        }
+                    } else if (emp.date) {
+                        // Formato brasileiro: DD/MM/YYYY -> YYYY-MM-DD
+                        const partsBR = emp.date.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+                        if (partsBR) {
+                            dataEmp = `${partsBR[3]}-${partsBR[2]}-${partsBR[1]}`;
+                        } else {
+                            dataEmp = emp.date.split('T')[0];
+                        }
+                    }
+                    
+                    const cpfEmp = String(emp.cpf || '').replace(/[.\-]/g, '').trim();
+                    const empresaId = emp.empresaId || emp.companyId;
+                    
+                    // 🔍 Buscar anexos para este funcionário
+                    if (anexos[dataEmp] && anexos[dataEmp][empresaId]) {
+                        const anexosFuncionario = anexos[dataEmp][empresaId].filter(a => {
+                            const cpfAnexo = String(a.cpf || '').replace(/[.\-]/g, '').trim();
+                            return cpfAnexo === cpfEmp;
+                        });
+                        
+                        if (anexosFuncionario.length > 0) {
+                            const anexo = anexosFuncionario[0];
+                            emp.anexoId = anexo.id;
+                            emp.anexoUrl = anexo.blob_url;
+                            emp.anexoDate = dataEmp;
+                            emp.attachments = anexo.blob_filename ? [anexo.blob_filename] : [];
+                            emp.id = anexo.id; // ID para impressão
+                        }
+                    }
+                    
+                    // 💬 Buscar perguntas para este funcionário
+                    const perguntaKey = `${emp.reg}_${dataEmp}`;
+                    if (perguntas[perguntaKey]) {
+                        emp.questions = emp.questions || {};
+                        emp.approved = emp.approved || {};
+                        
+                        for (const [key, value] of Object.entries(perguntas[perguntaKey])) {
+                            if (key.endsWith('_approved')) {
+                                const punchType = key.replace('_approved', '');
+                                emp.approved[punchType] = value;
+                            } else if (key === 'ordem_horarios') {
+                                emp.ordemHorariosAprovada = true;
+                            } else {
+                                emp.questions[key] = value;
+                            }
+                        }
+                    }
+                    
+                    // ✅ Buscar aprovações para este funcionário
+                    if (aprovacoes[perguntaKey]) {
+                        emp.approved = emp.approved || {};
+                        Object.assign(emp.approved, aprovacoes[perguntaKey]);
+                    }
+                });
+                
+                console.log('✅ Dados aplicados aos funcionários');
+                loadingAnexos = false;
+                
+            } catch (err) {
+                console.error('❌ Erro ao carregar dados completos:', err);
+                loadingAnexos = false;
+                showAlert('❌ Erro', `Erro ao carregar dados:\n${err.message}`, 'error');
+            }
+        }
+
+        // 🗑️ FUNÇÃO ANTIGA: carregarAnexos (DESCONTINUADA - usar carregarDadosCompletos)
         async function carregarAnexos() {
             loadingAnexos = true;
             
@@ -4173,18 +4299,11 @@
                     }
                 });
                 
-                // 📝 CARREGAR ANEXOS E PERGUNTAS
+                // � CARREGAR TODOS OS DADOS EM BATCH
                 try {
-                    await carregarAnexos();
+                    await carregarDadosCompletos();
                 } catch (err) {
-                    console.error('? Erro ao carregar anexos:', err);
-                }
-                
-                // 📝 CARREGAR IDs DE IMPRESSÃO
-                try {
-                    await carregarIdsImpressao();
-                } catch (err) {
-                    console.error('? Erro ao carregar IDs de impressão:', err);
+                    console.error('❌ Erro ao carregar dados:', err);
                 }
                 
                 renderTable();
@@ -4268,7 +4387,18 @@
                 // ORDENAR ALFABETICAMENTE POR NOME
                 displayedEmployees.sort((a, b) => a.name.localeCompare(b.name));
 
-            tbody.innerHTML = displayedEmployees.map((emp, index) => {
+                // 📄 PAGINAÇÃO: Calcular total de páginas e slice de dados
+                const totalPages = Math.ceil(displayedEmployees.length / ITEMS_PER_PAGE);
+                const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+                const endIndex = startIndex + ITEMS_PER_PAGE;
+                const paginatedEmployees = displayedEmployees.slice(startIndex, endIndex);
+
+                console.log(`📄 Paginação: Página ${currentPage}/${totalPages} | Mostrando ${paginatedEmployees.length} de ${displayedEmployees.length} registros`);
+
+                // Atualizar controles de paginação
+                updatePaginationControls(currentPage, totalPages, displayedEmployees.length);
+
+            tbody.innerHTML = paginatedEmployees.map((emp, index) => {
                 // ? COMPARAR PROJETOS: Extrair 3 primeiros nçãmeros
                 const extrairNumeros = (str) => {
                     if (!str) return '';
@@ -4492,8 +4622,8 @@
                 `;
             }).join('');
 
-            // 📝 CORREçããO: Restaurar checkboxes selecionados
-            displayedEmployees.forEach(emp => {
+            // 📝 CORREÇÃO: Restaurar checkboxes selecionados (apenas para registros visíveis nesta página)
+            paginatedEmployees.forEach(emp => {
                 const uniqueId = `${emp.reg}_${emp.date}`;
                 if (selectedEmployees.includes(uniqueId)) {
                     const checkbox = tbody.querySelector(`.employee-checkbox[data-id="${uniqueId}"]`);
@@ -4509,6 +4639,46 @@
             } finally {
                 renderingTable = false;
             }
+        }
+
+        // 📄 PAGINAÇÃO: Atualizar controles de navegação
+        function updatePaginationControls(currentPage, totalPages, totalRecords) {
+            const paginationDiv = document.getElementById('paginationControls');
+            if (!paginationDiv) return;
+
+            if (totalPages <= 1) {
+                paginationDiv.style.display = 'none';
+                return;
+            }
+
+            paginationDiv.style.display = 'flex';
+            paginationDiv.innerHTML = `
+                <div style="display: flex; align-items: center; gap: 10px; justify-content: center; padding: 15px;">
+                    <button onclick="goToPage(1)" ${currentPage === 1 ? 'disabled' : ''} style="padding: 8px 12px; border-radius: 4px; cursor: pointer;">
+                        ⏮️ Primeira
+                    </button>
+                    <button onclick="goToPage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''} style="padding: 8px 12px; border-radius: 4px; cursor: pointer;">
+                        ⬅️ Anterior
+                    </button>
+                    <span style="padding: 8px 16px; font-weight: 600;">
+                        Página ${currentPage} de ${totalPages} | ${totalRecords} registros
+                    </span>
+                    <button onclick="goToPage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''} style="padding: 8px 12px; border-radius: 4px; cursor: pointer;">
+                        Próxima ➡️
+                    </button>
+                    <button onclick="goToPage(${totalPages})" ${currentPage === totalPages ? 'disabled' : ''} style="padding: 8px 12px; border-radius: 4px; cursor: pointer;">
+                        Última ⏭️
+                    </button>
+                </div>
+            `;
+        }
+
+        // 📄 PAGINAÇÃO: Navegar para página específica
+        function goToPage(page) {
+            currentPage = page;
+            renderTable();
+            // Scroll para o topo da tabela
+            document.getElementById('employeeTable')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
 
         // Simular OCR - Extrair Horários e justificativa da imagem
@@ -7550,10 +7720,9 @@
                 const result = await response.json();
                 console.log(`? Aprovação salva:`, result);
                 
-                // ✅ RECARREGAR ANEXOS E PERGUNTAS para atualizar aprovações
-                console.log('🔄 Recarregando anexos e aprovações...');
-                await carregarAnexos();
-                await carregarPerguntasEAprovacoes();
+                // ✅ RECARREGAR DADOS para atualizar aprovações
+                console.log('🔄 Recarregando dados...');
+                await carregarDadosCompletos();
                 
                 showAlert('Sucesso', `Horário ${punchType} aprovado para ${employee.name}!`, 'success');
                 
@@ -9212,11 +9381,13 @@
 
         // Campo de busca por nome - atualiza em tempo real
         document.getElementById('searchName')?.addEventListener('input', () => {
+            currentPage = 1; // Reset para primeira página ao filtrar
             renderTable();
         });
         
         // Filtro de Líder (atualizar em tempo real)
         document.getElementById('searchLider')?.addEventListener('input', () => {
+            currentPage = 1; // Reset para primeira página ao filtrar
             renderTable();
         });
 
@@ -9226,16 +9397,19 @@
             document.getElementById('searchLider').value = '';
             document.getElementById('searchProject').value = '';
             document.getElementById('searchDepartamento').value = '';
+            currentPage = 1; // Reset para primeira página
             renderTable();
         });
         
         // Filtro de projeto (atualizar em tempo real)
         document.getElementById('searchProject')?.addEventListener('input', () => {
+            currentPage = 1; // Reset para primeira página ao filtrar
             renderTable();
         });
         
         // Filtro de departamento (atualizar em tempo real)
         document.getElementById('searchDepartamento')?.addEventListener('input', () => {
+            currentPage = 1; // Reset para primeira página ao filtrar
             renderTable();
         });
 
