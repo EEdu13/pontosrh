@@ -1052,20 +1052,19 @@ app.get('/api/relatorio/estatisticas', async (req, res) => {
                 WHERE data BETWEEN @dataInicio AND @dataFim
             `);
 
-        // Query 2: Estatísticas por empresa
+        // Query 2: Estatísticas por empresa (agrupado apenas por empresa_id)
         const porEmpresaResult = await pool.request()
             .input('dataInicio', sql.Date, dataInicio)
             .input('dataFim', sql.Date, dataFim)
             .query(`
                 SELECT 
                     empresa_id,
-                    empresa_nome,
                     COUNT(*) as total_enviadas,
                     SUM(CASE WHEN blob_url IS NOT NULL AND blob_url != '' THEN 1 ELSE 0 END) as total_retornadas,
                     SUM(CASE WHEN blob_url IS NULL OR blob_url = '' THEN 1 ELSE 0 END) as total_pendentes
                 FROM ANEXOS 
                 WHERE data BETWEEN @dataInicio AND @dataFim
-                GROUP BY empresa_id, empresa_nome
+                GROUP BY empresa_id
                 ORDER BY total_enviadas DESC
             `);
 
@@ -1100,7 +1099,6 @@ app.get('/api/relatorio/estatisticas', async (req, res) => {
             },
             porEmpresa: porEmpresaResult.recordset.map(row => ({
                 empresaId: row.empresa_id,
-                empresaNome: row.empresa_nome || `Empresa ${row.empresa_id}`,
                 enviadas: row.total_enviadas,
                 retornadas: row.total_retornadas,
                 pendentes: row.total_pendentes,

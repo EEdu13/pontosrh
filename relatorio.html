@@ -500,9 +500,46 @@
         let chartEmpresa = null;
         let chartTemporal = null;
         let dadosAtuais = null;
+        
+        // Mapa de empresas (ID -> Nome) - será preenchido dinamicamente
+        let empresasMap = {};
+
+        // Função para obter nome da empresa por ID
+        function getEmpresaNome(empresaId) {
+            return empresasMap[empresaId] || `Empresa ${empresaId}`;
+        }
+
+        // Carregar lista de empresas da API Secullum
+        async function carregarEmpresas() {
+            try {
+                const token = localStorage.getItem('secullum_token');
+                if (!token) return;
+
+                const response = await fetch('https://pontowebintegracaoexterna.secullum.com.br/IntegracaoExterna/Bancos', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (response.ok) {
+                    const bancos = await response.json();
+                    bancos.forEach(banco => {
+                        empresasMap[banco.id] = banco.nome || banco.razaoSocial || `Empresa ${banco.id}`;
+                    });
+                    console.log('✅ Empresas carregadas:', Object.keys(empresasMap).length);
+                }
+            } catch (err) {
+                console.warn('⚠️ Não foi possível carregar empresas:', err.message);
+            }
+        }
 
         // Inicialização
-        document.addEventListener('DOMContentLoaded', () => {
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Carregar empresas primeiro
+            await carregarEmpresas();
+            
             // Definir datas padrão (últimos 30 dias)
             const hoje = new Date();
             const inicio = new Date();
@@ -582,7 +619,7 @@
                 return;
             }
 
-            const labels = dados.map(d => d.empresaNome || `Empresa ${d.empresaId}`);
+            const labels = dados.map(d => getEmpresaNome(d.empresaId));
             const enviadas = dados.map(d => d.enviadas);
             const retornadas = dados.map(d => d.retornadas);
 
@@ -747,7 +784,7 @@
 
                 return `
                     <tr>
-                        <td style="font-weight: 600;">${row.empresaNome || 'N/A'}</td>
+                        <td style="font-weight: 600;">${getEmpresaNome(row.empresaId)}</td>
                         <td class="center number-blue">${row.enviadas || 0}</td>
                         <td class="center number-green">${row.retornadas || 0}</td>
                         <td class="center number-red">${row.pendentes || 0}</td>
@@ -776,7 +813,7 @@
                 else if (taxa >= 50) status = 'Regular';
                 else status = 'Crítico';
                 
-                csv += `"${row.empresaNome || 'N/A'}",${row.enviadas || 0},${row.retornadas || 0},${row.pendentes || 0},"${taxa}%","${status}"\n`;
+                csv += `"${getEmpresaNome(row.empresaId)}",${row.enviadas || 0},${row.retornadas || 0},${row.pendentes || 0},"${taxa}%","${status}"\n`;
             });
             
             // Adicionar linha de totais

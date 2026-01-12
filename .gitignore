@@ -50,6 +50,9 @@ tmp/
 *.jpg
 *.jpeg
 
+# Exceção para o logo da empresa
+!larsillogo.png
+
 # Arquivos de teste
 teste.*
 test.*
