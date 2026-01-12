@@ -1020,6 +1020,107 @@ app.get('/api/machine-monitor', async (req, res) => {
     }
 });
 
+// ==========================================
+// ENDPOINT - RELATÓRIO DE ESTATÍSTICAS
+// ==========================================
+
+// GET - Estatísticas de justificativas por período
+app.get('/api/relatorio/estatisticas', async (req, res) => {
+    try {
+        if (!sqlConnected || !poolPromise) {
+            return res.status(503).json({ error: 'SQL não conectado' });
+        }
+
+        const { dataInicio, dataFim } = req.query;
+
+        if (!dataInicio || !dataFim) {
+            return res.status(400).json({ error: 'dataInicio e dataFim são obrigatórios' });
+        }
+
+        const pool = await poolPromise;
+
+        // Query 1: Totais gerais
+        const totaisResult = await pool.request()
+            .input('dataInicio', sql.Date, dataInicio)
+            .input('dataFim', sql.Date, dataFim)
+            .query(`
+                SELECT 
+                    COUNT(*) as total_enviadas,
+                    SUM(CASE WHEN blob_url IS NOT NULL AND blob_url != '' THEN 1 ELSE 0 END) as total_retornadas,
+                    SUM(CASE WHEN blob_url IS NULL OR blob_url = '' THEN 1 ELSE 0 END) as total_pendentes
+                FROM ANEXOS 
+                WHERE data BETWEEN @dataInicio AND @dataFim
+            `);
+
+        // Query 2: Estatísticas por empresa
+        const porEmpresaResult = await pool.request()
+            .input('dataInicio', sql.Date, dataInicio)
+            .input('dataFim', sql.Date, dataFim)
+            .query(`
+                SELECT 
+                    empresa_id,
+                    empresa_nome,
+                    COUNT(*) as total_enviadas,
+                    SUM(CASE WHEN blob_url IS NOT NULL AND blob_url != '' THEN 1 ELSE 0 END) as total_retornadas,
+                    SUM(CASE WHEN blob_url IS NULL OR blob_url = '' THEN 1 ELSE 0 END) as total_pendentes
+                FROM ANEXOS 
+                WHERE data BETWEEN @dataInicio AND @dataFim
+                GROUP BY empresa_id, empresa_nome
+                ORDER BY total_enviadas DESC
+            `);
+
+        // Query 3: Evolução temporal (por dia)
+        const temporalResult = await pool.request()
+            .input('dataInicio', sql.Date, dataInicio)
+            .input('dataFim', sql.Date, dataFim)
+            .query(`
+                SELECT 
+                    CONVERT(VARCHAR(10), data, 120) as data_formatada,
+                    COUNT(*) as total_enviadas,
+                    SUM(CASE WHEN blob_url IS NOT NULL AND blob_url != '' THEN 1 ELSE 0 END) as total_retornadas
+                FROM ANEXOS 
+                WHERE data BETWEEN @dataInicio AND @dataFim
+                GROUP BY data
+                ORDER BY data ASC
+            `);
+
+        const totais = totaisResult.recordset[0] || { total_enviadas: 0, total_retornadas: 0, total_pendentes: 0 };
+        const taxaRetorno = totais.total_enviadas > 0 
+            ? Math.round((totais.total_retornadas / totais.total_enviadas) * 100) 
+            : 0;
+
+        res.json({
+            success: true,
+            periodo: { dataInicio, dataFim },
+            totais: {
+                enviadas: totais.total_enviadas,
+                retornadas: totais.total_retornadas,
+                pendentes: totais.total_pendentes,
+                taxaRetorno: taxaRetorno
+            },
+            porEmpresa: porEmpresaResult.recordset.map(row => ({
+                empresaId: row.empresa_id,
+                empresaNome: row.empresa_nome || `Empresa ${row.empresa_id}`,
+                enviadas: row.total_enviadas,
+                retornadas: row.total_retornadas,
+                pendentes: row.total_pendentes,
+                taxaRetorno: row.total_enviadas > 0 
+                    ? Math.round((row.total_retornadas / row.total_enviadas) * 100) 
+                    : 0
+            })),
+            evolucaoTemporal: temporalResult.recordset.map(row => ({
+                data: row.data_formatada,
+                enviadas: row.total_enviadas,
+                retornadas: row.total_retornadas
+            }))
+        });
+
+    } catch (err) {
+        console.error('❌ Erro ao buscar estatísticas:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
 async function initServer() {
     await connectDB();
     initBlobStorage();
