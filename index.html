@@ -1378,6 +1378,7 @@
             
             console.log('? Usuário autenticado:', userName);
             window.CURRENT_USER = userName;
+            window.CURRENT_USER_EMAIL = localStorage.getItem('secullum_username') || userName; // Email do login
             
             // Atualizar nome do Usuário no header quando carregar
             document.addEventListener('DOMContentLoaded', () => {
@@ -6916,19 +6917,24 @@
                 console.log('📋 Justificativa selecionada:', justificativaSecullum);
                 
                 // Preparar dados (usando CPF + DATA como chave ãnica)
+                // 🏢 Obter nome da empresa da API_CONFIG (fonte mais confiável)
+                const empresaId = currentAnexoEmployee.empresaId || currentAnexoEmployee.companyId;
+                const empresaConfig = API_CONFIG.companies?.find(c => c.id == empresaId);
+                const empresaNome = empresaConfig?.name || currentAnexoEmployee.city || currentAnexoEmployee.empresaNome || 'N/A';
+                
                 const payload = {
                     cpf: currentAnexoEmployee.cpf,  // ? CPF como identificador único
                     reg: currentAnexoEmployee.reg,
                     data: dataFormatted,
-                    empresa_id: currentAnexoEmployee.empresaId || currentAnexoEmployee.companyId,
-                    empresa_nome: currentAnexoEmployee.city,
+                    empresa_id: empresaId,
+                    empresa_nome: empresaNome,
                     funcionario_nome: currentAnexoEmployee.name,
                     imageBase64: currentAnexoImage,
                     motivo: currentOCRData.motivo,
                     horarios: currentOCRData,
                     ocr_texto: JSON.stringify(currentOCRData),
                     perguntas_rh: JSON.stringify(currentAnexoEmployee.questions || {}),
-                    created_by: window.CURRENT_USER || 'Sistema',
+                    created_by: window.CURRENT_USER_EMAIL || localStorage.getItem('secullum_username') || 'Sistema',
                     justificativa_secullum: justificativaSecullum,
                     justificativa_folha: null
                 };
@@ -7241,7 +7247,7 @@
                                     Coluna: item.coluna,
                                     Hora: item.hora,
                                     Motivo: empRef.motivo || 'Justificativa anexada via OCR',
-                                    created_by: window.CURRENT_USER || 'Sistema'
+                                    created_by: window.CURRENT_USER_EMAIL || localStorage.getItem('secullum_username') || 'Sistema'
                                 };
                                 
                                 const apiResponse = await fetch(`${API_CONFIG.baseURL}/IntegracaoExterna/CartaoPonto/Manual`, {
@@ -7650,6 +7656,11 @@
                 console.log(`ℹ Dados mesclados a salvar:`, mergedData);
                 
                 // 📝 3. SALVAR
+                // 🏢 Obter nome da empresa da API_CONFIG
+                const empresaIdQ = employee.empresaId || employee.rawData?.Empresa || 0;
+                const empresaConfigQ = API_CONFIG.companies?.find(c => c.id == empresaIdQ);
+                const empresaNomeQ = empresaConfigQ?.name || employee.city || employee.rawData?.['Empresa Nome'] || 'N/A';
+                
                 const response = await fetch(
                     `${API_BASE_URL}/api/anexos/${employee.cpf}/${dataFormatted}/questions`,
                     {
@@ -7658,9 +7669,10 @@
                         body: JSON.stringify({
                             perguntas_rh: JSON.stringify(mergedData),
                             reg: employee.reg,
-                            empresa_id: employee.empresaId || employee.rawData?.Empresa || 0,
-                            empresa_nome: employee.city || employee.rawData?.['Empresa Nome'] || 'N/A',
-                            funcionario_nome: employee.name || 'N/A'
+                            empresa_id: empresaIdQ,
+                            empresa_nome: empresaNomeQ,
+                            funcionario_nome: employee.name || 'N/A',
+                            created_by: window.CURRENT_USER_EMAIL || localStorage.getItem('secullum_username') || 'Sistema'
                         })
                     }
                 );
@@ -7949,6 +7961,11 @@
                 // Atualizar no banco usando a rota correta: /api/anexos/:cpf/:data/questions
                 // 🔧 Usar CPF do funcionário (não REG) e data normalizada
                 const cpf = employee.cpf || employee.rawData?.CPF || reg;
+                // 🏢 Obter nome da empresa da API_CONFIG
+                const empresaIdDel = employee.empresaId || employee.rawData?.EmpresaId || 0;
+                const empresaConfigDel = API_CONFIG.companies?.find(c => c.id == empresaIdDel);
+                const empresaNomeDel = empresaConfigDel?.name || employee.companyName || employee.rawData?.EmpresaNome || 'N/A';
+                
                 const updateResponse = await fetch(`${API_BASE_URL}/api/anexos/${cpf}/${dataNormalizada}/questions`, {
                     method: 'PUT',
                     headers: {
@@ -7958,10 +7975,10 @@
                     body: JSON.stringify({
                         perguntas_rh: JSON.stringify(perguntasRH),
                         reg: reg,
-                        empresa_id: employee.empresaId || employee.rawData?.EmpresaId || 0,
-                        empresa_nome: employee.companyName || employee.rawData?.EmpresaNome || 'N/A',
+                        empresa_id: empresaIdDel,
+                        empresa_nome: empresaNomeDel,
                         funcionario_nome: employee.name || 'N/A',
-                        created_by: localStorage.getItem('userName') || 'Sistema'
+                        created_by: window.CURRENT_USER_EMAIL || localStorage.getItem('secullum_username') || 'Sistema'
                     })
                 });
                 
