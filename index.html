@@ -9298,51 +9298,27 @@
 
         // funçãoo compartilhada de geração de PDF
         async function generatePDFs() {
-            console.log('📄 generatePDFs() iniciada');
-            console.log(`ℹ Selecionados: ${selectedEmployees.length} - ${JSON.stringify(selectedEmployees.slice(0, 3))}`);
-            
-            // ? VERIFICAR SE Hçã seleçãoãO
+            // ✅ VERIFICAR SE HÁ SELEÇÃO
             if (selectedEmployees.length === 0) {
-                showAlert('Atenãoo', 'Selecione pelo menos um colaborador usando os checkboxes!', 'warning');
+                showAlert('Atenção', 'Selecione pelo menos um colaborador usando os checkboxes!', 'warning');
                 return;
             }
             
-            // ? GERAR APENAS OS SELECIONADOS (não todos os exibidos)
+            // ✅ GERAR APENAS OS SELECIONADOS
             const displayedEmployees = showOnlyInconsistencies 
                 ? allEmployees.filter(emp => emp.hasInconsistency)
                 : allEmployees;
             
-            console.log(`ℹ Total displayedEmployees: ${displayedEmployees.length}`);
-            
-            // ? FILTRAR usando ID único (REG + DATA) para pegar apenas os dias selecionados
+            // ✅ FILTRAR usando ID único (REG + DATA)
             const toGenerate = displayedEmployees.filter(emp => {
                 const uniqueId = `${emp.reg}_${emp.date}`;
                 return selectedEmployees.includes(uniqueId);
             });
             
-            console.log(`ℹ toGenerate: ${toGenerate.length} registros`);
-            console.log(`ℹ Primeiro registro:`, toGenerate[0]);
-            
             if (toGenerate.length === 0) {
-                showAlert('Atenãoo', 'Nenhum colaborador selecionado encontrado!', 'warning');
+                showAlert('Atenção', 'Nenhum colaborador selecionado encontrado!', 'warning');
                 return;
             }
-            
-            // ℹ MOSTRAR DIçãLOGO DE CONFIRMaçãO
-            const confirmar = confirm(
-                `ℹ GERAR PDF PARA ENVIO?\n\n` +
-                `Os registros Seráo salvos no banco de dados e receberão IDs únicos.\n\n` +
-                `Total: ${toGenerate.length} registro(s)`
-            );
-            
-            if (!confirmar) {
-                console.log('? geração de PDF cancelada pelo Usuário');
-                return;
-            }
-            
-            // 📝 MOSTRAR LOADING E SALVAR NO BANCO
-            console.log('💾 Salvando justificativas no banco de dados...');
-            showAlert('Aguarde', 'Salvando justificativas no banco de dados...', 'info');
             
             // 📝 Verificar se algum registro já foi impresso
             const registrosExistentes = [];
@@ -9360,8 +9336,6 @@
                         motivo: emp.motivo || ''
                     };
                     
-                    console.log(`ℹ Salvando ${emp.name} (CPF: ${emp.cpf})`);
-                    
                     const response = await fetch(`${API_BASE_URL}/api/justificativa/salvar`, {
                         method: 'POST',
                         headers: getAuthHeaders(),
@@ -9369,9 +9343,8 @@
                     });
                     
                     if (response.ok) {
-                        const { id, novo, mensagem } = await response.json();
+                        const { id, novo } = await response.json();
                         emp.id = id;
-                        console.log(`? ${mensagem} - ID: #${id}`);
                         
                         // Separar novos de existentes
                         if (novo) {
@@ -9380,40 +9353,31 @@
                             registrosExistentes.push(emp.name);
                         }
                     } else {
-                        const errorText = await response.text();
-                        console.error(`? Erro ao salvar ${emp.name}: ${response.status} - ${errorText}`);
                         showAlert('Erro', `Erro ao salvar justificativa de ${emp.name}`, 'error');
                         return;
                     }
                 }
                 
-                // Fechar alert de loading
-                hideAlert();
-                
-                // 📝 AVISAR SE Hçã REIMPRESSóES
+                // ⚠️ AVISAR APENAS SE HÁ REIMPRESSÕES
                 if (registrosExistentes.length > 0) {
-                    const nomes = registrosExistentes.join('\nçã ');
+                    const nomes = registrosExistentes.join('\n• ');
                     const confirmar = confirm(
-                        `ℹ REIMPRESSóO DETECTADA\n\n` +
-                        `Os seguintes registros já FORAM IMPRESSOS:\n\nçã ${nomes}\n\n` +
-                        `${registrosNovos.length > 0 ? `\nNovos registros: ${registrosNovos.length}\n\n` : ''}` +
+                        `⚠️ REIMPRESSÃO DETECTADA\n\n` +
+                        `Os seguintes registros já foram impressos:\n\n• ${nomes}\n\n` +
                         `Deseja REIMPRIMIR mesmo assim?`
                     );
                     
                     if (!confirmar) {
-                        console.log('? ReimpresSóo cancelada pelo Usuário');
                         return;
                     }
                 }
-                
-                console.log(`ℹ Gerando PDF para ${toGenerate.length} registro(s) selecionado(s)`);
                 
                 // Gerar PDFs usando emp.id do banco
                 const pdfPages = document.getElementById('pdfPages');
                 pdfPages.innerHTML = toGenerate.map((emp) => generateForm(emp, emp.id || '?', toGenerate.length)).join('');
                 
                 // Atualizar contador
-                document.getElementById('pdfCount').textContent = `${toGenerate.length} formulério(s) ã 1 por página A4 Paisagem`;
+                document.getElementById('pdfCount').textContent = `${toGenerate.length} formulário(s) – 1 por página A4 Paisagem`;
                 
                 // Mostrar preview
                 document.getElementById('mainInterface').classList.add('hidden');
@@ -9423,7 +9387,7 @@
                 await reloadData();
                 
             } catch (err) {
-                console.error('? Erro ao gerar PDFs:', err);
+                console.error('❌ Erro ao gerar PDFs:', err);
                 showAlert('Erro', 'Erro ao gerar PDFs. Verifique o console.', 'error');
             }
         }
@@ -9645,11 +9609,3 @@
     </style>
 </body>
 </html>
-
-< ! - -   C a c h e   B u s t e r :   2 0 2 5 - 1 0 - 3 0   1 4 : 0 6 : 3 8   - - > 
- 
- 
-
-
-
-
