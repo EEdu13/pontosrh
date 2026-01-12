@@ -3686,7 +3686,9 @@
                 });
                 
                 if (!response.ok) {
-                    throw new Error('Erro ao carregar dados em batch');
+                    const errorData = await response.json().catch(() => ({ error: 'Erro desconhecido' }));
+                    console.error('❌ Erro do servidor:', errorData);
+                    throw new Error(errorData.error || 'Erro ao carregar dados em batch');
                 }
                 
                 const { anexos, perguntas, aprovacoes, totalRecords } = await response.json();

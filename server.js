@@ -746,7 +746,6 @@ app.post('/api/anexos/batch-period', async (req, res) => {
                 reg,
                 data,
                 perguntas_rh,
-                aprovacoes_horarios,
                 empresa_id,
                 empresa_nome,
                 funcionario_nome,
@@ -806,17 +805,6 @@ app.post('/api/anexos/batch-period', async (req, res) => {
                     const perguntasObj = JSON.parse(row.perguntas_rh);
                     const key = `${row.reg}_${dataKey}`;
                     perguntas[key] = perguntasObj;
-                } catch (e) {
-                    // Ignorar JSON inválido
-                }
-            }
-
-            // Extrair aprovações se existirem
-            if (row.aprovacoes_horarios) {
-                try {
-                    const aprovacoesObj = JSON.parse(row.aprovacoes_horarios);
-                    const key = `${row.reg}_${dataKey}`;
-                    aprovacoes[key] = aprovacoesObj;
                 } catch (e) {
                     // Ignorar JSON inválido
                 }
