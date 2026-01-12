@@ -735,6 +735,10 @@ app.post('/api/anexos/batch-period', async (req, res) => {
         const pool = await poolPromise;
         
         // 🚀 QUERY OTIMIZADA: 1 única chamada ao banco
+        const request = pool.request()
+            .input('dateStart', sql.Date, dateStart)
+            .input('dateEnd', sql.Date, dateEnd);
+
         let query = `
             SELECT 
                 id,
@@ -754,18 +758,19 @@ app.post('/api/anexos/batch-period', async (req, res) => {
             WHERE data BETWEEN @dateStart AND @dateEnd
         `;
 
-        const request = pool.request()
-            .input('dateStart', sql.Date, dateStart)
-            .input('dateEnd', sql.Date, dateEnd);
-
-        // Adicionar filtro de empresas se fornecido
+        // Adicionar filtro de empresas se fornecido (usando OR para múltiplos IDs)
         if (empresaIds && empresaIds.length > 0) {
-            const empresaIdsStr = empresaIds.join(',');
-            query += ` AND empresa_id IN (${empresaIdsStr})`;
+            const conditions = empresaIds.map((id, index) => {
+                const paramName = `empresaId${index}`;
+                request.input(paramName, sql.Int, parseInt(id));
+                return `empresa_id = @${paramName}`;
+            }).join(' OR ');
+            query += ` AND (${conditions})`;
         }
 
         query += ` ORDER BY data DESC, empresa_id, reg`;
 
+        console.log('📊 Executando query batch:', { dateStart, dateEnd, empresaIds });
         const result = await request.query(query);
 
         // Processar resultados em estruturas organizadas
@@ -829,7 +834,11 @@ app.post('/api/anexos/batch-period', async (req, res) => {
 
     } catch (err) {
         console.error('❌ Erro ao buscar dados em batch:', err);
-        res.status(500).json({ error: err.message });
+        console.error('Stack trace:', err.stack);
+        res.status(500).json({ 
+            error: err.message,
+            details: process.env.NODE_ENV === 'development' ? err.stack : undefined
+        });
     }
 });
 
