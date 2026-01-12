@@ -329,7 +329,8 @@
             padding: 4px 8px !important;
             border-radius: 4px !important;
             font-weight: 700 !important;
-            animation: pulseError 2s infinite;
+            /* 🚨 PERFORMANCE: Removida animação infinita para economizar CPU */
+            box-shadow: 0 0 0 2px rgba(185, 28, 28, 0.5);
         }
 
         @keyframes pulseError {
@@ -433,12 +434,11 @@
             font-size: 14px;
             color: #f59e0b;
             filter: drop-shadow(0 0 2px rgba(245, 158, 11, 0.5));
-            animation: pulse-question 2s ease-in-out infinite;
+            /* 🚨 PERFORMANCE: Removida animação infinita - usar hover ao invés */
         }
         
-        @keyframes pulse-question {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.1); }
+        .question-icon:hover {
+            transform: scale(1.2);
         }
 
         .delete-question-icon {
@@ -1852,7 +1852,7 @@
             TTL: {
                 historical: 24 * 60 * 60 * 1000,
                 current_month: 5 * 60 * 1000,
-                today: 30 * 1000
+                today: 2 * 60 * 1000  // 🚨 OTIMIZAÇÃO: Aumentado de 30s para 2 minutos para reduzir carga
             }
         };
 
@@ -1863,9 +1863,32 @@
             daysToLoad: 6,  // Quantidade de dias para carregar (padrão: 6)
             ttl: {
                 historical: 24 * 60 * 60 * 1000,  // 24h para dados antigos
-                today: 30 * 1000  // 30s para dados de hoje
+                today: 2 * 60 * 1000  // 🚨 OTIMIZAÇÃO: Aumentado de 30s para 2 minutos
             }
         };
+
+        // 🚨 PERFORMANCE: Flag para desabilitar logs excessivos em produção
+        const DEBUG_MODE = false;  // Mudar para true apenas para debug
+        const debugLog = DEBUG_MODE ? console.log.bind(console) : () => {};
+
+        // 🚨 PERFORMANCE: Função debounce para evitar chamadas excessivas
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+
+        // Criar versão debounced do renderTable
+        const debouncedRenderTable = debounce(() => {
+            currentPage = 1;
+            renderTable();
+        }, 300);
 
         const SMART_CACHE = {
             employees: new Map(),      // ✅ NOVO: cache por funcionário (REG_DATA_EMPRESA)
@@ -9381,17 +9404,11 @@
             }
         });
 
-        // Campo de busca por nome - atualiza em tempo real
-        document.getElementById('searchName')?.addEventListener('input', () => {
-            currentPage = 1; // Reset para primeira página ao filtrar
-            renderTable();
-        });
+        // Campo de busca por nome - atualiza em tempo real (COM DEBOUNCE para performance)
+        document.getElementById('searchName')?.addEventListener('input', debouncedRenderTable);
         
-        // Filtro de Líder (atualizar em tempo real)
-        document.getElementById('searchLider')?.addEventListener('input', () => {
-            currentPage = 1; // Reset para primeira página ao filtrar
-            renderTable();
-        });
+        // Filtro de Líder (atualizar em tempo real COM DEBOUNCE)
+        document.getElementById('searchLider')?.addEventListener('input', debouncedRenderTable);
 
         // botãoo limpar filtro
         document.getElementById('btnClearFilter')?.addEventListener('click', () => {
@@ -9403,17 +9420,11 @@
             renderTable();
         });
         
-        // Filtro de projeto (atualizar em tempo real)
-        document.getElementById('searchProject')?.addEventListener('input', () => {
-            currentPage = 1; // Reset para primeira página ao filtrar
-            renderTable();
-        });
+        // Filtro de projeto (atualizar em tempo real COM DEBOUNCE)
+        document.getElementById('searchProject')?.addEventListener('input', debouncedRenderTable);
         
-        // Filtro de departamento (atualizar em tempo real)
-        document.getElementById('searchDepartamento')?.addEventListener('input', () => {
-            currentPage = 1; // Reset para primeira página ao filtrar
-            renderTable();
-        });
+        // Filtro de departamento (atualizar em tempo real COM DEBOUNCE)
+        document.getElementById('searchDepartamento')?.addEventListener('input', debouncedRenderTable);
 
         // ==========================================
         // 📝 botãoo DE TESTE - ANEXO OCR
