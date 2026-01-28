@@ -3389,7 +3389,7 @@
         }
 
         function getDayOfWeek(dateString) {
-            const days = ['domingo', 'segunda-feira', 'terçãa-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira', 'Sóbado'];
+            const days = ['domingo', 'segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira', 'sábado'];
             
             let date;
             
@@ -9320,47 +9320,99 @@
                 return;
             }
             
-            // 📝 Verificar se algum registro já foi impresso
-            const registrosExistentes = [];
-            const registrosNovos = [];
+            // 🔄 MOSTRAR LOADING
+            const loadingOverlay = document.createElement('div');
+            loadingOverlay.id = 'pdfLoadingOverlay';
+            loadingOverlay.innerHTML = `
+                <div style="
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    background: rgba(0,0,0,0.7);
+                    display: flex;
+                    flex-direction: column;
+                    justify-content: center;
+                    align-items: center;
+                    z-index: 99999;
+                ">
+                    <div style="
+                        background: white;
+                        padding: 40px 60px;
+                        border-radius: 12px;
+                        text-align: center;
+                        box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+                    ">
+                        <div style="
+                            width: 50px;
+                            height: 50px;
+                            border: 4px solid #e0e0e0;
+                            border-top: 4px solid #1a73e8;
+                            border-radius: 50%;
+                            animation: spin 1s linear infinite;
+                            margin: 0 auto 20px;
+                        "></div>
+                        <div style="font-size: 18px; font-weight: 600; color: #333;">
+                            Gerando PDF...
+                        </div>
+                        <div style="font-size: 14px; color: #666; margin-top: 8px;">
+                            ${toGenerate.length} formulário(s) sendo processado(s)
+                        </div>
+                    </div>
+                </div>
+                <style>
+                    @keyframes spin {
+                        0% { transform: rotate(0deg); }
+                        100% { transform: rotate(360deg); }
+                    }
+                </style>
+            `;
+            document.body.appendChild(loadingOverlay);
+            
+            // Helper para remover loading
+            const hideLoading = () => {
+                const overlay = document.getElementById('pdfLoadingOverlay');
+                if (overlay) overlay.remove();
+            };
             
             try {
-                for (const emp of toGenerate) {
-                    // Preparar dados para enviar
-                    const payload = {
-                        cpf: emp.cpf,
-                        reg: emp.reg,
-                        data: emp.date,
-                        empresa_id: emp.empresaId || emp.companyId || 0,
-                        nome: emp.name || '',
-                        motivo: emp.motivo || ''
-                    };
-                    
-                    const response = await fetch(`${API_BASE_URL}/api/justificativa/salvar`, {
-                        method: 'POST',
-                        headers: getAuthHeaders(),
-                        body: JSON.stringify(payload)
-                    });
-                    
-                    if (response.ok) {
-                        const { id, novo } = await response.json();
-                        emp.id = id;
-                        
-                        // Separar novos de existentes
-                        if (novo) {
-                            registrosNovos.push(emp.name);
-                        } else {
-                            registrosExistentes.push(emp.name);
-                        }
-                    } else {
-                        showAlert('Erro', `Erro ao salvar justificativa de ${emp.name}`, 'error');
-                        return;
+                // 🚀 Preparar dados para envio em BATCH (uma única requisição)
+                const registros = toGenerate.map(emp => ({
+                    cpf: emp.cpf,
+                    reg: emp.reg,
+                    data: emp.date,
+                    empresa_id: emp.empresaId || emp.companyId || 0,
+                    nome: emp.name || '',
+                    motivo: emp.motivo || ''
+                }));
+                
+                // 📦 Enviar todos de uma vez
+                const response = await fetch(`${API_BASE_URL}/api/justificativa/salvar-batch`, {
+                    method: 'POST',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify({ registros })
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(errorData.details || `HTTP ${response.status}`);
+                }
+                
+                const { resultados, nomesExistentes, novos, existentes } = await response.json();
+                
+                // Atribuir IDs aos funcionários
+                for (const resultado of resultados) {
+                    const emp = toGenerate.find(e => e.reg === resultado.reg && e.date.includes(resultado.data.split('T')[0].split('-').reverse().join('/')));
+                    if (emp && resultado.id) {
+                        emp.id = resultado.id;
                     }
                 }
                 
                 // ⚠️ AVISAR APENAS SE HÁ REIMPRESSÕES
-                if (registrosExistentes.length > 0) {
-                    const nomes = registrosExistentes.join('\n• ');
+                if (existentes > 0 && nomesExistentes && nomesExistentes.length > 0) {
+                    hideLoading(); // Esconder loading antes do confirm
+                    const nomes = nomesExistentes.join('\n• ');
                     const confirmar = confirm(
                         `⚠️ REIMPRESSÃO DETECTADA\n\n` +
                         `Os seguintes registros já foram impressos:\n\n• ${nomes}\n\n` +
@@ -9371,6 +9423,9 @@
                         return;
                     }
                 }
+                
+                // Esconder loading antes de mostrar preview
+                hideLoading();
                 
                 // Gerar PDFs usando emp.id do banco
                 const pdfPages = document.getElementById('pdfPages');
@@ -9387,8 +9442,9 @@
                 await reloadData();
                 
             } catch (err) {
+                hideLoading(); // Esconder loading em caso de erro
                 console.error('❌ Erro ao gerar PDFs:', err);
-                showAlert('Erro', 'Erro ao gerar PDFs. Verifique o console.', 'error');
+                showAlert('Erro', `Erro ao salvar justificativas: ${err.message}`, 'error');
             }
         }
         

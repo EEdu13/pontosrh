@@ -85,10 +85,13 @@ const sqlConfig = {
         enableArithAbort: true
     },
     pool: {
-        max: 10,
-        min: 0,
-        idleTimeoutMillis: 30000
-    }
+        max: 20, // Aumentado de 10 para 20
+        min: 2,  // Manter 2 conexões sempre abertas
+        idleTimeoutMillis: 60000, // 60 segundos antes de fechar conexão ociosa
+        acquireTimeoutMillis: 30000 // 30 segundos para adquirir conexão
+    },
+    connectionTimeout: 30000, // 30 segundos para conectar
+    requestTimeout: 60000 // 60 segundos para executar query
 };
 
 // Configuração do Azure Blob Storage
@@ -1201,6 +1204,109 @@ app.post('/api/justificativa/salvar', async (req, res) => {
     } catch (err) {
         console.error('Erro ao salvar justificativa:', err.message);
         res.status(500).json({ error: 'Erro ao salvar justificativa', details: err.message });
+    }
+});
+
+// 🚀 SALVAR JUSTIFICATIVAS EM BATCH
+// Salva múltiplas justificativas de uma vez para evitar múltiplas conexões
+app.post('/api/justificativa/salvar-batch', async (req, res) => {
+    try {
+        const { registros } = req.body; // Array de { cpf, reg, data, empresa_id, nome, motivo }
+        
+        if (!registros || !Array.isArray(registros) || registros.length === 0) {
+            return res.status(400).json({ error: 'Array de registros é obrigatório' });
+        }
+        
+        console.log(`📦 Salvando batch de ${registros.length} justificativas...`);
+        
+        const pool = await poolPromise;
+        const resultados = [];
+        const existentes = [];
+        const novos = [];
+        
+        // Processar em uma única transação
+        const transaction = pool.transaction();
+        await transaction.begin();
+        
+        try {
+            for (const registro of registros) {
+                const { cpf, reg, data, empresa_id, nome, motivo } = registro;
+                
+                if (!cpf || !reg || !data) {
+                    resultados.push({ reg, data, error: 'CPF, REG e DATA são obrigatórios' });
+                    continue;
+                }
+                
+                // Normalizar CPF
+                const cpfLimpo = cpf.replace(/[^\d]/g, '');
+                
+                // Normalizar data
+                let dataNormalizada;
+                if (data.includes('/')) {
+                    const [dia, mes, ano] = data.split('/');
+                    dataNormalizada = `${ano}-${mes.padStart(2, '0')}-${dia.padStart(2, '0')}`;
+                } else if (data.includes('T')) {
+                    dataNormalizada = data.split('T')[0];
+                } else {
+                    dataNormalizada = data;
+                }
+                
+                // Verificar se já existe
+                const checkResult = await transaction.request()
+                    .input('reg', sql.VarChar, reg)
+                    .input('data', sql.Date, dataNormalizada)
+                    .input('empresa_id', sql.Int, empresa_id || 0)
+                    .query('SELECT id FROM ANEXOS WHERE reg = @reg AND data = @data AND empresa_id = @empresa_id');
+                
+                if (checkResult.recordset.length > 0) {
+                    // Já existe
+                    const id = checkResult.recordset[0].id;
+                    resultados.push({ reg, data: dataNormalizada, id, novo: false, nome });
+                    existentes.push(nome);
+                } else {
+                    // Inserir novo
+                    const insertResult = await transaction.request()
+                        .input('cpf', sql.VarChar, cpfLimpo)
+                        .input('reg', sql.VarChar, reg)
+                        .input('data', sql.Date, dataNormalizada)
+                        .input('empresa_id', sql.Int, empresa_id || 0)
+                        .input('funcionario_nome', sql.NVarChar, nome || '')
+                        .input('blob_url', sql.NVarChar, '')
+                        .input('blob_filename', sql.NVarChar, '')
+                        .input('motivo_detectado', sql.NVarChar, motivo || '')
+                        .input('created_by', sql.VarChar, 'Sistema')
+                        .query(`
+                            INSERT INTO ANEXOS (cpf, reg, data, empresa_id, funcionario_nome, blob_url, blob_filename, motivo_detectado, created_by) 
+                            OUTPUT INSERTED.id
+                            VALUES (@cpf, @reg, @data, @empresa_id, @funcionario_nome, @blob_url, @blob_filename, @motivo_detectado, @created_by)
+                        `);
+                    
+                    const novoId = insertResult.recordset[0].id;
+                    resultados.push({ reg, data: dataNormalizada, id: novoId, novo: true, nome });
+                    novos.push(nome);
+                }
+            }
+            
+            await transaction.commit();
+            console.log(`✅ Batch concluído: ${novos.length} novos, ${existentes.length} existentes`);
+            
+            res.json({
+                success: true,
+                total: registros.length,
+                novos: novos.length,
+                existentes: existentes.length,
+                resultados,
+                nomesExistentes: existentes
+            });
+            
+        } catch (transactionError) {
+            await transaction.rollback();
+            throw transactionError;
+        }
+        
+    } catch (err) {
+        console.error('❌ Erro ao salvar batch:', err.message);
+        res.status(500).json({ error: 'Erro ao salvar batch de justificativas', details: err.message });
     }
 });
 
