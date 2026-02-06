@@ -2220,7 +2220,7 @@
                 return true;
             } catch (error) {
                 console.error('? Erro na autenticação:', error);
-                alert(`Erro ao conectar com a API Secullum:\n\n${error.message}\n\nVerifique as credenciais.`);
+                showAlert('Erro', `Erro ao conectar com a API Secullum: ${error.message}`, 'error');
                 return false;
             }
         }
@@ -2971,7 +2971,7 @@
                 // Validar se há dados no período solicitado
                 if (allBatidas.length === 0) {
                     console.warn('⚠️ Nenhum registro encontrado no período selecionado');
-                    alert('Nenhum registro encontrado no período selecionado.\n\nVerifique se:\n• O período está dentro dos últimos 60 dias\n• As empresas selecionadas possuem dados');
+                    showAlert('Sem Dados', 'Nenhum registro encontrado no período selecionado. Verifique se o período está dentro dos últimos 60 dias.', 'warning');
                     return [];
                 }
                 
@@ -3005,7 +3005,7 @@
                     SMART_CACHE.metadata.lastFullLoad = null;
                 }
                 
-                alert(`Erro ao buscar dados da API:\n\n${error.message}\n\nTente novamente ou contate o suporte.`);
+                showAlert('Erro', `Erro ao buscar dados da API: ${error.message}`, 'error');
                 return [];
             }
         }
@@ -3082,13 +3082,13 @@
                 } else {
                     hideLoading();
                     console.warn(`⚠️ Funcionário ${reg} não encontrado após atualização`);
-                    alert(`⚠️ Não foi possível atualizar os dados de ${reg}`);
+                    showAlert('Aviso', `Não foi possível atualizar os dados de ${reg}`, 'warning');
                 }
                 
             } catch (err) {
                 hideLoading();
                 console.error(`❌ Erro ao atualizar ${reg}:`, err);
-                alert(`❌ Erro ao atualizar funcionário:\n${err.message}`);
+                showAlert('Erro', `Erro ao atualizar funcionário: ${err.message}`, 'error');
             }
         }
         
@@ -4202,9 +4202,9 @@
             
             if (newBaseURL && newBaseURL.trim() && newBaseURL !== 'https://') {
                 API_CONFIG.baseURL = newBaseURL.trim().replace(/\/$/, ''); // Remove barra final
-                alert(`✅ URL Base configurada com sucesso!\n\nℹ️ ${API_CONFIG.baseURL}\n\nℹ️ Agora clique em "Conectar API Secullum" para testar.`);
+                showAlert('Sucesso', `URL Base configurada: ${API_CONFIG.baseURL}`, 'success');
             } else if (newBaseURL === '' || newBaseURL === 'https://') {
-                alert('? Por favor, digite uma URL válida!\n\nℹ Dica: Entre em contato com o suporte da Secullum para obter a URL correta da sua instalação.');
+                showAlert('Atenção', 'Por favor, digite uma URL válida!', 'warning');
             }
         }
 
@@ -4272,7 +4272,7 @@
             const dateEnd = document.getElementById('dateEnd').value;
             
             if (!dateStart || !dateEnd) {
-                alert('⚠️ Por favor, selecione as datas de Início e fim!');
+                showAlert('Atenção', 'Por favor, selecione as datas de Início e fim!', 'warning');
                 return;
             }
             
@@ -4337,9 +4337,9 @@
                 }
                 
                 renderTable();
-                alert(`✅ ${apiData.length} registros carregados!\nℹ️ Tempo de busca: ${timeElapsed}s`);
+                showAlert('Sucesso', `${apiData.length} registros carregados em ${timeElapsed}s`, 'success');
             } else {
-                alert('⚠️ Nenhum registro encontrado neste Período!');
+                showAlert('Sem Dados', 'Nenhum registro encontrado neste Período!', 'warning');
             }
             
             document.getElementById('apiStatus').innerHTML = `<span style="width: 8px; height: 8px; background: #10b981; border-radius: 50%; display: inline-block;"></span> API Conectada (${timeElapsed}s)`;
@@ -4772,7 +4772,7 @@
             
             if (!employee) {
                 console.error(`? FUNCIONÁRIO não encontrado: REG=${reg}, Data=${dataComparacao}`);
-                alert('Erro: FUNCIONÁRIO não encontrado!');
+                showAlert('Erro', 'Funcionário não encontrado!', 'error');
                 return;
             }
             
@@ -4812,25 +4812,12 @@
                     const anexo = await response.json();
                     
                     if (anexo && anexo.blob_url) {
-                        // já EXISTE ANEXO - Perguntar o que fazer
-                        const confirmacao = confirm(
-                            `⚠️ já EXISTE UM ANEXO PARA ESTE FUNCIONÁRIO NESTA DATA!\n\n` +
-                            `ℹ️ REG: ${employee.reg}\n` +
-                            `ℹ️ Nome: ${employee.name}\n` +
-                            `ℹ️ Data: ${dataFormatada}\n` +
-                            `ℹ️ Motivo salvo: ${anexo.motivo_detectado || '(não informado)'}\n\n` +
-                            `Deseja SUBSTITUIR o anexo existente?\n\n` +
-                            `? OK = Substituir anexo\n` +
-                            `? Cancelar = Ver anexo atual`
-                        );
-                        
-                        if (!confirmacao) {
-                            // Usuário quer VER o anexo atual
+                        // já EXISTE ANEXO - Mostrar aviso e abrir para visualização
+                        showAlert('Anexo Existente', `Já existe um anexo para ${employee.name} nesta data. Abrindo para visualização...`, 'info');
+                        setTimeout(() => {
                             window.open(anexo.blob_url, '_blank');
-                            return;
-                        }
-                        
-                        
+                        }, 1500);
+                        return;
                     }
                 } else {
                     console.warn(`ℹ Erro ao verificar anexo existente: ${response.status}`);
@@ -6220,13 +6207,13 @@
                 // 📝 CASO 1: IDs diferentes OU não detectado = AVISAR MAS CONTINUAR
                 if (idEsperado && idEncontrado && parseInt(idEncontrado) !== parseInt(idEsperado)) {
                     console.warn(`⚠️ ID DIFERENTE! Esperado: #${idEsperado}, Detectado: #${idEncontrado}`);
-                    alert(`⚠️ ATENÇÃO: ID diferente!\n\nEsperado: #${idEsperado}\nDetectado: #${idEncontrado}\n\nVerifique os dados antes de enviar.`);
+                    showAlert('Atenção', `ID diferente! Esperado: #${idEsperado}, Detectado: #${idEncontrado}`, 'warning');
                 }
                 
                 // 📝 CASO 2: não leu ID = AVISAR MAS CONTINUAR
                 if (idEsperado && !idEncontrado) {
                     console.warn(`⚠️ ID não detectado. Esperado: #${idEsperado}`);
-                    alert(`⚠️ ID não detectado automaticamente.\n\nFUNCIONÁRIO: ${currentAnexoEmployee.name}\nID esperado: #${idEsperado}\n\nVerifique os dados antes de enviar.`);
+                    showAlert('Aviso', `ID não detectado. Esperado: #${idEsperado}`, 'info');
                 }
                 
                 // ✅ CASO 3: IDs batem
@@ -6830,30 +6817,17 @@
         // Confirmar e enviar anexo
         async function confirmarAnexo() {
             if (!currentAnexoEmployee || !currentAnexoImage) {
-                alert('? Erro: Nenhuma imagem selecionada');
+                showAlert('Erro', 'Nenhuma imagem selecionada', 'error');
                 return;
             }
             
-            // 📝 VALIDAR ASSINATURAS ANTES DE ENVIAR
+            // 📝 VALIDAR ASSINATURAS ANTES DE ENVIAR - apenas aviso, não bloqueia
             if (currentOCRData && (currentOCRData.assinaturaFuncionario === false || currentOCRData.assinaturaLider === false)) {
                 const faltantes = [];
-                if (!currentOCRData.assinaturaFuncionario) faltantes.push('ℹ FUNCIONÁRIO');
-                if (!currentOCRData.assinaturaLider) faltantes.push('ℹ Líder');
+                if (!currentOCRData.assinaturaFuncionario) faltantes.push('Funcionário');
+                if (!currentOCRData.assinaturaLider) faltantes.push('Líder');
                 
-                const confirmar = confirm(
-                    `ℹ ASSINATURAS FALTANDO\n\n` +
-                    `As seguintes assinaturas não foram detectadas:\n${faltantes.join('\n')}\n\n` +
-                    `Deseja prosseguir mesmo assim?\n\n` +
-                    `? OK = Aceitar sem assinatura\n` +
-                    `? Cancelar = não enviar`
-                );
-                
-                if (!confirmar) {
-                    console.log('? Usuário cancelou envio por falta de assinaturas');
-                    return;
-                }
-                
-                console.log('✅ Usuário aceitou enviar sem assinaturas completas');
+                console.log(`⚠️ Assinaturas faltando: ${faltantes.join(', ')} - prosseguindo mesmo assim`);
             }
             
             const btn = document.getElementById('btnConfirmarAnexo');
@@ -7032,7 +7006,7 @@
                 
             } catch (err) {
                 console.error('? Erro ao enviar anexo:', err);
-                alert(`? Erro ao enviar anexo:\n${err.message}`);
+                showAlert('Erro', `Erro ao enviar anexo: ${err.message}`, 'error');
             } finally {
                 // ? Sempre resetar botãoo (sucesso ou erro)
                 btn.disabled = false;
@@ -7045,19 +7019,11 @@
             console.log(`ℹ Enviando Horários para Secullum: REG=${empRef.reg}, Data=${empRef.date}`);
             
             if (!empRef) {
-                alert('? Erro: FUNCIONÁRIO não encontrado!');
+                showAlert('Erro', 'Funcionário não encontrado!', 'error');
                 return;
             }
             
-            // Se for inverSóo (pendingSwap), mostrar popup de confirmação
-            if (empRef.pendingSwap && !autoEnvio) {
-                if (!confirm(`? Confirmar envio para Secullum?\n\nFUNCIONÁRIO: ${empRef.name}\nData: ${empRef.date}\n\nHorários:\n` +
-                             `Ent1: ${empRef.punches?.ent1 || '--:--'} | Sai1: ${empRef.punches?.sai1 || '--:--'}\n` +
-                             `Ent2: ${empRef.punches?.ent2 || '--:--'} | Sai2: ${empRef.punches?.sai2 || '--:--'}\n` +
-                             `Ent3: ${empRef.punches?.ent3 || '--:--'} | Sai3: ${empRef.punches?.sai3 || '--:--'}`)) {
-                    return;
-                }
-            }
+            // Envio direto sem confirmação (autoEnvio sempre)
             
             showLoading('Enviando para Secullum...');
             
@@ -7334,13 +7300,13 @@
             } catch (err) {
                 hideLoading();
                 console.error('? Erro ao enviar para Secullum:', err);
-                alert(`? Erro: ${err.message}`);
+                showAlert('Erro', `Erro: ${err.message}`, 'error');
             }
         }
         
-        // Remover anexo
+        // Remover anexo - remoção direta sem confirmação
         async function removeAttachment(reg, date) {
-            if (!confirm('⚠️ Deseja realmente remover o anexo?')) return;
+            showLoading('Removendo anexo...');
             
             try {
                 const employee = allEmployees.find(emp => emp.reg === reg);
@@ -7369,15 +7335,17 @@
                     employee.attachments = [];
                     employee.motivo = '';
                     
+                    hideLoading();
                     renderTable();
-                    alert('? Anexo removido com sucesso!');
+                    showAlert('Sucesso', 'Anexo removido com sucesso!', 'success');
                 } else {
                     throw new Error(result.error || 'Erro ao deletar');
                 }
                 
             } catch (err) {
+                hideLoading();
                 console.error('? Erro ao remover anexo:', err);
-                alert(`? Erro ao remover anexo:\n${err.message}`);
+                showAlert('Erro', `Erro ao remover anexo: ${err.message}`, 'error');
             }
         }
 
@@ -7904,13 +7872,9 @@
             }
         });
 
-        // 🗑️ DELETAR PERGUNTA DO RH
+        // 🗑️ DELETAR PERGUNTA DO RH - execução direta
         async function deleteQuestion(event, reg, date, punchType) {
             event.stopPropagation();
-            
-            if (!confirm('❌ Deseja realmente excluir esta pergunta?')) {
-                return;
-            }
             
             showLoading('🗑️ Excluindo pergunta...');
             
@@ -8163,14 +8127,9 @@
                 'ent5': 'Entrada 5', 'sai5': 'Saída 5'
             };
 
-            const confirmed = confirm(
-                `🔄 MOVER HORÁRIO?\n\n` +
-                `Funcionário: ${name}\n` +
-                `Data: ${date}\n\n` +
-                `De: ${punchLabels[sourcePunch]} (${sourceTime})\n` +
-                `Para: ${punchLabels[targetPunch]} (${targetTime})\n\n` +
-                `⏱️ Será enviado para Secullum em 2 segundos (debounce)`
-            );
+            const confirmed = true; // Execução direta sem confirmação
+            
+            console.log(`🔄 Movendo horário: ${punchLabels[sourcePunch]} (${sourceTime}) → ${punchLabels[targetPunch]} (${targetTime})`);
 
             if (!confirmed) return;
 
@@ -8323,22 +8282,12 @@
             const time1 = employee.punches[punch1] || '--:--';
             const time2 = employee.punches[punch2] || '--:--';
 
-            const confirmed = confirm(
-                `⚠️ TEM CERTEZA QUE DESEJA INVERTER HorárioS?\n\n` +
-                `FUNCIONÁRIO: ${name}\n` +
-                `Data: ${date}\n\n` +
-                `${punch1Label}: ${time1} ? ${time2}\n` +
-                `${punch2Label}: ${time2} ? ${time1}\n\n` +
-                `⚠️ Esta ação enviarçã IMEDIATAMENTE para Secullum!`
-            );
+            console.log(`🔄 Invertendo horários: ${punch1Label} (${time1}) ↔ ${punch2Label} (${time2})`);
 
-            if (!confirmed) {
-                // Limpar seleçãoão
-                document.querySelectorAll('.swap-arrow').forEach(arrow => arrow.remove());
-                document.querySelectorAll('.selected-cell').forEach(cell => cell.classList.remove('selected-cell'));
-                selectedCell = null;
-                return;
-            }
+            // Limpar seleção
+            document.querySelectorAll('.swap-arrow').forEach(arrow => arrow.remove());
+            document.querySelectorAll('.selected-cell').forEach(cell => cell.classList.remove('selected-cell'));
+            selectedCell = null;
 
             try {
                 // TROCAR OS HorárioS LOCALMENTE
@@ -8432,7 +8381,7 @@
                 }
                 
                 if (bancosParaConsultar.length === 0) {
-                    alert('? Erro: Nenhuma empresa disponível!\n\nFaçãa login primeiro.');
+                    showAlert('Erro', 'Nenhuma empresa disponível! Faça login primeiro.', 'error');
                     hideLoading();
                     return;
                 }
@@ -8600,10 +8549,8 @@
                 return;
             }
             
-            // Confirmar excluSóo
-            if (!confirm(`⚠️ Tem certeza que deseja APAGAR o ponto?\n\n${employee.name}\n${columnName}: ${currentTime}\nData: ${date}`)) {
-                return;
-            }
+            // Execução direta sem confirmação
+            console.log(`🗑️ Apagando ponto: ${employee.name} - ${columnName}: ${currentTime}`);
             
             try {
                 showLoading('Apagando ponto...');
@@ -8939,28 +8886,22 @@
                         }
                     }
                     
-                    // AVISOS
+                    // AVISOS - usando showAlert
                     if (ordemIncorreta) {
-                        alert(`ℹ ATEnãoO: ORDEM cronológica INCORRETA!\n\n` +
-                              `Os Horários devem estar em ordem crescente.\n` +
-                              `Verifique: ${horariosOrdenados.join(' ? ')}\n\n` +
-                              `A linha ficou marcada em AMARELO.`);
+                        showAlert('Atenção', `Ordem cronológica incorreta! Horários: ${horariosOrdenados.join(' → ')}`, 'warning');
                     } else if (totalBatidas !== 4) {
-                        alert(`ℹ ATEnãoO: ${totalBatidas} batidas registradas!\n\n` +
-                              `Padrão esperado: 4 batidas (2 pares)\n` +
-                              `Atual: ${horariosOrdenados.join(', ')}\n\n` +
-                              `A linha ficou marcada em AMARELO.`);
+                        showAlert('Atenção', `${totalBatidas} batidas registradas (esperado: 4)`, 'warning');
                     }
                     
                 } else {
                     const errorText = await response.text();
                     console.error('? Erro:', errorText);
-                    alert(`Erro ao salvar: ${errorText}`);
+                    showAlert('Erro', `Erro ao salvar: ${errorText}`, 'error');
                     cancelInlineEdit(cell);
                 }
             } catch (error) {
                 console.error('? Erro na requisiçãão:', error);
-                alert('Erro ao salvar alteração. Verifique o console.');
+                showAlert('Erro', 'Erro ao salvar alteração. Verifique o console.', 'error');
                 cancelInlineEdit(cell);
             }
 
@@ -9075,7 +9016,7 @@
         function openEditModal(reg, date) {
             const employee = allEmployees.find(emp => emp.reg === reg && emp.date === date);
             if (!employee) {
-                alert('FUNCIONÁRIO não encontrado!');
+                showAlert('Erro', 'Funcionário não encontrado!', 'error');
                 return;
             }
 
@@ -9142,15 +9083,8 @@
             console.log('📊 Dados a serem enviados:', updatedPunches);
             console.log('👤 FUNCIONÁRIO:', currentEditEmployee);
 
-            // Confirmar antes de enviar
-            const confirmacao = confirm(
-                `Confirma o envio das alteraçães para:\n\n` +
-                `${currentEditEmployee.name} (REG: ${currentEditEmployee.reg})\n` +
-                `Data: ${currentEditEmployee.date}\n\n` +
-                `ℹ Esta ação irçã atualizar os dados na Secullum!`
-            );
-
-            if (!confirmacao) return;
+            // Envio direto sem confirmação
+            console.log(`ℹ️ Enviando alterações para ${currentEditEmployee.name}...`);
 
             try {
                 // Buscar o ID do FUNCIONÁRIO na API (necesSório para o endpoint)
@@ -9242,9 +9176,9 @@
                 }
 
                 if (erros === 0) {
-                    alert(`? Todas as batidas foram atualizadas com sucesso!\n\n${sucessos} Horários registrados.`);
+                    showAlert('Sucesso', `Todas as batidas foram atualizadas! ${sucessos} horários registrados.`, 'success');
                 } else {
-                    alert(`ℹ atualizaçãoo parcial:\n\n? ${sucessos} registros com sucesso\n? ${erros} erros\n\nVerifique o console para detalhes.`);
+                    showAlert('Atenção', `Atualização parcial: ${sucessos} com sucesso, ${erros} erros`, 'warning');
                 }
 
                 closeEditModal();
@@ -9255,7 +9189,7 @@
 
             } catch (error) {
                 console.error('? Erro ao atualizar batidas:', error);
-                alert(`? Erro ao atualizar batidas:\n\n${error.message}`);
+                showAlert('Erro', `Erro ao atualizar batidas: ${error.message}`, 'error');
             }
         }
 
@@ -9463,7 +9397,7 @@
             if (isAPIConnected) {
                 await searchPeriod();
             } else {
-                alert('ℹ Primeiro conecte ã API!');
+                showAlert('Atenção', 'Primeiro conecte à API!', 'warning');
             }
         });
 
@@ -9551,22 +9485,15 @@
                         resultado.sai2 ? `Sai2: ${resultado.sai2}` : null,
                         resultado.ent3 ? `Ent3: ${resultado.ent3}` : null,
                         resultado.sai3 ? `Sai3: ${resultado.sai3}` : null
-                    ].filter(h => h).join('\n');
+                    ].filter(h => h).join(', ');
                     
-                    alert(
-                        `ℹ RESULTADO DO TESTE DE OCR\n\n` +
-                        `ℹ ID: ${resultado.id || 'não DETECTADO'}\n` +
-                        `ℹ Motivo: ${resultado.motivo || 'PADRãO'} \n` +
-                        `   (Detecçãão de checkbox visual não implementada no OCR - sempre usa padrão)\n\n` +
-                        `? Horários:\n${horariosStr || 'Nenhum Horário detectado'}\n\n` +
-                        `? Verifique o console (F12) para detalhes completos!`
-                    );
+                    showAlert('Resultado OCR', `ID: ${resultado.id || 'Não detectado'} | Motivo: ${resultado.motivo || 'Padrão'} | Horários: ${horariosStr || 'Nenhum'}`, 'success');
                 };
                 reader.readAsDataURL(file);
 
             } catch (err) {
                 console.error('? Erro no teste:', err);
-                alert(`? Erro no teste:\n${err.message}`);
+                showAlert('Erro', `Erro no teste: ${err.message}`, 'error');
             }
 
             // Limpar input para permitir retestar o mesmo arquivo
