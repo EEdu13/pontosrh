@@ -1042,6 +1042,36 @@
             to   { opacity: 0; transform: translateX(80px); }
         }
 
+        /* ========== COLLAPSIBLE COLUMNS (ENT3-SAI5) ========== */
+        .col-extra { transition: width 0.25s ease, padding 0.25s ease, opacity 0.2s ease, max-width 0.25s ease; }
+        .col-extra.collapsed {
+            width: 0 !important;
+            min-width: 0 !important;
+            max-width: 0 !important;
+            padding: 0 !important;
+            overflow: hidden;
+            opacity: 0;
+            border-left: none;
+            border-right: none;
+            font-size: 0;
+        }
+        .toggle-cols-btn {
+            background: rgba(139,92,246,0.15);
+            color: #a78bfa;
+            border: 1px solid rgba(139,92,246,0.3);
+            border-radius: 6px;
+            padding: 3px 10px;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: all 0.2s;
+        }
+        .toggle-cols-btn:hover {
+            background: rgba(139,92,246,0.3);
+            color: #c4b5fd;
+        }
+
         /* ========== SELECTION COUNTER ========== */
         .selection-counter {
             display: none;
@@ -1685,7 +1715,7 @@
         <div class="selection-counter" id="selectionCounter">
             <span>✅ Selecionados:</span>
             <span class="count-badge" id="selectionCount">0</span>
-            <span id="selectionLabel">colaboradores</span>
+            <span id="selectionLabel">linhas selecionadas</span>
         </div>
 
         <!-- Table -->
@@ -1709,12 +1739,15 @@
                         <th style="width: 80px;" class="center">SAÍ. 1</th>
                         <th style="width: 80px;" class="center">ENT. 2</th>
                         <th style="width: 80px;" class="center">SAÍ. 2</th>
-                        <th style="width: 80px;" class="center">ENT. 3</th>
-                        <th style="width: 80px;" class="center">SAÍ. 3</th>
-                        <th style="width: 80px;" class="center">ENT. 4</th>
-                        <th style="width: 80px;" class="center">SAÍ. 4</th>
-                        <th style="width: 80px;" class="center">ENT. 5</th>
-                        <th style="width: 80px;" class="center">SAÍ. 5</th>
+                        <th class="center" style="width: 28px; min-width: 28px; max-width: 28px; padding: 0; border: none;">
+                            <button class="toggle-cols-btn" id="toggleExtraCols" onclick="toggleExtraColumns()" title="Mostrar/Ocultar ENT.3 a SAÍ.5">◀</button>
+                        </th>
+                        <th style="width: 80px;" class="center col-extra">ENT. 3</th>
+                        <th style="width: 80px;" class="center col-extra">SAÍ. 3</th>
+                        <th style="width: 80px;" class="center col-extra">ENT. 4</th>
+                        <th style="width: 80px;" class="center col-extra">SAÍ. 4</th>
+                        <th style="width: 80px;" class="center col-extra">ENT. 5</th>
+                        <th style="width: 80px;" class="center col-extra">SAÍ. 5</th>
                         <th style="width: 70px;" class="center" title="ID de Impressão">ID IMP</th>
                         <th style="min-width: 150px; max-width: 200px;">MOTIVO</th>
                         <th style="width: 100px;">ANEXOS</th>
@@ -1905,9 +1938,35 @@
             if (count > 0) {
                 counter.classList.add('active');
                 countEl.textContent = count;
-                labelEl.textContent = count === 1 ? 'colaborador selecionado' : 'colaboradores selecionados';
+                labelEl.textContent = count === 1 ? 'linha selecionada' : 'linhas selecionadas';
             } else {
                 counter.classList.remove('active');
+            }
+        }
+
+        // ==========================================
+        // COLLAPSIBLE COLUMNS (ENT.3 – SAÍ.5)
+        // ==========================================
+        let extraColsCollapsed = false;
+
+        function toggleExtraColumns() {
+            extraColsCollapsed = !extraColsCollapsed;
+            const cells = document.querySelectorAll('.col-extra');
+            const btn = document.getElementById('toggleExtraCols');
+
+            cells.forEach(cell => {
+                if (extraColsCollapsed) {
+                    cell.classList.add('collapsed');
+                } else {
+                    cell.classList.remove('collapsed');
+                }
+            });
+
+            if (btn) {
+                btn.textContent = extraColsCollapsed ? '▶' : '◀';
+                btn.title = extraColsCollapsed
+                    ? 'Expandir colunas ENT.3 a SAÍ.5'
+                    : 'Recolher colunas ENT.3 a SAÍ.5';
             }
         }
 
@@ -4718,7 +4777,8 @@
                         ${emp.questions?.sai2 ? '<span class="has-question" title="' + emp.questions.sai2 + '">💬</span>' : ''}
                         ${emp.approved?.sai2 ? '<span class="approved-badge" title="Aprovado por RH: ' + emp.approved.sai2 + '">✅</span>' : ''}
                     </td>
-                    <td class="center punch-cell" style="width: 100px; position: relative;" data-reg="${emp.reg}" data-date="${emp.date}" data-punch="ent3" data-name="${emp.name}">
+                    <td style="width: 28px; min-width: 28px; max-width: 28px; padding: 0; border: none;"></td>
+                    <td class="center punch-cell col-extra" style="width: 100px; position: relative;" data-reg="${emp.reg}" data-date="${emp.date}" data-punch="ent3" data-name="${emp.name}">
                         ${colunasErradas.has('ent3') && !emp.approved?.ent3 ? '<span class="approve-icon" onclick="approveSwappedTime(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'ent3\', \'' + emp.name + '\')" title="Aprovar Horário trocado"></span>' : ''}
                         ${emp.questions?.ent3 ? '<span class="delete-question-icon" onclick="deleteQuestion(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'ent3\')" title="Excluir pergunta"></span>' : ''}
                         ${emp.punches.ent3 ? '<span class="question-icon" onclick="askQuestion(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'ent3\', \'' + emp.name + '\')" title="Adicionar pergunta"></span>' : ''}
@@ -4726,7 +4786,7 @@
                         ${emp.questions?.ent3 ? '<span class="has-question" title="' + emp.questions.ent3 + '">💬</span>' : ''}
                         ${emp.approved?.ent3 ? '<span class="approved-badge" title="Aprovado por RH: ' + emp.approved.ent3 + '">✅</span>' : ''}
                     </td>
-                    <td class="center punch-cell" style="width: 100px; position: relative;" data-reg="${emp.reg}" data-date="${emp.date}" data-punch="sai3" data-name="${emp.name}">
+                    <td class="center punch-cell col-extra" style="width: 100px; position: relative;" data-reg="${emp.reg}" data-date="${emp.date}" data-punch="sai3" data-name="${emp.name}">
                         ${colunasErradas.has('sai3') && !emp.approved?.sai3 ? '<span class="approve-icon" onclick="approveSwappedTime(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'sai3\', \'' + emp.name + '\')" title="Aprovar Horário trocado"></span>' : ''}
                         ${emp.questions?.sai3 ? '<span class="delete-question-icon" onclick="deleteQuestion(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'sai3\')" title="Excluir pergunta"></span>' : ''}
                         ${emp.punches.sai3 ? '<span class="question-icon" onclick="askQuestion(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'sai3\', \'' + emp.name + '\')" title="Adicionar pergunta"></span>' : ''}
@@ -4734,7 +4794,7 @@
                         ${emp.questions?.sai3 ? '<span class="has-question" title="' + emp.questions.sai3 + '">💬</span>' : ''}
                         ${emp.approved?.sai3 ? '<span class="approved-badge" title="Aprovado por RH: ' + emp.approved.sai3 + '">✅</span>' : ''}
                     </td>
-                    <td class="center punch-cell" style="width: 100px; position: relative;" data-reg="${emp.reg}" data-date="${emp.date}" data-punch="ent4" data-name="${emp.name}">
+                    <td class="center punch-cell col-extra" style="width: 100px; position: relative;" data-reg="${emp.reg}" data-date="${emp.date}" data-punch="ent4" data-name="${emp.name}">
                         ${colunasErradas.has('ent4') && !emp.approved?.ent4 ? '<span class="approve-icon" onclick="approveSwappedTime(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'ent4\', \'' + emp.name + '\')" title="Aprovar Horário trocado"></span>' : ''}
                         ${emp.questions?.ent4 ? '<span class="delete-question-icon" onclick="deleteQuestion(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'ent4\')" title="Excluir pergunta"></span>' : ''}
                         ${emp.punches.ent4 ? '<span class="question-icon" onclick="askQuestion(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'ent4\', \'' + emp.name + '\')" title="Adicionar pergunta"></span>' : ''}
@@ -4742,7 +4802,7 @@
                         ${emp.questions?.ent4 ? '<span class="has-question" title="' + emp.questions.ent4 + '">💬</span>' : ''}
                         ${emp.approved?.ent4 ? '<span class="approved-badge" title="Aprovado por RH: ' + emp.approved.ent4 + '">✅</span>' : ''}
                     </td>
-                    <td class="center punch-cell" style="width: 100px; position: relative;" data-reg="${emp.reg}" data-date="${emp.date}" data-punch="sai4" data-name="${emp.name}">
+                    <td class="center punch-cell col-extra" style="width: 100px; position: relative;" data-reg="${emp.reg}" data-date="${emp.date}" data-punch="sai4" data-name="${emp.name}">
                         ${colunasErradas.has('sai4') && !emp.approved?.sai4 ? '<span class="approve-icon" onclick="approveSwappedTime(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'sai4\', \'' + emp.name + '\')" title="Aprovar Horário trocado"></span>' : ''}
                         ${emp.questions?.sai4 ? '<span class="delete-question-icon" onclick="deleteQuestion(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'sai4\')" title="Excluir pergunta"></span>' : ''}
                         ${emp.punches.sai4 ? '<span class="question-icon" onclick="askQuestion(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'sai4\', \'' + emp.name + '\')" title="Adicionar pergunta"></span>' : ''}
@@ -4750,7 +4810,7 @@
                         ${emp.questions?.sai4 ? '<span class="has-question" title="' + emp.questions.sai4 + '">💬</span>' : ''}
                         ${emp.approved?.sai4 ? '<span class="approved-badge" title="Aprovado por RH: ' + emp.approved.sai4 + '">✅</span>' : ''}
                     </td>
-                    <td class="center punch-cell" style="width: 100px; position: relative;" data-reg="${emp.reg}" data-date="${emp.date}" data-punch="ent5" data-name="${emp.name}">
+                    <td class="center punch-cell col-extra" style="width: 100px; position: relative;" data-reg="${emp.reg}" data-date="${emp.date}" data-punch="ent5" data-name="${emp.name}">
                         ${colunasErradas.has('ent5') && !emp.approved?.ent5 ? '<span class="approve-icon" onclick="approveSwappedTime(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'ent5\', \'' + emp.name + '\')" title="Aprovar Horário trocado"></span>' : ''}
                         ${emp.questions?.ent5 ? '<span class="delete-question-icon" onclick="deleteQuestion(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'ent5\')" title="Excluir pergunta"></span>' : ''}
                         ${emp.punches.ent5 ? '<span class="question-icon" onclick="askQuestion(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'ent5\', \'' + emp.name + '\')" title="Adicionar pergunta"></span>' : ''}
@@ -4758,7 +4818,7 @@
                         ${emp.questions?.ent5 ? '<span class="has-question" title="' + emp.questions.ent5 + '">💬</span>' : ''}
                         ${emp.approved?.ent5 ? '<span class="approved-badge" title="Aprovado por RH: ' + emp.approved.ent5 + '">✅</span>' : ''}
                     </td>
-                    <td class="center punch-cell" style="width: 100px; position: relative;" data-reg="${emp.reg}" data-date="${emp.date}" data-punch="sai5" data-name="${emp.name}">
+                    <td class="center punch-cell col-extra" style="width: 100px; position: relative;" data-reg="${emp.reg}" data-date="${emp.date}" data-punch="sai5" data-name="${emp.name}">
                         ${colunasErradas.has('sai5') && !emp.approved?.sai5 ? '<span class="approve-icon" onclick="approveSwappedTime(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'sai5\', \'' + emp.name + '\')" title="Aprovar Horário trocado"></span>' : ''}
                         ${emp.questions?.sai5 ? '<span class="delete-question-icon" onclick="deleteQuestion(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'sai5\')" title="Excluir pergunta"></span>' : ''}
                         ${emp.punches.sai5 ? '<span class="question-icon" onclick="askQuestion(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'sai5\', \'' + emp.name + '\')" title="Adicionar pergunta"></span>' : ''}
@@ -7087,6 +7147,16 @@
                         empRef.attachments = [result.filename];
                         empRef.id = empRef.id || currentAnexoEmployee.id; // Manter ID
                         
+                        // Salvar horários ORIGINAIS antes do OCR (para não reenviar os já batidos)
+                        empRef._punchesOriginais = {
+                            ent1: empRef.punches.ent1 || '',
+                            sai1: empRef.punches.sai1 || '',
+                            ent2: empRef.punches.ent2 || '',
+                            sai2: empRef.punches.sai2 || '',
+                            ent3: empRef.punches.ent3 || '',
+                            sai3: empRef.punches.sai3 || '',
+                        };
+                        
                         // PREENCHER OS CAMPOS NA TABELA
                         empRef.punches.ent1 = currentOCRData.ent1 || empRef.punches.ent1;
                         empRef.punches.sai1 = currentOCRData.sai1 || empRef.punches.sai1;
@@ -7271,13 +7341,22 @@
                     console.log('   empRef.punches.sai1:', empRef.punches?.sai1);
                     
                     const horariosParaEnviar = [
-                        { coluna: 'Entrada1', hora: empRef.punches?.ent1 || empRef.ent1, grupo: 1 },
-                        { coluna: 'Saida1', hora: empRef.punches?.sai1 || empRef.sai1, grupo: 1 },
-                        { coluna: 'Entrada2', hora: empRef.punches?.ent2 || empRef.ent2, grupo: 2 },
-                        { coluna: 'Saida2', hora: empRef.punches?.sai2 || empRef.sai2, grupo: 2 },
-                        { coluna: 'Entrada3', hora: empRef.punches?.ent3 || empRef.ent3, grupo: 3 },
-                        { coluna: 'Saida3', hora: empRef.punches?.sai3 || empRef.sai3, grupo: 3 }
-                    ].filter(item => item.hora);
+                        { coluna: 'Entrada1', hora: empRef.punches?.ent1 || empRef.ent1, slot: 'ent1', grupo: 1 },
+                        { coluna: 'Saida1', hora: empRef.punches?.sai1 || empRef.sai1, slot: 'sai1', grupo: 1 },
+                        { coluna: 'Entrada2', hora: empRef.punches?.ent2 || empRef.ent2, slot: 'ent2', grupo: 2 },
+                        { coluna: 'Saida2', hora: empRef.punches?.sai2 || empRef.sai2, slot: 'sai2', grupo: 2 },
+                        { coluna: 'Entrada3', hora: empRef.punches?.ent3 || empRef.ent3, slot: 'ent3', grupo: 3 },
+                        { coluna: 'Saida3', hora: empRef.punches?.sai3 || empRef.sai3, slot: 'sai3', grupo: 3 }
+                    ].filter(item => item.hora)
+                     .filter(item => {
+                        // Filtrar horários que JÁ ESTAVAM batidos antes do OCR (não reenviar)
+                        const originais = empRef._punchesOriginais;
+                        if (originais && originais[item.slot] && originais[item.slot] === item.hora) {
+                            console.log(`   ⏭ Pulando ${item.coluna} (${item.hora}) - já batido no Secullum`);
+                            return false;
+                        }
+                        return true;
+                    });
                     
                     let funcionarioId = empRef.rawData?.FuncionarioId || empRef.dadosCompletos?.FuncionarioId;
                     let numeroFolha = empRef.rawData?.Funcionario?.NumeroFolha || empRef.NumeroFolha;
