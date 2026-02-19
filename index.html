@@ -9588,19 +9588,10 @@
                     }
                 }
                 
-                // ⚠️ AVISAR APENAS SE HÁ REIMPRESSÕES
+                // ⚠️ Aviso rápido se há reimpressões (não bloqueia)
                 if (existentes > 0 && nomesExistentes && nomesExistentes.length > 0) {
-                    hideLoading(); // Esconder loading antes do confirm
-                    const nomes = nomesExistentes.join('\n• ');
-                    const confirmar = confirm(
-                        `⚠️ REIMPRESSÃO DETECTADA\n\n` +
-                        `Os seguintes registros já foram impressos:\n\n• ${nomes}\n\n` +
-                        `Deseja REIMPRIMIR mesmo assim?`
-                    );
-                    
-                    if (!confirmar) {
-                        return;
-                    }
+                    const nomes = nomesExistentes.join(', ');
+                    showToast(`⚠️ Reimpressão: ${nomes}`, 'warning', 4000);
                 }
                 
                 // Esconder loading antes de mostrar preview
