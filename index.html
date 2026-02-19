@@ -976,6 +976,101 @@
             outline: 2px solid #3b82f6 !important;
         }
 
+        /* ========== TOAST NOTIFICATIONS ========== */
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 10002;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            pointer-events: none;
+            max-width: 420px;
+        }
+
+        .toast {
+            pointer-events: auto;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 20px;
+            border-radius: 10px;
+            color: #fff;
+            font-size: 13px;
+            font-weight: 500;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.35);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255,255,255,0.08);
+            animation: toastIn 0.35s cubic-bezier(.21,1.02,.73,1) forwards;
+            opacity: 0;
+            transform: translateX(80px);
+            cursor: pointer;
+            max-width: 420px;
+            word-break: break-word;
+        }
+
+        .toast.removing {
+            animation: toastOut 0.3s ease-in forwards;
+        }
+
+        .toast.success { background: linear-gradient(135deg, rgba(16,185,129,0.92), rgba(5,150,105,0.92)); }
+        .toast.error   { background: linear-gradient(135deg, rgba(239,68,68,0.92), rgba(220,38,38,0.92)); }
+        .toast.warning { background: linear-gradient(135deg, rgba(245,158,11,0.92), rgba(217,119,6,0.92)); }
+        .toast.info    { background: linear-gradient(135deg, rgba(59,130,246,0.92), rgba(37,99,235,0.92)); }
+
+        .toast-icon { font-size: 18px; flex-shrink: 0; }
+        .toast-msg  { flex: 1; line-height: 1.4; }
+        .toast-close {
+            flex-shrink: 0;
+            background: none;
+            border: none;
+            color: rgba(255,255,255,0.6);
+            font-size: 16px;
+            cursor: pointer;
+            padding: 0 0 0 8px;
+            line-height: 1;
+        }
+        .toast-close:hover { color: #fff; }
+
+        @keyframes toastIn {
+            from { opacity: 0; transform: translateX(80px); }
+            to   { opacity: 1; transform: translateX(0); }
+        }
+        @keyframes toastOut {
+            from { opacity: 1; transform: translateX(0); }
+            to   { opacity: 0; transform: translateX(80px); }
+        }
+
+        /* ========== SELECTION COUNTER ========== */
+        .selection-counter {
+            display: none;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 16px;
+            background: linear-gradient(135deg, rgba(59,130,246,0.15), rgba(139,92,246,0.15));
+            border: 1px solid rgba(59,130,246,0.3);
+            border-radius: 10px;
+            color: #93c5fd;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            transition: all 0.25s ease;
+        }
+        .selection-counter.active {
+            display: flex;
+        }
+        .selection-counter .count-badge {
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            color: #fff;
+            padding: 2px 10px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 700;
+            min-width: 28px;
+            text-align: center;
+        }
+
         /* TAREFA 7: Estilos para drag-and-drop */
         .punch-cell[draggable="true"] {
             cursor: grab !important;
@@ -1403,6 +1498,9 @@
         </div>
     </div>
 
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
     <!-- Custom Alert -->
     <div class="custom-alert" id="customAlert">
         <div class="alert-content">
@@ -1583,6 +1681,13 @@
             </div>
         </div>
 
+        <!-- Selection Counter -->
+        <div class="selection-counter" id="selectionCounter">
+            <span>✅ Selecionados:</span>
+            <span class="count-badge" id="selectionCount">0</span>
+            <span id="selectionLabel">colaboradores</span>
+        </div>
+
         <!-- Table -->
         <div class="table-card">
             <table>
@@ -1736,42 +1841,77 @@
             overlay.classList.remove('active');
         }
 
+        // ==========================================
+        // TOAST NOTIFICATIONS (substituem showAlert)
+        // ==========================================
+        function showToast(message, type = 'info', duration = 3500) {
+            const container = document.getElementById('toastContainer');
+            const icons = { success: '✅', error: '❌', warning: '⚠️', info: 'ℹ️' };
+
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.innerHTML = `
+                <span class="toast-icon">${icons[type] || icons.info}</span>
+                <span class="toast-msg">${message.replace(/\n/g, '<br>')}</span>
+                <button class="toast-close" onclick="this.parentElement.classList.add('removing');setTimeout(()=>this.parentElement.remove(),300)">&times;</button>
+            `;
+            container.appendChild(toast);
+
+            // Auto-remove
+            const autoTimer = setTimeout(() => {
+                toast.classList.add('removing');
+                setTimeout(() => toast.remove(), 300);
+            }, duration);
+
+            // Click to dismiss faster
+            toast.addEventListener('click', () => {
+                clearTimeout(autoTimer);
+                toast.classList.add('removing');
+                setTimeout(() => toast.remove(), 300);
+            });
+
+            // Limit max toasts visible
+            const toasts = container.querySelectorAll('.toast');
+            if (toasts.length > 5) {
+                toasts[0].classList.add('removing');
+                setTimeout(() => toasts[0].remove(), 300);
+            }
+        }
+
+        // Redirecionar showAlert → showToast (compatibilidade)
         function showAlert(title, message, type = 'info') {
-            const alert = document.getElementById('customAlert');
-            const header = document.getElementById('alertHeader');
-            const titleEl = document.getElementById('alertTitle');
-            const body = document.getElementById('alertBody');
-            
-            // ãcones baseados no tipo
-            const icons = {
-                success: '?',
-                error: '?',
-                warning: '⚠️',
-                info: 'ℹ️'
-            };
-            
-            titleEl.innerHTML = `${icons[type] || icons.info} ${title}`;
-            body.textContent = message;
-            header.className = `alert-header ${type}`;
-            alert.classList.add('active');
+            showToast(message, type);
+        }
+
+        // Alias para compatibilidade
+        function showNotification(message, type = 'info') {
+            showToast(message, type);
         }
 
         function hideAlert() {
             document.getElementById('customAlert').classList.remove('active');
         }
 
-        // Alias para compatibilidade
-        function showNotification(message, type = 'info') {
-            const titles = {
-                success: 'Sucesso',
-                error: 'Erro',
-                warning: 'Atenção',
-                info: 'Informação'
-            };
-            showAlert(titles[type] || titles.info, message, type);
+        // ==========================================
+        // SELECTION COUNTER
+        // ==========================================
+        function updateSelectionCounter() {
+            const counter = document.getElementById('selectionCounter');
+            const countEl = document.getElementById('selectionCount');
+            const labelEl = document.getElementById('selectionLabel');
+            if (!counter || !countEl) return;
+
+            const count = selectedEmployees.length;
+            if (count > 0) {
+                counter.classList.add('active');
+                countEl.textContent = count;
+                labelEl.textContent = count === 1 ? 'colaborador selecionado' : 'colaboradores selecionados';
+            } else {
+                counter.classList.remove('active');
+            }
         }
 
-        // Fechar alert ao clicar no botão OK
+        // Fechar alert legado ao clicar no botão OK (mantém para modais)
         document.getElementById('alertOkBtn').addEventListener('click', () => {
             document.getElementById('customAlert').classList.remove('active');
         });
@@ -2920,7 +3060,10 @@
                                 _empresa: firstRecord.empresa,
                                 _empresaId: empresaId,
                                 _funcionarioNome: firstRecord.name,
-                                _funcionarioCpf: firstRecord.cpf
+                                _funcionarioCpf: firstRecord.cpf,
+                                // Copiar FuncionarioId e Funcionario do primeiro registro (necessário para envio Secullum)
+                                FuncionarioId: firstRecord.rawData?.FuncionarioId || null,
+                                Funcionario: firstRecord.rawData?.Funcionario || null
                             },
                             nomeLider: firstRecord.nomeLider || null,
                             projeto: firstRecord.projeto || null
@@ -3543,6 +3686,8 @@
             
             const row = e.target.closest('tr');
             if (row) row.classList.toggle('selected', e.target.checked);
+            
+            updateSelectionCounter();
         }
 
         // Conectar ã API (apenas autenticação)
@@ -7036,7 +7181,16 @@
                 if (empRef.pendingSwap || empRef.movedPunches) {
                     console.log('🔄 Enviando TROCA de horários para Secullum...');
                     
-                    const numeroFolha = empRef.rawData?.Funcionario?.NumeroFolha || empRef.NumeroFolha;
+                    let numeroFolha = empRef.rawData?.Funcionario?.NumeroFolha || empRef.NumeroFolha;
+                    
+                    // Fallback: buscar NumeroFolha de outro registro do mesmo funcionário
+                    if (!numeroFolha) {
+                        const outroRegistro = allEmployees.find(e => e.reg === empRef.reg && e.rawData?.Funcionario?.NumeroFolha);
+                        if (outroRegistro) {
+                            numeroFolha = outroRegistro.rawData.Funcionario.NumeroFolha;
+                            console.log(`ℹ NumeroFolha obtido de outro registro do mesmo funcionário`);
+                        }
+                    }
                     
                     if (!numeroFolha) {
                         throw new Error('NumeroFolha não encontrado!');
@@ -7125,8 +7279,18 @@
                         { coluna: 'Saida3', hora: empRef.punches?.sai3 || empRef.sai3, grupo: 3 }
                     ].filter(item => item.hora);
                     
-                    const funcionarioId = empRef.rawData?.FuncionarioId || empRef.dadosCompletos?.FuncionarioId;
-                    const numeroFolha = empRef.rawData?.Funcionario?.NumeroFolha || empRef.NumeroFolha;
+                    let funcionarioId = empRef.rawData?.FuncionarioId || empRef.dadosCompletos?.FuncionarioId;
+                    let numeroFolha = empRef.rawData?.Funcionario?.NumeroFolha || empRef.NumeroFolha;
+                    
+                    // Fallback: buscar FuncionarioId/NumeroFolha de outro registro do mesmo funcionário
+                    if (!funcionarioId || !numeroFolha) {
+                        const outroRegistro = allEmployees.find(e => e.reg === empRef.reg && e.rawData?.FuncionarioId);
+                        if (outroRegistro) {
+                            if (!funcionarioId) funcionarioId = outroRegistro.rawData.FuncionarioId;
+                            if (!numeroFolha) numeroFolha = outroRegistro.rawData?.Funcionario?.NumeroFolha || outroRegistro.NumeroFolha;
+                            console.log(`ℹ FuncionarioId/NumeroFolha obtidos de outro registro do mesmo funcionário`);
+                        }
+                    }
                     
                     if (!funcionarioId) {
                         throw new Error('FuncionarioId não encontrado!');
@@ -9228,6 +9392,8 @@
                     }
                 }
             });
+            
+            updateSelectionCounter();
         });
 
         // funçãoo compartilhada de geração de PDF
