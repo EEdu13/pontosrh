@@ -8,10 +8,12 @@ if (typeof globalThis.crypto === 'undefined') {
 const express = require('express');
 const sql = require('mssql');
 const cors = require('cors');
-const path = require('path');
 const { BlobServiceClient } = require('@azure/storage-blob');
+const multer = require('multer');
 const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
 const fetch = require('node-fetch');
+const upload = multer({ storage: multer.memoryStorage() });
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -19,12 +21,26 @@ const PORT = process.env.PORT || 3000;
 // ==========================================
 // CONFIGURAÇÃO DE AUTENTICAÇÃO
 // ==========================================
-const JWT_SECRET = process.env.JWT_SECRET;
-if (!JWT_SECRET) {
-    console.error('❌ FATAL: JWT_SECRET não configurado! Configure a variável de ambiente.');
-    process.exit(1);
-}
+const JWT_SECRET = process.env.JWT_SECRET || 'sua_chave_secreta_super_segura_aqui_mude_em_producao';
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
+
+// Usuários do sistema (em produção, usar banco de dados)
+const USERS = [
+    {
+        id: 1,
+        username: 'admin',
+        password: '$2a$10$XQZ5YJ8C2L8rqYJ8C2L8rOxYJ8C2L8rqYJ8C2L8rqYJ8C2L8rqYJ8', // senha: admin123
+        name: 'Administrador',
+        role: 'admin'
+    },
+    {
+        id: 2,
+        username: 'rh',
+        password: '$2a$10$XQZ5YJ8C2L8rqYJ8C2L8rOxYJ8C2L8rqYJ8C2L8rqYJ8C2L8rqYJ8', // senha: rh123
+        name: 'RH',
+        role: 'rh'
+    }
+];
 
 // Middleware de autenticação
 function authenticateToken(req, res, next) {
@@ -46,30 +62,22 @@ function authenticateToken(req, res, next) {
 
 // Middleware
 app.use(cors());
-app.use(express.json({ limit: '10mb' })); // Limite para imagens base64
-app.use(express.urlencoded({ limit: '10mb', extended: true }));
+app.use(express.json({ limit: '50mb' })); // Aumentar limite para imagens base64
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
-// Servir apenas arquivos frontend (NÃO expor server.js, config.js, etc)
-const ALLOWED_FILES = ['index.html', 'login.html', 'monitor.html', 'relatorio.html', 'presenca.html', 'teste.html'];
-app.use(express.static(path.join(__dirname, 'public')));
-// Servir arquivos HTML da raiz de forma segura
-ALLOWED_FILES.forEach(file => {
-    const filePath = path.join(__dirname, file);
-    app.get(`/${file}`, (req, res) => {
-        res.sendFile(filePath);
-    });
-});
+// Servir arquivos estáticos (HTML, CSS, JS)
+app.use(express.static('.'));
 
 // Rota raiz vai para login
 app.get('/', (req, res) => {
     res.sendFile(__dirname + '/login.html');
 });
 
-// Configuração do SQL Azure (TODAS via variáveis de ambiente)
+// Configuração do SQL Azure
 const sqlConfig = {
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    server: process.env.DB_SERVER,
+    user: process.env.DB_USER || 'sqladmin',
+    password: process.env.DB_PASSWORD || 'SenhaForte123!',
+    server: process.env.DB_SERVER || 'alrflorestal.database.windows.net',
     database: process.env.DB_DATABASE || 'Tabela_teste',
     options: {
         encrypt: true, // Azure requer criptografia
@@ -93,7 +101,6 @@ const CONTAINER_NAME = process.env.AZURE_STORAGE_CONTAINER || 'justificativas';
 // Token da API Secullum (deve ser gerado via /Token endpoint)
 // NOTA: Este token expira! Em produção, implementar renovação automática
 let SECULLUM_TOKEN = '';
-let tokenRenewalTimer = null; // Timer único para renovação de token
 
 // Cliente do Blob Storage
 let blobServiceClient;
@@ -115,8 +122,6 @@ function initBlobStorage() {
 let poolPromise;
 let sqlConnected = false;
 let tokenRenewalInProgress = false;
-const DB_RECONNECT_INTERVAL = 30000; // 30 segundos entre tentativas de reconexão
-const DB_MAX_RETRIES = 10;
 
 // Autenticar na API Secullum e obter token
 async function authenticateSecullum() {
@@ -129,14 +134,6 @@ async function authenticateSecullum() {
     
     try {
         console.log('🔑 Autenticando na API Secullum...');
-        const secullumUser = process.env.SECULLUM_USERNAME;
-        const secullumPass = process.env.SECULLUM_PASSWORD;
-        const secullumClientId = process.env.SECULLUM_CLIENT_ID || '3';
-        
-        if (!secullumUser || !secullumPass) {
-            throw new Error('SECULLUM_USERNAME e SECULLUM_PASSWORD não configurados!');
-        }
-        
         const response = await fetch('https://autenticador.secullum.com.br/Token', {
             method: 'POST',
             headers: {
@@ -144,9 +141,9 @@ async function authenticateSecullum() {
             },
             body: new URLSearchParams({
                 grant_type: 'password',
-                username: secullumUser,
-                password: secullumPass,
-                client_id: secullumClientId
+                username: 'ferreira.eduardo@larsil.com.br',
+                password: 'larsil123@',
+                client_id: '3'
             })
         });
         
@@ -158,9 +155,8 @@ async function authenticateSecullum() {
         SECULLUM_TOKEN = data.access_token;
         console.log('✅ Token Secullum obtido com sucesso');
         
-        // Limpar timer anterior antes de criar novo (evitar stacking)
-        if (tokenRenewalTimer) clearTimeout(tokenRenewalTimer);
-        tokenRenewalTimer = setTimeout(authenticateSecullum, 50 * 60 * 1000);
+        // Renovar token antes de expirar (a cada 50 minutos, expira em 60)
+        setTimeout(authenticateSecullum, 50 * 60 * 1000);
         
     } catch (err) {
         console.error('❌ Erro ao autenticar Secullum:', err.message);
@@ -171,36 +167,15 @@ async function authenticateSecullum() {
     }
 }
 
-// Conectar ao SQL Azure com retry automático
-async function connectDB(retryCount = 0) {
+// Conectar ao SQL Azure
+async function connectDB() {
     try {
-        // Fechar pool anterior se existir
-        if (poolPromise) {
-            try { const oldPool = await poolPromise; await oldPool.close(); } catch (e) { /* ignore */ }
-        }
         poolPromise = sql.connect(sqlConfig);
-        const pool = await poolPromise;
+        await poolPromise;
         sqlConnected = true;
-        console.log('✅ SQL Azure conectado com sucesso');
-        
-        // Listener para erro de conexão (reconectar automaticamente)
-        pool.on('error', (err) => {
-            console.error('❌ Erro na conexão SQL:', err.message);
-            sqlConnected = false;
-            console.log('🔄 Tentando reconectar ao SQL Azure...');
-            setTimeout(() => connectDB(0), DB_RECONNECT_INTERVAL);
-        });
     } catch (err) {
         sqlConnected = false;
-        console.error(`❌ Erro ao conectar SQL Azure (tentativa ${retryCount + 1}):`, err.message);
-        
-        if (retryCount < DB_MAX_RETRIES) {
-            const delay = Math.min(DB_RECONNECT_INTERVAL * (retryCount + 1), 120000);
-            console.log(`🔄 Reconectando em ${delay/1000}s...`);
-            setTimeout(() => connectDB(retryCount + 1), delay);
-        } else {
-            console.error('❌ Máximo de tentativas de reconexão atingido. Servidor rodando sem SQL.');
-        }
+        console.error('Erro ao conectar SQL Azure:', err.message);
     }
 }
 
@@ -248,12 +223,13 @@ app.post('/api/auth/login', async (req, res) => {
             userName = userInfo.Nome || userName;
         }
 
-        // Gerar token JWT interno do sistema (SEM incluir secullumToken)
+        // Gerar token JWT interno do sistema
         const token = jwt.sign(
             { 
                 username,
                 name: userName,
-                role: 'user'
+                role: 'user',
+                secullumToken: secullumData.access_token
             },
             JWT_SECRET,
             { expiresIn: JWT_EXPIRES_IN }
@@ -284,7 +260,7 @@ app.post('/api/auth/logout', (req, res) => {
     res.json({ success: true, message: 'Logout realizado' });
 });
 
-// GET - Obter configurações da API Secullum (protegido - SEM senha)
+// GET - Obter configurações da API Secullum (protegido)
 app.get('/api/secullum-config', authenticateToken, (req, res) => {
     res.json({
         authURL: process.env.SECULLUM_AUTH_URL || 'https://autenticador.secullum.com.br/Token',
@@ -292,14 +268,14 @@ app.get('/api/secullum-config', authenticateToken, (req, res) => {
         credentials: {
             grant_type: 'password',
             username: process.env.SECULLUM_USERNAME || '',
+            password: process.env.SECULLUM_PASSWORD || '',
             client_id: process.env.SECULLUM_CLIENT_ID || '3'
-            // password NÃO é enviado ao frontend por segurança
         }
     });
 });
 
-// GET - Obter configurações do Azure Vision (protegido)
-app.get('/api/azure-vision-config', authenticateToken, (req, res) => {
+// GET - Obter configurações do Azure Vision (SEM autenticação - usado antes do login)
+app.get('/api/azure-vision-config', (req, res) => {
     res.json({
         apiKey: process.env.AZURE_VISION_KEY || '',
         endpoint: process.env.AZURE_VISION_ENDPOINT || 'https://testedeocr123.cognitiveservices.azure.com/'
@@ -324,7 +300,7 @@ app.get('/api/colaboradores', authenticateToken, async (req, res) => {
 });
 
 // GET - Buscar colaborador por ID
-app.get('/api/colaboradores/:id', authenticateToken, async (req, res) => {
+app.get('/api/colaboradores/:id', async (req, res) => {
     try {
         const pool = await poolPromise;
         const result = await pool.request()
@@ -343,7 +319,7 @@ app.get('/api/colaboradores/:id', authenticateToken, async (req, res) => {
 });
 
 // GET - Buscar colaborador por REG (número de registro)
-app.get('/api/colaboradores/reg/:reg', authenticateToken, async (req, res) => {
+app.get('/api/colaboradores/reg/:reg', async (req, res) => {
     try {
         const pool = await poolPromise;
         const result = await pool.request()
@@ -362,7 +338,7 @@ app.get('/api/colaboradores/reg/:reg', authenticateToken, async (req, res) => {
 });
 
 // GET - Buscar colaborador por CPF (para fazer match com Secullum)
-app.get('/api/colaboradores/cpf/:cpf', authenticateToken, async (req, res) => {
+app.get('/api/colaboradores/cpf/:cpf', async (req, res) => {
     try {
         const pool = await poolPromise;
         // Remove formatação do CPF (pontos e traços)
@@ -387,7 +363,7 @@ app.get('/api/colaboradores/cpf/:cpf', authenticateToken, async (req, res) => {
 });
 
 // POST - Buscar múltiplos colaboradores por CPFs (batch)
-app.post('/api/colaboradores/batch-cpf', authenticateToken, async (req, res) => {
+app.post('/api/colaboradores/batch-cpf', async (req, res) => {
     try {
         if (!sqlConnected) {
             return res.status(503).json({ 
@@ -435,12 +411,12 @@ app.post('/api/colaboradores/batch-cpf', authenticateToken, async (req, res) => 
         res.json(result.recordset);
     } catch (err) {
         console.error('Erro ao buscar colaboradores por CPFs:', err.message);
-        res.status(500).json({ error: err.message });
+        res.status(500).json({ error: err.message, details: err.stack });
     }
 });
 
 // POST - Criar novo colaborador
-app.post('/api/colaboradores', authenticateToken, async (req, res) => {
+app.post('/api/colaboradores', async (req, res) => {
     try {
         const { Reg, Nome, CPF, Empresa, Email, Telefone } = req.body;
         
@@ -466,7 +442,7 @@ app.post('/api/colaboradores', authenticateToken, async (req, res) => {
 });
 
 // PUT - Atualizar colaborador
-app.put('/api/colaboradores/:id', authenticateToken, async (req, res) => {
+app.put('/api/colaboradores/:id', async (req, res) => {
     try {
         const { Reg, Nome, CPF, Empresa, Email, Telefone } = req.body;
         
@@ -503,7 +479,7 @@ app.put('/api/colaboradores/:id', authenticateToken, async (req, res) => {
 });
 
 // DELETE - Deletar colaborador
-app.delete('/api/colaboradores/:id', authenticateToken, async (req, res) => {
+app.delete('/api/colaboradores/:id', async (req, res) => {
     try {
         const pool = await poolPromise;
         const result = await pool.request()
@@ -525,8 +501,8 @@ app.delete('/api/colaboradores/:id', authenticateToken, async (req, res) => {
 // ENDPOINTS - ANEXOS (Azure Blob + SQL)
 // ==========================================
 
-// POST - Upload de anexo (imagem) - PROTEGIDO
-app.post('/api/anexos/upload', authenticateToken, async (req, res) => {
+// POST - Upload de anexo (imagem) - SEM AUTENTICAÇÃO JWT (usa apenas validação de dados)
+app.post('/api/anexos/upload', async (req, res) => {
     try {
         let { reg, cpf, data, empresa_id, empresa_nome, funcionario_nome, imageBase64, motivo, ocr_texto, horarios, created_by, justificativa_secullum, justificativa_folha } = req.body;
         
@@ -548,9 +524,6 @@ app.post('/api/anexos/upload', authenticateToken, async (req, res) => {
         const buffer = Buffer.from(base64Data, 'base64');
         
         // Upload pro Azure Blob
-        if (!containerClient) {
-            throw new Error('Azure Blob Storage não inicializado');
-        }
         const blockBlobClient = containerClient.getBlockBlobClient(filename);
         await blockBlobClient.uploadData(buffer, {
             blobHTTPHeaders: { blobContentType: 'image/png' }
@@ -561,7 +534,7 @@ app.post('/api/anexos/upload', authenticateToken, async (req, res) => {
         // Salvar no SQL (usando REG + DATA + EMPRESA_ID como chave única)
         if (sqlConnected) {
             const pool = await poolPromise;
-            const userName = created_by || 'Sistema';
+            const userName = created_by || 'Sistema'; // Usar created_by do frontend
             
             await pool.request()
                 .input('cpf', sql.VarChar, cpf)
@@ -612,13 +585,13 @@ app.post('/api/anexos/upload', authenticateToken, async (req, res) => {
         });
         
     } catch (err) {
-        console.error('❌ Erro ao fazer upload:', err.message);
-        res.status(500).json({ error: 'Erro ao fazer upload do anexo' });
+        console.error('❌ Erro ao fazer upload:', err);
+        res.status(500).json({ error: err.message, stack: err.stack });
     }
 });
 
 // GET - Buscar anexos por data e empresa
-app.get('/api/anexos/por-data/:data/:empresa_id', authenticateToken, async (req, res) => {
+app.get('/api/anexos/:data/:empresa_id', async (req, res) => {
     try {
         if (!sqlConnected) {
             return res.json([]);
@@ -644,12 +617,12 @@ app.get('/api/anexos/por-data/:data/:empresa_id', authenticateToken, async (req,
         res.json(result.recordset);
     } catch (err) {
         console.error('Erro ao buscar anexos:', err.message);
-        res.status(500).json({ error: 'Erro ao buscar anexos' });
+        res.status(500).json({ error: err.message });
     }
 });
 
 // GET - Buscar anexo específico por REG e Data
-app.get('/api/anexos/por-reg/:reg/:data', authenticateToken, async (req, res) => {
+app.get('/api/anexos/:reg/:data', async (req, res) => {
     try {
         if (!sqlConnected || !poolPromise) {
             return res.status(404).json({ error: 'Anexo não encontrado' });
@@ -685,7 +658,7 @@ app.get('/api/anexos/por-reg/:reg/:data', authenticateToken, async (req, res) =>
 });
 
 // PUT - Atualizar APENAS as perguntas de um anexo (usando CPF + DATA) - PROTEGIDO
-app.put('/api/anexos/:cpf/:data/questions', authenticateToken, async (req, res) => {
+app.put('/api/anexos/:cpf/:data/questions', async (req, res) => {
     try {
         if (!sqlConnected || !poolPromise) {
             return res.status(503).json({ error: 'SQL não conectado' });
@@ -750,7 +723,7 @@ app.put('/api/anexos/:cpf/:data/questions', authenticateToken, async (req, res) 
 });
 
 // POST - Buscar dados em batch (anexos, perguntas, IDs) por período - OTIMIZADO
-app.post('/api/anexos/batch-period', authenticateToken, async (req, res) => {
+app.post('/api/anexos/batch-period', async (req, res) => {
     try {
         if (!sqlConnected || !poolPromise) {
             return res.status(503).json({ error: 'SQL não conectado' });
@@ -861,7 +834,7 @@ app.post('/api/anexos/batch-period', authenticateToken, async (req, res) => {
 });
 
 // DELETE - Remover anexo
-app.delete('/api/anexos/:id', authenticateToken, async (req, res) => {
+app.delete('/api/anexos/:id', async (req, res) => {
     try {
         if (!sqlConnected) {
             return res.status(503).json({ error: 'SQL não conectado' });
@@ -902,7 +875,7 @@ app.delete('/api/anexos/:id', authenticateToken, async (req, res) => {
 });
 
 // GET - Buscar colaboradores por empresa
-app.get('/api/colaboradores/empresa/:empresa', authenticateToken, async (req, res) => {
+app.get('/api/colaboradores/empresa/:empresa', async (req, res) => {
     try {
         const pool = await poolPromise;
         const result = await pool.request()
@@ -937,8 +910,8 @@ app.get('/api/test', async (req, res) => {
 // INICIALIZAÇÃO
 // ==========================================
 
-// GET - Monitor de equipamentos de ponto (PROTEGIDO)
-app.get('/api/machine-monitor', authenticateToken, async (req, res) => {
+// GET - Monitor de equipamentos de ponto (SEM AUTENTICAÇÃO JWT - usa token Secullum)
+app.get('/api/machine-monitor', async (req, res) => {
     try {
         const { bancoid, dataInicio: dataInicioParam, dataFim: dataFimParam } = req.query;
         
@@ -1046,7 +1019,7 @@ app.get('/api/machine-monitor', authenticateToken, async (req, res) => {
         
     } catch (err) {
         console.error('❌ Erro ao consultar equipamentos:', err.message);
-        res.status(500).json({ error: 'Erro ao consultar equipamentos' });
+        res.status(500).json({ error: err.message, details: err.toString() });
     }
 });
 
@@ -1055,7 +1028,7 @@ app.get('/api/machine-monitor', authenticateToken, async (req, res) => {
 // ==========================================
 
 // GET - Estatísticas de justificativas por período
-app.get('/api/relatorio/estatisticas', authenticateToken, async (req, res) => {
+app.get('/api/relatorio/estatisticas', async (req, res) => {
     try {
         if (!sqlConnected || !poolPromise) {
             return res.status(503).json({ error: 'SQL não conectado' });
@@ -1144,18 +1117,27 @@ app.get('/api/relatorio/estatisticas', authenticateToken, async (req, res) => {
         });
 
     } catch (err) {
-        console.error('❌ Erro ao buscar estatísticas:', err.message);
-        res.status(500).json({ error: 'Erro ao buscar estatísticas' });
+        console.error('❌ Erro ao buscar estatísticas:', err);
+        res.status(500).json({ error: err.message });
     }
 });
 
+async function initServer() {
+    await connectDB();
+    initBlobStorage();
+    await authenticateSecullum();
+    
+    app.listen(PORT, () => {
+        console.log('\nServidor iniciado em http://localhost:' + PORT + '\n');
+    });
+}
+            
+
+initServer();
 // 🆔 SALVAR JUSTIFICATIVA PARA IMPRESSÃO
-app.post('/api/justificativa/salvar', authenticateToken, async (req, res) => {
+// Salva a justificativa no banco e retorna o ID auto-increment
+app.post('/api/justificativa/salvar', async (req, res) => {
     try {
-        if (!sqlConnected) {
-            return res.status(503).json({ error: 'SQL não conectado' });
-        }
-        
         const { cpf, reg, data, empresa_id, nome, motivo } = req.body;
         
         if (!cpf || !reg || !data) {
@@ -1186,6 +1168,7 @@ app.post('/api/justificativa/salvar', authenticateToken, async (req, res) => {
             .query('SELECT id FROM ANEXOS WHERE reg = @reg AND data = @data AND empresa_id = @empresa_id');
         
         if (checkResult.recordset.length > 0) {
+            // Já existe, retorna o ID existente
             return res.json({
                 id: checkResult.recordset[0].id,
                 novo: false,
@@ -1220,18 +1203,15 @@ app.post('/api/justificativa/salvar', authenticateToken, async (req, res) => {
         
     } catch (err) {
         console.error('Erro ao salvar justificativa:', err.message);
-        res.status(500).json({ error: 'Erro ao salvar justificativa' });
+        res.status(500).json({ error: 'Erro ao salvar justificativa', details: err.message });
     }
 });
 
 // 🚀 SALVAR JUSTIFICATIVAS EM BATCH
-app.post('/api/justificativa/salvar-batch', authenticateToken, async (req, res) => {
+// Salva múltiplas justificativas de uma vez para evitar múltiplas conexões
+app.post('/api/justificativa/salvar-batch', async (req, res) => {
     try {
-        if (!sqlConnected) {
-            return res.status(503).json({ error: 'SQL não conectado' });
-        }
-        
-        const { registros } = req.body;
+        const { registros } = req.body; // Array de { cpf, reg, data, empresa_id, nome, motivo }
         
         if (!registros || !Array.isArray(registros) || registros.length === 0) {
             return res.status(400).json({ error: 'Array de registros é obrigatório' });
@@ -1244,6 +1224,7 @@ app.post('/api/justificativa/salvar-batch', authenticateToken, async (req, res) 
         const existentes = [];
         const novos = [];
         
+        // Processar em uma única transação
         const transaction = pool.transaction();
         await transaction.begin();
         
@@ -1256,8 +1237,10 @@ app.post('/api/justificativa/salvar-batch', authenticateToken, async (req, res) 
                     continue;
                 }
                 
+                // Normalizar CPF
                 const cpfLimpo = cpf.replace(/[^\d]/g, '');
                 
+                // Normalizar data
                 let dataNormalizada;
                 if (data.includes('/')) {
                     const [dia, mes, ano] = data.split('/');
@@ -1268,6 +1251,7 @@ app.post('/api/justificativa/salvar-batch', authenticateToken, async (req, res) 
                     dataNormalizada = data;
                 }
                 
+                // Verificar se já existe
                 const checkResult = await transaction.request()
                     .input('reg', sql.VarChar, reg)
                     .input('data', sql.Date, dataNormalizada)
@@ -1275,10 +1259,12 @@ app.post('/api/justificativa/salvar-batch', authenticateToken, async (req, res) 
                     .query('SELECT id FROM ANEXOS WHERE reg = @reg AND data = @data AND empresa_id = @empresa_id');
                 
                 if (checkResult.recordset.length > 0) {
+                    // Já existe
                     const id = checkResult.recordset[0].id;
                     resultados.push({ reg, data: dataNormalizada, id, novo: false, nome });
                     existentes.push(nome);
                 } else {
+                    // Inserir novo
                     const insertResult = await transaction.request()
                         .input('cpf', sql.VarChar, cpfLimpo)
                         .input('reg', sql.VarChar, reg)
@@ -1320,71 +1306,41 @@ app.post('/api/justificativa/salvar-batch', authenticateToken, async (req, res) 
         
     } catch (err) {
         console.error('❌ Erro ao salvar batch:', err.message);
-        res.status(500).json({ error: 'Erro ao salvar batch de justificativas' });
+        res.status(500).json({ error: 'Erro ao salvar batch de justificativas', details: err.message });
     }
 });
 
-// Buscar IDs de registros existentes por REG + DATA + EMPRESA_ID (OTIMIZADO - query única)
-app.post('/api/justificativa/buscar-ids', authenticateToken, async (req, res) => {
+// Buscar IDs de registros existentes por REG + DATA + EMPRESA_ID
+app.post('/api/justificativa/buscar-ids', async (req, res) => {
     try {
-        if (!sqlConnected) {
-            return res.status(503).json({ error: 'SQL não conectado' });
-        }
+        const { registros } = req.body; // Array de { reg, data, empresa_id }
         
-        const { registros } = req.body;
-        
-        if (!registros || !Array.isArray(registros) || registros.length === 0) {
-            return res.json({ ids: {} });
+        if (!registros || !Array.isArray(registros)) {
+            return res.status(400).json({ error: 'Array de registros é obrigatório' });
         }
         
         const pool = await poolPromise;
         const ids = {};
         
-        // Normalizar todas as datas primeiro
-        const registrosNormalizados = registros.map(({ reg, data, empresa_id }) => {
+        for (const { reg, data, empresa_id } of registros) {
+            // Normalizar data
             let dataNormalizada = data;
-            if (data && data.includes('/')) {
+            if (data.includes('/')) {
                 const [dia, mes, ano] = data.split('/');
-                dataNormalizada = `${ano}-${mes.padStart(2, '0')}-${dia.padStart(2, '0')}`;
-            } else if (data && data.includes('T')) {
+                dataNormalizada = `${ano}-${mes}-${dia}`;
+            } else if (data.includes('T')) {
                 dataNormalizada = data.split('T')[0];
             }
-            return { reg, data: dataNormalizada, empresa_id: empresa_id || 0 };
-        });
-        
-        // Processar em batches de 100 com query IN para evitar N+1
-        const BATCH_SIZE = 100;
-        for (let i = 0; i < registrosNormalizados.length; i += BATCH_SIZE) {
-            const batch = registrosNormalizados.slice(i, i + BATCH_SIZE);
             
-            // Construir VALUES para tabela temporária in-line
-            const conditions = batch.map((r, idx) => 
-                `(@reg${idx}, @data${idx}, @emp${idx})`
-            ).join(', ');
+            const result = await pool.request()
+                .input('reg', sql.VarChar, reg)
+                .input('data', sql.Date, dataNormalizada)
+                .input('empresa_id', sql.Int, empresa_id || 0)
+                .query('SELECT id FROM ANEXOS WHERE reg = @reg AND data = @data AND empresa_id = @empresa_id');
             
-            const request = pool.request();
-            batch.forEach((r, idx) => {
-                request.input(`reg${idx}`, sql.VarChar, r.reg);
-                request.input(`data${idx}`, sql.Date, r.data);
-                request.input(`emp${idx}`, sql.Int, r.empresa_id);
-            });
-            
-            // Usar WHERE com OR para fazer uma única query
-            const orConditions = batch.map((r, idx) => 
-                `(reg = @reg${idx} AND data = @data${idx} AND empresa_id = @emp${idx})`
-            ).join(' OR ');
-            
-            const result = await request.query(`
-                SELECT id, reg, CONVERT(VARCHAR(10), data, 120) as data_str, empresa_id 
-                FROM ANEXOS 
-                WHERE ${orConditions}
-            `);
-            
-            result.recordset.forEach(row => {
-                if (row.id) {
-                    ids[`${row.reg}_${row.data_str}_${row.empresa_id}`] = row.id;
-                }
-            });
+            if (result.recordset.length > 0 && result.recordset[0].id) {
+                ids[`${reg}_${dataNormalizada}_${empresa_id}`] = result.recordset[0].id;
+            }
         }
         
         res.json({ ids });
@@ -1395,25 +1351,9 @@ app.post('/api/justificativa/buscar-ids', authenticateToken, async (req, res) =>
     }
 });
 
-// ==========================================
-// INICIAR SERVIDOR
-// ==========================================
-async function initServer() {
-    await connectDB();
-    initBlobStorage();
-    await authenticateSecullum();
-    
-    app.listen(PORT, () => {
-        console.log('\nServidor iniciado em http://localhost:' + PORT + '\n');
-    });
-}
-
-initServer();
-
 // Graceful shutdown
 process.on('SIGINT', async () => {
     try {
-        if (tokenRenewalTimer) clearTimeout(tokenRenewalTimer);
         if (poolPromise) {
             const pool = await poolPromise;
             await pool.close();

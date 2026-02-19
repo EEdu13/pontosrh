@@ -1416,20 +1416,6 @@
         </div>
     </div>
 
-    <!-- Custom Confirm -->
-    <div class="custom-alert" id="customConfirm">
-        <div class="alert-content">
-            <div class="alert-header warning" id="confirmHeader">
-                <div class="alert-title" id="confirmTitle"></div>
-            </div>
-            <div class="alert-body" id="confirmBody" style="white-space: pre-line;"></div>
-            <div class="alert-footer" style="display: flex; gap: 12px; justify-content: flex-end;">
-                <button class="alert-btn" id="confirmCancelBtn" style="background: #6b7280; color: white; padding: 10px 24px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">Cancelar</button>
-                <button class="alert-btn primary" id="confirmOkBtn">Confirmar</button>
-            </div>
-        </div>
-    </div>
-
     <!-- Modal de Pergunta -->
     <div class="custom-alert" id="questionModal">
         <div class="alert-content" style="min-width: 500px;">
@@ -1764,7 +1750,7 @@
                 info: 'ℹ️'
             };
             
-            titleEl.innerHTML = `${icons[type] || icons.info} ${escapeHtml(title)}`;
+            titleEl.innerHTML = `${icons[type] || icons.info} ${title}`;
             body.textContent = message;
             header.className = `alert-header ${type}`;
             alert.classList.add('active');
@@ -1772,35 +1758,6 @@
 
         function hideAlert() {
             document.getElementById('customAlert').classList.remove('active');
-        }
-
-        // Confirm dialog customizado (retorna Promise<boolean>)
-        function showConfirm(title, message) {
-            return new Promise((resolve) => {
-                const modal = document.getElementById('customConfirm');
-                const titleEl = document.getElementById('confirmTitle');
-                const body = document.getElementById('confirmBody');
-                const okBtn = document.getElementById('confirmOkBtn');
-                const cancelBtn = document.getElementById('confirmCancelBtn');
-
-                titleEl.innerHTML = `⚠️ ${escapeHtml(title)}`;
-                body.textContent = message;
-                modal.classList.add('active');
-
-                function cleanup() {
-                    modal.classList.remove('active');
-                    okBtn.removeEventListener('click', onOk);
-                    cancelBtn.removeEventListener('click', onCancel);
-                    modal.removeEventListener('click', onOutside);
-                }
-                function onOk() { cleanup(); resolve(true); }
-                function onCancel() { cleanup(); resolve(false); }
-                function onOutside(e) { if (e.target === modal) { cleanup(); resolve(false); } }
-
-                okBtn.addEventListener('click', onOk);
-                cancelBtn.addEventListener('click', onCancel);
-                modal.addEventListener('click', onOutside);
-            });
         }
 
         // Alias para compatibilidade
@@ -1937,15 +1894,6 @@
             currentPage = 1;
             renderTable();
         }, 300);
-
-        // Mapa de labels para tipos de batida (usado em vários locais)
-        const PUNCH_LABELS = {
-            'ent1': 'Entrada 1', 'sai1': 'Saída 1',
-            'ent2': 'Entrada 2', 'sai2': 'Saída 2',
-            'ent3': 'Entrada 3', 'sai3': 'Saída 3',
-            'ent4': 'Entrada 4', 'sai4': 'Saída 4',
-            'ent5': 'Entrada 5', 'sai5': 'Saída 5'
-        };
 
         const SMART_CACHE = {
             employees: new Map(),      // ✅ NOVO: cache por funcionário (REG_DATA_EMPRESA)
@@ -2103,19 +2051,6 @@
         }
 
         // ==========================================
-        // HELPER: Sanitizar HTML para prevenir XSS
-        // ==========================================
-        function escapeHtml(str) {
-            if (str == null) return '';
-            return String(str)
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;')
-                .replace(/"/g, '&quot;')
-                .replace(/'/g, '&#039;');
-        }
-
-        // ==========================================
         // HELPER: Adicionar token de autenticação em todas as requisições
         // ==========================================
         function getAuthHeaders(additionalHeaders = {}) {
@@ -2173,9 +2108,7 @@
                     return sqlColaboradoresCache[cpfLimpo];
                 }
 
-                const response = await fetch(`${SQL_API.baseURL}${SQL_API.endpoints.colaboradorByCPF}/${cpfLimpo}`, {
-                    headers: getAuthHeaders()
-                });
+                const response = await fetch(`${SQL_API.baseURL}${SQL_API.endpoints.colaboradorByCPF}/${cpfLimpo}`);
                 
                 if (response.ok) {
                     const data = await response.json();
@@ -2195,7 +2128,9 @@
             try {
                 const response = await fetch(`${SQL_API.baseURL}${SQL_API.endpoints.colaboradoresBatchCPF}`, {
                     method: 'POST',
-                    headers: getAuthHeaders(),
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
                     body: JSON.stringify({ cpfs })
                 });
                 
@@ -3892,9 +3827,7 @@
                         const dataStr = d.toISOString().split('T')[0];
                         
                         try {
-                            const response = await fetch(`${API_BASE_URL}/api/anexos/por-data/${dataStr}/${empresaId}`, {
-                                headers: getAuthHeaders()
-                            });
+                            const response = await fetch(`${API_BASE_URL}/api/anexos/${dataStr}/${empresaId}`);
                             
                             if (!response.ok) {
                                 continue; // Nenhum anexo nesta data
@@ -4051,7 +3984,7 @@
                         const dataStr = d.toISOString().split('T')[0];
                         
                         try {
-                            const response = await fetch(`${API_BASE_URL}/api/anexos/por-data/${dataStr}/${empresaId}`, {
+                            const response = await fetch(`${API_BASE_URL}/api/anexos/${dataStr}/${empresaId}`, {
                                 headers: getAuthHeaders()
                             });
                             
@@ -4198,7 +4131,9 @@
                 
                 const response = await fetch(`${API_BASE_URL}/api/justificativa/buscar-ids`, {
                     method: 'POST',
-                    headers: getAuthHeaders(),
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
                     body: JSON.stringify({ registros })
                 });
                 
@@ -4593,12 +4528,12 @@
                             🔄
                         </button>
                     </td>
-                    <td style="font-weight: 600; font-size: 11px; min-width: 150px; max-width: 180px; color: #7c3aed;">${escapeHtml(emp.nomeLider) || '-'}</td>
-                    <td style="font-weight: 600; font-size: 11px; min-width: 100px; max-width: 120px; color: #000; ${corDestaque}">${escapeHtml(emp.projeto) || '-'}</td>
-                    <td style="font-weight: 600; font-size: 11px; min-width: 120px; max-width: 140px; color: #000; ${corDestaque}">${escapeHtml(emp.projetoSecullum) || '-'}</td>
-                    <td style="font-weight: 600; font-size: 12px; min-width: 180px; max-width: 220px;">${escapeHtml(emp.name)}</td>
-                    <td style="font-family: 'Courier New', monospace; font-size: 12px; width: 140px;">${emp.cpf ? escapeHtml(emp.cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')) : 'N/A'}</td>
-                    <td style="font-weight: 600; font-size: 12px; min-width: 140px;">${escapeHtml(emp.city)}</td>
+                    <td style="font-weight: 600; font-size: 11px; min-width: 150px; max-width: 180px; color: #7c3aed;">${emp.nomeLider || '-'}</td>
+                    <td style="font-weight: 600; font-size: 11px; min-width: 100px; max-width: 120px; color: #000; ${corDestaque}">${emp.projeto || '-'}</td>
+                    <td style="font-weight: 600; font-size: 11px; min-width: 120px; max-width: 140px; color: #000; ${corDestaque}">${emp.projetoSecullum || '-'}</td>
+                    <td style="font-weight: 600; font-size: 12px; min-width: 180px; max-width: 220px;">${emp.name}</td>
+                    <td style="font-family: 'Courier New', monospace; font-size: 12px; width: 140px;">${emp.cpf ? emp.cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4') : 'N/A'}</td>
+                    <td style="font-weight: 600; font-size: 12px; min-width: 140px;">${emp.city}</td>
                     <td class="center" style="font-size: 12px; width: 100px;">${emp.date}</td>
                     <td class="center punch-cell" style="width: 100px; position: relative;" 
                         data-reg="${emp.reg}" 
@@ -4776,6 +4711,29 @@
             document.getElementById('employeeTable')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
 
+        // Simular OCR - Extrair Horários e justificativa da imagem
+        function simulateOCR(fileName) {
+            // Simulação de extração de dados
+            const possibleTimes = ['07:30', '11:30', '12:30', '17:30', '18:00', '19:00'];
+            const possibleReasons = [
+                'Esquecimento do cartéo',
+                'méquina do ponto quebrada',
+                'Atendimento emergencial',
+                'Reunião externa',
+                'Visita ao cliente',
+                'Problema no sistema'
+            ];
+            
+            // Simula que extraiu um Horário aleatério e uma justificativa
+            const extractedTime = possibleTimes[Math.floor(Math.random() * possibleTimes.length)];
+            const extractedReason = possibleReasons[Math.floor(Math.random() * possibleReasons.length)];
+            
+            return {
+                time: extractedTime,
+                reason: extractedReason
+            };
+        }
+
         // Upload de arquivo
         // ==========================================
         // SISTEMA DE ANEXOS (CTRL+V + OCR + Azure Blob)
@@ -4843,7 +4801,7 @@
                 const dataFormatada = employee.rawData?.Data?.split('T')[0] || employee.date;
                 const empresaId = employee.empresaId || employee.companyId;
                 
-                const response = await fetch(`${API_BASE_URL}/api/anexos/por-reg/${employee.reg}/${dataFormatada}`, {
+                const response = await fetch(`${API_BASE_URL}/api/anexos/${dataFormatada}/${employee.reg}`, {
                     headers: getAuthHeaders()
                 });
                 
@@ -4879,9 +4837,6 @@
             currentAnexoEmployee = null;
             currentAnexoImage = null;
             currentOCRData = null;
-            
-            // Remover listener de paste (evitar leak)
-            document.removeEventListener('paste', handlePaste);
             
             // ✅ RESETAR ESTADO DO BOTÃO ao fechar
             const btn = document.getElementById('btnConfirmarAnexo');
@@ -4998,9 +4953,7 @@
             if (azureVisionConfig) return azureVisionConfig;
             
             try {
-                const response = await fetch(`${API_BASE_URL}/api/azure-vision-config`, {
-                    headers: getAuthHeaders()
-                });
+                const response = await fetch(`${API_BASE_URL}/api/azure-vision-config`);
                 if (response.ok) {
                     azureVisionConfig = await response.json();
                     return azureVisionConfig;
@@ -5553,8 +5506,123 @@
 
             console.log('   ✅ Resultado final:', resultado);
             return resultado;
+        }        // 📝 BUSCA DINçãMICA: Detecta TODAS as batidas (não Só 4 fixas)
+        function detectarCaixasAmarelas(canvas) {
+            
+            
+            // ℹ GRID AUTOméTICO: Detecta quantas colunas e linhas existem
+            // Baseado na imagem: primeira linha Yçã300, segunda linha Yçã380, etc
+            const regioes = [];
+            
+            const larguraCampo = 170;
+            const alturaCampo = 75;
+            const espacamentoX = 200; // Espaão entre colunas
+            const espacamentoY = 95;  // Espaão entre linhas
+            
+            const inicioX = 160;
+            const inicioY = 300; // Começãa mais alto para pegar primeira linha
+            
+            const maxColunas = 5; // máximo 5 por linha (como na imagem 1)
+            const maxLinhas = 3;  // máximo 3 linhas (cobre até 15 batidas)
+            
+            let indice = 1;
+            
+            for (let linha = 0; linha < maxLinhas; linha++) {
+                for (let coluna = 0; coluna < maxColunas; coluna++) {
+                    const x = inicioX + (coluna * espacamentoX);
+                    const y = inicioY + (linha * espacamentoY);
+                    
+                    regioes.push({
+                        x: x,
+                        y: y,
+                        w: larguraCampo,
+                        h: alturaCampo,
+                        nome: `Batida ${indice}`,
+                        linha: linha + 1,
+                        coluna: coluna + 1
+                    });
+                    
+                    indice++;
+                }
+            }
+            
+            
+            
+            // 📝 DEBUG VISUAL: Desenhar reténgulos nas regiçães buscadas
+            const debugCanvas = document.createElement('canvas');
+            const debugCtx = debugCanvas.getContext('2d');
+            debugCanvas.width = canvas.width;
+            debugCanvas.height = canvas.height;
+            debugCtx.drawImage(canvas, 0, 0);
+            
+            // Desenhar TODAS as regiões em azul (busca direta, sem detecção de cor)
+            for (const regiao of regioes) {
+                debugCtx.strokeStyle = 'blue';
+                debugCtx.lineWidth = 3;
+                debugCtx.strokeRect(regiao.x, regiao.y, regiao.w, regiao.h);
+                
+                // Label
+                debugCtx.fillStyle = 'blue';
+                debugCtx.font = 'bold 16px Arial';
+                debugCtx.fillText(regiao.nome, regiao.x + 5, regiao.y - 5);
+            }
+            
+            // Abrir janela com debug
+            try {
+                const debugUrl = debugCanvas.toDataURL();
+                const debugWindow = window.open('', '_blank', 'width=1200,height=800');
+                if (debugWindow) {
+                    debugWindow.document.write(`
+                        <html>
+                        <head><title>Debug - Regiões de Busca</title></head>
+                        <body style="margin:0;background:#000;display:flex;justify-content:center;align-items:center;">
+                            <div style="text-align:center;">
+                                <h2 style="color:white;">ℹ Regiões de Busca Fixas</h2>
+                                <p style="color:cyan;">ã AZUL = Busca OCR direta (sem detecção de cor)</p>
+                                <img src="${debugUrl}" style="border:2px solid white;max-width:100%;"/>
+                                <p style="color:yellow;">Y atual: 460 | Ajuste se necesSório!</p>
+                            </div>
+                        </body>
+                        </html>
+                    `);
+                }
+            } catch (e) {
+                console.warn('ℹ não foi posSóvel abrir janela de debug');
+            }
+            
+            return regioes; // Retorna TODAS as regiões (busca direta)
         }
-
+        
+        // OCR em região específica (crop)
+        async function ocrRegion(canvas, region) {
+            const cropCanvas = document.createElement('canvas');
+            const ctx = cropCanvas.getContext('2d');
+            
+            cropCanvas.width = region.w;
+            cropCanvas.height = region.h;
+            
+            ctx.drawImage(canvas, 
+                region.x, region.y, region.w, region.h,
+                0, 0, region.w, region.h
+            );
+            
+            // Prçã-processar crop
+            const blob = await new Promise(resolve => {
+                cropCanvas.toBlob(resolve, 'image/png');
+            });
+            
+            const processedBlob = await preprocessarImagem(new File([blob], 'crop.png'));
+            
+            const result = await Tesseract.recognize(processedBlob, 'por', {
+                tessedit_pageseg_mode: Tesseract.PSM.SINGLE_BLOCK,
+                tessedit_char_whitelist: '0123456789:ENTRADASóRIO ',
+                tessedit_min_orientation_margin: '7.0',
+                classify_bln_numeric_mode: '1'
+            });
+            
+            return result.data;
+        }
+        
         // Detectar checkbox marcado - ANÁLISE PERCENTUAL MELHORADA
         function detectarCheckboxMarcado(canvas) {
             const ctx = canvas.getContext('2d', { willReadFrequently: true });
@@ -5644,7 +5712,23 @@
                 }
             });
             
-            // Retornar o checkbox com MAIOR concentração de preto (se > 8% - threshold mais sensível)
+            // 📝 Abrir imagem de debug automaticamente em nova aba
+            const debugUrl = debugCanvas.toDataURL('image/png');
+            console.log('✅ IMAGEM DE DEBUG GERADA!');
+            console.log('? Abrindo imagem com círculos vermelhos em nova aba...');
+            console.log('📋 Legenda: 1=Esqueceu, 2=Falha no App, 3=Falta, 4=Folga, 5=Hora Parada, 6=Maquina defeito, 7=Duplicidade, 8=Indevido');
+            
+            // Abrir em nova aba automaticamente
+            const debugWindow = window.open();
+            if (debugWindow) {
+                debugWindow.document.write(`<img src="${debugUrl}" style="max-width:100%; height:auto;">`);
+                debugWindow.document.title = 'Debug - Posições dos Checkboxes';
+            } else {
+                console.log('⚠️ Pop-up bloqueado! Cole este link numa nova aba:');
+                console.log(debugUrl);
+            }
+            
+            // ✅ Retornar o checkbox com MAIOR concentração de preto (se > 8% - threshold mais sensível)
             if (maxPreto > 8) {
                 console.log(`✅ Checkbox marcado detectado: "${checkboxMarcado}" (${maxPreto.toFixed(1)}% preto)`);
                 return checkboxMarcado;
@@ -5781,6 +5865,95 @@
                 const stats = `${percentualMuitoEscuros.toFixed(1)}% preto | ${percentualEscuros.toFixed(1)}% escuro`;
                 debugCtx.fillText(stats, regiao.x + 10, regiao.y + 25);
             });
+            
+            // 📝 Mostrar imagem de debug
+            const debugUrl = debugCanvas.toDataURL('image/png');
+            const debugWindow = window.open('', '_blank', 'width=1000,height=800');
+            if (debugWindow) {
+                debugWindow.document.write(`
+                    <html>
+                        <head>
+                            <title>ℹ Detecçãão de Assinaturas</title>
+                            <style>
+                                body { 
+                                    margin: 0; 
+                                    padding: 20px; 
+                                    background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%);
+                                    font-family: Arial, sans-serif;
+                                }
+                                .container {
+                                    background: rgba(30, 41, 59, 0.95);
+                                    border-radius: 15px;
+                                    padding: 20px;
+                                    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+                                }
+                                h1 { 
+                                    color: #e2e8f0; 
+                                    margin: 0 0 15px 0;
+                                    font-size: 28px;
+                                }
+                                .stats {
+                                    display: grid;
+                                    grid-template-columns: 1fr 1fr;
+                                    gap: 15px;
+                                    margin-bottom: 20px;
+                                }
+                                .stat-box {
+                                    padding: 15px;
+                                    border-radius: 10px;
+                                    text-align: center;
+                                }
+                                .stat-box.funcionario { background: #dbeafe; border: 3px solid #3b82f6; }
+                                .stat-box.lider { background: #d1fae5; border: 3px solid #10b981; }
+                                .stat-box.unsigned { background: #fee2e2; border: 3px solid #ef4444; }
+                                .stat-box h3 { margin: 0 0 5px 0; font-size: 18px; }
+                                .stat-box .status { font-size: 32px; margin: 5px 0; }
+                                .stat-box .label { font-size: 14px; color: #64748b; }
+                                img { 
+                                    max-width: 100%; 
+                                    border: 3px solid #cbd5e1; 
+                                    border-radius: 10px;
+                                    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                                }
+                                .info {
+                                    margin-top: 15px;
+                                    padding: 15px;
+                                    background: #f1f5f9;
+                                    border-left: 4px solid #3b82f6;
+                                    border-radius: 5px;
+                                    font-size: 13px;
+                                    color: #475569;
+                                }
+                            </style>
+                        </head>
+                        <body>
+                            <div class="container">
+                                <h1>ℹ Detecçãão de Assinaturas</h1>
+                                <div class="stats">
+                                    <div class="stat-box ${resultados.funcionario ? 'funcionario' : 'unsigned'}">
+                                        <h3>ℹ FUNCIONÁRIO</h3>
+                                        <div class="status">${resultados.funcionario ? '?' : '?'}</div>
+                                        <div class="label">${resultados.funcionario ? 'ASSINADO' : 'não ASSINADO'}</div>
+                                    </div>
+                                    <div class="stat-box ${resultados.lider ? 'lider' : 'unsigned'}">
+                                        <h3>ℹ Líder</h3>
+                                        <div class="status">${resultados.lider ? '?' : '?'}</div>
+                                        <div class="label">${resultados.lider ? 'ASSINADO' : 'não ASSINADO'}</div>
+                                    </div>
+                                </div>
+                                <img src="${debugUrl}">
+                                <div class="info">
+                                    <strong>ℹ Legenda:</strong><br>
+                                    ℹ Reténgulo AZUL = Região do FUNCIONÁRIO<br>
+                                    ℹ Reténgulo VERDE = Região do Líder<br>
+                                    ℹ Reténgulo VERMELHO = Assinatura não detectada<br><br>
+                                    <strong>Limiar de detecçãão:</strong> =2% pixels muito escuros OU =6% pixels escuros
+                                </div>
+                            </div>
+                        </body>
+                    </html>
+                `);
+            }
             
             return resultados;
         }
@@ -6072,6 +6245,438 @@
             }
         }
 
+        
+        // 📝 funçãoO ANTIGA - não MAIS USADA (substituçãda por extrairIdDoPDF(canvas))
+        /*
+        function extrairIdDoPDF_OLD(texto, palavrasComConfidencia = []) {
+            console.log('🔍 Buscando ID no PDF...');
+            
+            // méTODO 1: Buscar padrão "ID #22" no texto completo
+            const patterns = [
+                /ID\s*#\s*(\d+)/i,
+                /ID#(\d+)/i,
+                /ID:(\d+)/i,
+                /ID\s+(\d+)/i,
+                /\bI\s*D\s*#?\s*(\d+)/i
+            ];
+            
+            for (const pattern of patterns) {
+                const match = texto.match(pattern);
+                if (match) {
+                    const id = match[1];
+                    // Validar que não ã REG, Projeto ou Data
+                    if (parseInt(id) < 200 && id.length <= 3) {
+                        console.log(`ℹ ID encontrado (método 1 - texto): #${id}`);
+                        return id;
+                    }
+                }
+            }
+            
+            // méTODO 2: Buscar "#" seguido de nçãmero pequeno em qualquer lugar
+            const hashMatch = texto.match(/#\s*(\d{1,3})\b/);
+            if (hashMatch) {
+                const id = hashMatch[1];
+                if (parseInt(id) > 0 && parseInt(id) < 200) {
+                    console.log(`ℹ ID encontrado (método 2 - hash): #${id}`);
+                    return id;
+                }
+            }
+            
+            // MÉTODO 3: Buscar em palavras com alta confiança no CANTO SUPERIOR DIREITO
+            if (palavrasComConfidencia && palavrasComConfidencia.length > 0) {
+                console.log('📊 Analisando posiçãoes das palavras...');
+                
+                const candidatosID = [];
+                
+                palavrasComConfidencia.forEach((word, index) => {
+                    // Procurar números de 1-3 dígitos no canto superior direito
+                    const match = word.text.match(/^#?(\d{1,3})$/);
+                    if (match && word.confidence > 80) {
+                        const id = match[1];
+                        const x = word.bbox.x0;
+                        const y = word.bbox.y0;
+                        const num = parseInt(id);
+                        
+                        // ID deve estar: TOPO (Y < 250) e DIREITA (X > 550)
+                        // Nçãmero pequeno (< 200) para diferenciar de REG/Projeto
+                        if (num > 0 && num < 200 && x > 550 && y < 250) {
+                            candidatosID.push({
+                                id: id,
+                                confidence: word.confidence,
+                                x: x,
+                                y: y,
+                                score: x - (y * 2) // Prioriza X alto e Y baixo (nçãmeros positivos)
+                            });
+                        }
+                    }
+                });
+                
+                // Ordenar por score (prioriza topo-direito)
+                candidatosID.sort((a, b) => b.score - a.score);
+                
+                if (candidatosID.length > 0) {
+                    const melhor = candidatosID[0];
+                    console.log(`ℹ ID encontrado (método 3 - posiçãoo): #${melhor.id}`);
+                    console.log(`   X=${Math.round(melhor.x)}, Y=${Math.round(melhor.y)}, Score=${Math.round(melhor.score)}, Confiança=${Math.round(melhor.confidence)}%`);
+                    if (candidatosID.length > 1) {
+                        console.log(`   Rejeitados: ${candidatosID.slice(1).map(c => `#${c.id} (X=${Math.round(c.x)}, Y=${Math.round(c.y)}, Score=${Math.round(c.score)})`).join(', ')}`);
+                    }
+                    return melhor.id;
+                }
+            }
+            
+            console.warn('ℹ ID não encontrado no PDF');
+            return null;
+        }
+        */
+
+        // 📝 função ANTIGA - não MAIS USADA (sistema hçãbrido agora detecta caixas automaticamente)
+        /*
+        // 📝 EXTRAÇÃO MELHORADA COM validação INTELIGENTE
+        function extrairDadosOCRMelhorado(texto, palavrasFiltradas, ocrData) {
+            console.log('🔍 Iniciando extração melhorada de dados...');
+            
+            const dados = {
+                ent1: null,
+                sai1: null,
+                ent2: null,
+                sai2: null,
+                ent3: null,
+                sai3: null,
+                motivo: null,
+                confidence: {
+                    ent1: 0,
+                    sai1: 0,
+                    ent2: 0,
+                    sai2: 0,
+                    ent3: 0,
+                    sai3: 0,
+                    motivo: 0
+                }
+            };
+            
+            // EXTRaçãO DE HorárioS COM validaçãoO
+            const horariosEncontrados = [];
+            
+            // Buscar Horários nas palavras filtradas (confiança > 70%)
+            for (let i = 0; i < palavrasFiltradas.length; i++) {
+                const word = palavrasFiltradas[i];
+                
+                // Padrão 1: HH:MM
+                const match1 = word.text.match(/^(\d{1,2}):(\d{2})$/);
+                if (match1) {
+                    const hora = parseInt(match1[1]);
+                    const min = parseInt(match1[2]);
+                    
+                    if (hora >= 0 && hora <= 23 && min >= 0 && min <= 59) {
+                        horariosEncontrados.push({
+                            horario: `${hora.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')}`,
+                            confidence: word.confidence,
+                            posicao: word.bbox.x0
+                        });
+                        console.log(`? Horário detectado: ${hora}:${min} (confiança: ${Math.round(word.confidence)}%)`);
+                    }
+                }
+                
+                // Padrão 2: HHMM (4 dígitos)
+                const match2 = word.text.match(/^(\d{4})$/);
+                if (match2) {
+                    const valor = match2[1];
+                    const hora = parseInt(valor.substring(0, 2));
+                    const min = parseInt(valor.substring(2, 4));
+                    
+                    if (hora >= 0 && hora <= 23 && min >= 0 && min <= 59) {
+                        if (parseInt(valor) < 2020 || parseInt(valor) > 2030) {
+                            horariosEncontrados.push({
+                                horario: `${hora.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')}`,
+                                confidence: word.confidence,
+                                posicao: word.bbox.x0
+                            });
+                            console.log(`? Horário detectado (4 dígitos): ${hora}:${min} (confiança: ${Math.round(word.confidence)}%)`);
+                        }
+                    }
+                }
+                
+                // Padrão 3: HH MM (dois nçãmeros separados por espaão) - "07 10"
+                const match3 = word.text.match(/^(\d{2})$/);
+                if (match3 && i + 1 < palavrasFiltradas.length) {
+                    const nextWord = palavrasFiltradas[i + 1];
+                    const match4 = nextWord.text.match(/^(\d{2})$/);
+                    
+                    if (match4) {
+                        const hora = parseInt(match3[1]);
+                        const min = parseInt(match4[1]);
+                        
+                        // Verificar se prçãxima palavra esté prçãxima horizontalmente (mesmo Horário)
+                        const distancia = Math.abs(nextWord.bbox.x0 - (word.bbox.x0 + 30));
+                        const distanciaVertical = Math.abs(nextWord.bbox.y0 - word.bbox.y0);
+                        
+                        console.log(`ℹ Par "${word.text}" + "${nextWord.text}": X1=${Math.round(word.bbox.x0)}, X2=${Math.round(nextWord.bbox.x0)}, distH=${Math.round(distancia)}px, distV=${Math.round(distanciaVertical)}px`);
+                        
+                        if (distancia < 80 && distanciaVertical < 20 && hora >= 0 && hora <= 23 && min >= 0 && min <= 59) {
+                            horariosEncontrados.push({
+                                horario: `${hora.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')}`,
+                                confidence: (word.confidence + nextWord.confidence) / 2,
+                                posicao: word.bbox.x0
+                            });
+                            console.log(`? Horário detectado (espaçado): ${hora}:${min} (confiança: ${Math.round((word.confidence + nextWord.confidence) / 2)}%)`);
+                            i++; // Pular prçãxima palavra já processada
+                        } else {
+                            const motivos = [];
+                            if (distancia >= 80) motivos.push('muito distante');
+                            if (distanciaVertical >= 20) motivos.push('não alinhado');
+                            if (hora < 0 || hora > 23 || min < 0 || min > 59) motivos.push('inválido');
+                            console.log(`? Rejeitado: ${motivos.join(', ')}`);
+                        }
+                    }
+                }
+            }
+            
+            // Ordenar Horários por posiçãoo (esquerda ? direita, cima ? baixo)
+            horariosEncontrados.sort((a, b) => a.posicao - b.posicao);
+            
+            console.log(`ℹ Total de Horários válidos encontrados: ${horariosEncontrados.length}`);
+            
+            // Atribuir Horários aos campos (máximo 6: ent1, sai1, ent2, sai2, ent3, sai3)
+            const campos = ['ent1', 'sai1', 'ent2', 'sai2', 'ent3', 'sai3'];
+            horariosEncontrados.slice(0, 6).forEach((h, index) => {
+                if (campos[index]) {
+                    dados[campos[index]] = h.horario;
+                    dados.confidence[campos[index]] = Math.round(h.confidence);
+                }
+            });
+            
+            // EXTRaçãO DE MOTIVO COM DETECçããO DE CHECKBOX MARCADO
+            const textoLower = texto.toLowerCase();
+            const distanciaMax = 100;
+            
+            // Buscar marcaçães "X" com alta confiançãa
+            const marcacoesX = palavrasFiltradas.filter(word => 
+                /^[xX]$/.test(word.text) && word.confidence > 60
+            );
+            
+            console.log(`? Marcaçães "X" encontradas (confiançãa > 60%): ${marcacoesX.length}`);
+            
+            // Lista de justificativas
+            const justificativasMap = [
+                { palavras: ['esquec', 'registr.*ponto'], motivo: 'Esqueceu de registrar o Ponto' },
+                { palavras: ['falha.*app', 'app'], motivo: 'Falha no App' },
+                { palavras: ['falta'], motivo: 'Falta' },
+                { palavras: ['folga'], motivo: 'Folga' },
+                { palavras: ['hora.*parada', 'parada'], motivo: 'Hora Parada' },
+                { palavras: ['maquina.*defeito', 'méquina.*defeito', 'defeito'], motivo: 'Maquina Ponto com defeito' },
+                { palavras: ['duplicidade', 'duplicado'], motivo: 'Registro em duplicidade' },
+                { palavras: ['indevido'], motivo: 'Registro indevido' }
+            ];
+            
+            let motivoDetectado = null;
+            let menorDistancia = Infinity;
+            let confidenciaMotivo = 0;
+            
+            justificativasMap.forEach(item => {
+                item.palavras.forEach(palavra => {
+                    const regex = new RegExp(palavra, 'i');
+                    const match = textoLower.search(regex);
+                    
+                    if (match !== -1) {
+                        // Procurar "X" próximo
+                        marcacoesX.forEach(xWord => {
+                            const dist = Math.abs(xWord.bbox.x0 - match);
+                            if (dist < distanciaMax && dist < menorDistancia) {
+                                menorDistancia = dist;
+                                motivoDetectado = item.motivo;
+                                confidenciaMotivo = Math.round(xWord.confidence);
+                                console.log(`? Motivo detectado: "${item.motivo}" (confiança: ${confidenciaMotivo}%, distância: ${dist})`);
+                            }
+                        });
+                    }
+                });
+            });
+            
+            dados.motivo = motivoDetectado;
+            dados.confidence.motivo = confidenciaMotivo;
+            
+            console.log('✅ Extração finalizada:', dados);
+            return dados;
+        }
+        */
+
+        // Extrair Horários e motivo do texto OCR (funçãoO ANTIGA - MANTER COMO FALLBACK)
+        function extrairDadosOCR(texto) {
+            console.log('📄 Texto OCR completo:', texto);
+            
+            const dados = {
+                ent1: null,
+                sai1: null,
+                ent2: null,
+                sai2: null,
+                ent3: null,
+                sai3: null,
+                ent4: null,
+                sai4: null,
+                ent5: null,
+                sai5: null,
+                motivo: null
+            };
+            
+            // MELHORAR DETECÇÃO DE HorárioS
+            // Procurar múltiplos padrões
+            const horariosEncontrados = [];
+            
+            // Padrão 1: HH:MM ou HH MM (com separador)
+            const regex1 = /\b(\d{1,2})\s*[:\s]\s*(\d{2})\b/g;
+            let match;
+            
+            while ((match = regex1.exec(texto)) !== null) {
+                let hora = parseInt(match[1]);
+                let min = parseInt(match[2]);
+                
+                if (hora >= 0 && hora <= 23 && min >= 0 && min <= 59) {
+                    horariosEncontrados.push({
+                        hora: match[1].padStart(2, '0'),
+                        min: match[2].padStart(2, '0'),
+                        original: match[0],
+                        posicao: match.index,
+                        tipo: 'separado'
+                    });
+                }
+            }
+            
+            // Padrão 2: HHMM (4 dígitos juntos) - NOVO!
+            const regex2 = /\b(\d{4})\b/g;
+            
+            while ((match = regex2.exec(texto)) !== null) {
+                const valor = match[1];
+                const hora = parseInt(valor.substring(0, 2));
+                const min = parseInt(valor.substring(2, 4));
+                
+                console.log(`ℹ Padrão2 encontrado: "${valor}" ? Hora=${hora}, Min=${min}`);
+                
+                // FILTROS DE validaçãoO
+                // 1. Validar se pode ser Horário
+                if (hora < 0 || hora > 23 || min < 0 || min > 59) {
+                    console.log(`   ? Rejeitado: Horário inválido (hora ${hora}, min ${min})`);
+                    continue;
+                }
+                
+                // 2. Ignorar anos (2024, 2025, etc)
+                if (parseInt(valor) >= 2000 && parseInt(valor) <= 2100) {
+                    console.log(`   ? Rejeitado: parece ano (${valor})`);
+                    continue;
+                }
+                
+                // 3. Ignorar se vier depois de "Data:" ou "/" (contexto de data)
+                const contextoAntes = texto.substring(Math.max(0, match.index - 20), match.index);
+                if (/data:\s*\d+\/\d+\/$/i.test(contextoAntes)) {
+                    console.log(`   ? Rejeitado: contexto de data (${contextoAntes})`);
+                    continue;
+                }
+                if (/\/\d+\/$/i.test(contextoAntes)) {
+                    console.log(`   ? Rejeitado: contexto de barra (${contextoAntes})`);
+                    continue;
+                }
+                
+                const horarioStr = `${hora.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')}`;
+                
+                // não adicionar se já existe (evitar duplicata)
+                const jaExiste = horariosEncontrados.find(h => `${h.hora}:${h.min}` === horarioStr);
+                
+                if (!jaExiste) {
+                    console.log(`   ? Aceito: ${horarioStr}`);
+                    horariosEncontrados.push({
+                        hora: hora.toString().padStart(2, '0'),
+                        min: min.toString().padStart(2, '0'),
+                        original: match[0],
+                        posicao: match.index,
+                        tipo: '4digitos'
+                    });
+                } else {
+                    console.log(`   ℹ Duplicado: ${horarioStr}`);
+                }
+            }
+            
+            // Ordenar por posiçãoo no texto
+            horariosEncontrados.sort((a, b) => a.posicao - b.posicao);
+            
+            console.log('? Horários detectados:', horariosEncontrados);
+            
+            // Filtrar duplicatas por valor
+            const horariosLimpos = [];
+            horariosEncontrados.forEach(h => {
+                const horarioStr = `${h.hora}:${h.min}`;
+                if (!horariosLimpos.find(hl => hl === horarioStr)) {
+                    horariosLimpos.push(horarioStr);
+                }
+            });
+            
+            console.log('? Horários únicos:', horariosLimpos);
+            
+            // Atribuir Horários detectados
+            if (horariosLimpos.length >= 1) dados.ent1 = horariosLimpos[0];
+            if (horariosLimpos.length >= 2) dados.sai1 = horariosLimpos[1];
+            if (horariosLimpos.length >= 3) dados.ent2 = horariosLimpos[2];
+            if (horariosLimpos.length >= 4) dados.sai2 = horariosLimpos[3];
+            if (horariosLimpos.length >= 5) dados.ent3 = horariosLimpos[4];
+            if (horariosLimpos.length >= 6) dados.sai3 = horariosLimpos[5];
+            
+            // DETECTAR MOTIVO com méltiplas estratégias
+            const textoLower = texto.toLowerCase();
+            
+            // 1. Procurar por "X" ou marcaçães próximo ãs palavras-chave
+            const distanciaMax = 100; // aumentado para captar melhor
+            
+            // Lista de palavras-chave para cada justificativa
+            const justificativasMap = [
+                { palavras: ['esquec', 'registr.*ponto'], motivo: 'Esqueceu de registrar o Ponto' },
+                { palavras: ['falha.*app', 'app'], motivo: 'Falha no App' },
+                { palavras: ['falta'], motivo: 'Falta' },
+                { palavras: ['folga'], motivo: 'Folga' },
+                { palavras: ['hora.*parada', 'parada'], motivo: 'Hora Parada' },
+                { palavras: ['maquina.*defeito', 'méquina.*defeito', 'defeito'], motivo: 'Maquina Ponto com defeito' },
+                { palavras: ['duplicidade', 'duplicado'], motivo: 'Registro em duplicidade' },
+                { palavras: ['indevido'], motivo: 'Registro indevido' }
+            ];
+            
+            // Procurar "X", checkboxes marcados, ou qualquer Sómbolo de marcação
+            // Melhorado para captar mais variaçães
+            const regexX = /\b[xX]\b|\\[xX\\]|\(\\s*[xX]\\s*\)|\[[xX]\]/g;
+            const xMatches = [];
+            let xMatch;
+            while ((xMatch = regexX.exec(texto)) !== null) {
+                xMatches.push(xMatch.index);
+            }
+            
+            console.log('? Marcaçães "X" encontradas em:', xMatches);
+            
+            // Verificar qual opéão tem "X" mais próximo
+            let motivoDetectado = null;
+            let menorDistancia = Infinity;
+            
+            justificativasMap.forEach(item => {
+                item.palavras.forEach(palavra => {
+                    const regex = new RegExp(palavra, 'i');
+                    const match = textoLower.search(regex);
+                    
+                    if (match !== -1) {
+                        xMatches.forEach(xPos => {
+                            const dist = Math.abs(xPos - match);
+                            if (dist < distanciaMax && dist < menorDistancia) {
+                                menorDistancia = dist;
+                                motivoDetectado = item.motivo;
+                                console.log(`? Motivo detectado: "${item.motivo}" (disténcia: ${dist} do "X")`);
+                                console.log(`? Motivo detectado: "${item.motivo}" (disténcia: ${dist} do "X")`);
+                            }
+                        });
+                    }
+                });
+            });
+            
+            dados.motivo = motivoDetectado;
+            console.log('📋 Motivo detectado:', motivoDetectado);
+            
+            return dados;
+        }
+        
         // 📝 Mostrar resultado do OCR COM INDICADORES DE CONFIANÇA
         function mostrarResultadoOCR(dados) {
             // função auxiliar para cor do indicador baseado na confiança
@@ -6232,32 +6837,12 @@
             try {
                 // LER VALORES EDITADOS PELO Usuário
                 const motivoEditado = document.getElementById('ocrMotivo')?.value || '';
-                const ent1Raw = document.getElementById('ocrEnt1')?.value;
-                const sai1Raw = document.getElementById('ocrSai1')?.value;
-                const ent2Raw = document.getElementById('ocrEnt2')?.value;
-                const sai2Raw = document.getElementById('ocrSai2')?.value;
-                const ent3Raw = document.getElementById('ocrEnt3')?.value;
-                const sai3Raw = document.getElementById('ocrSai3')?.value;
-                
-                console.log('🔍 DEBUG - Valores RAW dos inputs TIME:');
-                console.log('   ocrEnt1 raw:', ent1Raw, 'typeof:', typeof ent1Raw);
-                console.log('   ocrSai1 raw:', sai1Raw, 'typeof:', typeof sai1Raw);
-                console.log('   ocrEnt2 raw:', ent2Raw, 'typeof:', typeof ent2Raw);
-                console.log('   ocrSai2 raw:', sai2Raw, 'typeof:', typeof sai2Raw);
-                console.log('   ocrEnt3 raw:', ent3Raw, 'typeof:', typeof ent3Raw);
-                console.log('   ocrSai3 raw:', sai3Raw, 'typeof:', typeof sai3Raw);
-                
-                const ent1 = ent1Raw || '';
-                const sai1 = sai1Raw || '';
-                const ent2 = ent2Raw || '';
-                const sai2 = sai2Raw || '';
-                const ent3 = ent3Raw || '';
-                const sai3 = sai3Raw || '';
-                
-                console.log('🔍 DEBUG - Valores após || "":');
-                console.log('   ent1:', ent1, 'sai1:', sai1);
-                console.log('   ent2:', ent2, 'sai2:', sai2);
-                console.log('   ent3:', ent3, 'sai3:', sai3);
+                const ent1 = document.getElementById('ocrEnt1')?.value || '';
+                const sai1 = document.getElementById('ocrSai1')?.value || '';
+                const ent2 = document.getElementById('ocrEnt2')?.value || '';
+                const sai2 = document.getElementById('ocrSai2')?.value || '';
+                const ent3 = document.getElementById('ocrEnt3')?.value || '';
+                const sai3 = document.getElementById('ocrSai3')?.value || '';
                 
                 // Atualizar currentOCRData com valores editados
                 currentOCRData = {
@@ -6270,7 +6855,7 @@
                     sai3: sai3
                 };
                 
-                console.log('📊 Dados finais currentOCRData:', JSON.stringify(currentOCRData));
+                console.log('📊 Dados finais (editados pelo Usuário):', currentOCRData);
                 
                 // 📝 USAR SEMPRE A DATA DA TABELA, IGNORAR rawData.Data
                 let dataFormatted = currentAnexoEmployee.date;
@@ -6358,19 +6943,11 @@
                         empRef.id = empRef.id || currentAnexoEmployee.id; // Manter ID
                         
                         // PREENCHER OS CAMPOS NA TABELA
-                        console.log('🔍 DEBUG - Antes de preencher empRef.punches:');
-                        console.log('   empRef.punches atual:', JSON.stringify(empRef.punches));
-                        console.log('   currentOCRData:', JSON.stringify(currentOCRData));
-                        
                         empRef.punches.ent1 = currentOCRData.ent1 || empRef.punches.ent1;
                         empRef.punches.sai1 = currentOCRData.sai1 || empRef.punches.sai1;
                         empRef.punches.ent2 = currentOCRData.ent2 || empRef.punches.ent2;
                         empRef.punches.sai2 = currentOCRData.sai2 || empRef.punches.sai2;
                         empRef.punches.ent3 = currentOCRData.ent3 || empRef.punches.ent3;
-                        empRef.punches.sai3 = currentOCRData.sai3 || empRef.punches.sai3;
-                        
-                        console.log('🔍 DEBUG - Após preencher empRef.punches:');
-                        console.log('   empRef.punches NOVO:', JSON.stringify(empRef.punches));
                         empRef.punches.sai3 = currentOCRData.sai3 || empRef.punches.sai3;
                         
                         // não marcar como pendingOCR (vamos enviar direto)
@@ -6533,14 +7110,11 @@
                     
                 } else {
                     // Envio normal (OCR)
-                    console.log('🔍 DEBUG - Preparando envio para Secullum:');
-                    console.log('   empRef completo:', JSON.stringify({
-                        reg: empRef.reg,
-                        date: empRef.date,
-                        ent1: empRef.ent1,
-                        sai1: empRef.sai1,
-                        punches: empRef.punches
-                    }, null, 2));
+                    console.log('🔍 Verificando Horários para envio...');
+                    console.log('   empRef.ent1:', empRef.ent1);
+                    console.log('   empRef.punches.ent1:', empRef.punches?.ent1);
+                    console.log('   empRef.sai1:', empRef.sai1);
+                    console.log('   empRef.punches.sai1:', empRef.punches?.sai1);
                     
                     const horariosParaEnviar = [
                         { coluna: 'Entrada1', hora: empRef.punches?.ent1 || empRef.ent1, grupo: 1 },
@@ -6550,8 +7124,6 @@
                         { coluna: 'Entrada3', hora: empRef.punches?.ent3 || empRef.ent3, grupo: 3 },
                         { coluna: 'Saida3', hora: empRef.punches?.sai3 || empRef.sai3, grupo: 3 }
                     ].filter(item => item.hora);
-                    
-                    console.log('🔍 DEBUG - horariosParaEnviar (após filter hora):', JSON.stringify(horariosParaEnviar, null, 2));
                     
                     const funcionarioId = empRef.rawData?.FuncionarioId || empRef.dadosCompletos?.FuncionarioId;
                     const numeroFolha = empRef.rawData?.Funcionario?.NumeroFolha || empRef.NumeroFolha;
@@ -6565,25 +7137,9 @@
                     }
                     
                     // 🔍 Detectar se são justificativas de texto ou horários
-                    // Aceita formatos: "8:30", "08:30", "08:30:00" (com ou sem segundos)
-                    const isHorarioValido = (hora) => /^\d{1,2}:\d{2}(:\d{2})?$/.test(hora);
-                    
-                    // Normalizar horários para formato HH:MM (remover segundos se houver)
-                    const normalizarHora = (hora) => {
-                        if (!hora) return hora;
-                        const match = hora.match(/^(\d{1,2}:\d{2})/);
-                        return match ? match[1] : hora;
-                    };
-                    
+                    const isHorarioValido = (hora) => /^\d{1,2}:\d{2}$/.test(hora);
                     const justificativasTexto = horariosParaEnviar.filter(item => !isHorarioValido(item.hora));
-                    const horariosNormais = horariosParaEnviar
-                        .filter(item => isHorarioValido(item.hora))
-                        .map(item => ({ ...item, hora: normalizarHora(item.hora) }));
-                    
-                    console.log('🔍 DEBUG - Após validação isHorarioValido:');
-                    console.log('   justificativasTexto:', JSON.stringify(justificativasTexto));
-                    console.log('   horariosNormais:', JSON.stringify(horariosNormais));
-                    console.log('   Total a enviar:', horariosNormais.length, 'horários +', justificativasTexto.length, 'justificativas');
+                    const horariosNormais = horariosParaEnviar.filter(item => isHorarioValido(item.hora));
                     
                     // ⚡ ENVIO DE JUSTIFICATIVAS (FOLGA, FERIADO, etc) - Endpoint /Justificativa
                     if (justificativasTexto.length > 0) {
@@ -6757,7 +7313,7 @@
                 if (!employee) return;
                 
                 // Buscar ID do anexo no SQL
-                const response = await fetch(`${API_BASE_URL}/api/anexos/por-reg/${reg}/${employee.rawData?.Data || date}`, {
+                const response = await fetch(`${API_BASE_URL}/api/anexos/${reg}/${employee.rawData?.Data || date}`, {
                     headers: getAuthHeaders()
                 });
                 const anexo = await response.json();
@@ -6791,6 +7347,11 @@
                 console.error('? Erro ao remover anexo:', err);
                 showAlert('Erro', `Erro ao remover anexo: ${err.message}`, 'error');
             }
+        }
+
+        // Remover anexo (verSóo antiga - manter compatibilidade)
+        function simulateOCR(filename) {
+            return { time: '--:--', reason: 'Arquivo: ' + filename };
         }
 
         // Gerar formulério para um empregado
@@ -6862,11 +7423,11 @@
                             <div class="form-row">
                                 <div class="form-field">
                                     <span class="form-field-label">Nome:</span>
-                                    <span class="form-field-value" style="font-size: 18px;">${escapeHtml(emp.name)}</span>
+                                    <span class="form-field-value" style="font-size: 18px;">${emp.name}</span>
                                 </div>
                                 <div class="form-field">
                                     <span class="form-field-label">Cidade:</span>
-                                    <span class="form-field-value">${escapeHtml(emp.city)}</span>
+                                    <span class="form-field-value">${emp.city}</span>
                                 </div>
                                 <div class="form-field">
                                     <span class="form-field-label">Data:</span>
@@ -6880,7 +7441,7 @@
                                 </div>
                                 <div class="form-field">
                                     <span class="form-field-label">Projeto:</span>
-                                    <span class="form-field-value">${escapeHtml(emp.projeto) || 'N/A'}</span>
+                                    <span class="form-field-value">${emp.projeto || 'N/A'}</span>
                                 </div>
                                 <div class="form-field">
                                     <span class="form-field-label">ID IMP:</span>
@@ -6940,7 +7501,7 @@
                             <div class="signature-box left">
                                 <div class="signature-space"></div>
                                 <div class="signature-line">
-                                    <div class="signature-name">${escapeHtml(emp.name)}</div>
+                                    <div class="signature-name">${emp.name}</div>
                                     <div class="signature-label">Assinatura do FUNCIONÁRIO</div>
                                 </div>
                             </div>
@@ -6954,7 +7515,7 @@
                                 ` : `
                                     <div class="signature-space"></div>
                                     <div class="signature-line">
-                                        <div class="signature-name">${escapeHtml(emp.nomeLider) || 'Líder não INFORMADO'}</div>
+                                        <div class="signature-name">${emp.nomeLider || 'Líder não INFORMADO'}</div>
                                         <div class="signature-label">Assinatura do Líder</div>
                                     </div>
                                 `}
@@ -7034,7 +7595,7 @@
                 let existingData = {};
                 try {
                     const fetchResponse = await fetch(
-                        `${API_BASE_URL}/api/anexos/por-data/${dataFormatted}/${employee.empresaId || employee.rawData?.Empresa || 0}`,
+                        `${API_BASE_URL}/api/anexos/${dataFormatted}/${employee.empresaId || employee.rawData?.Empresa || 0}`,
                         { headers: getAuthHeaders() }
                     );
                     
@@ -7119,7 +7680,7 @@
                 // 📝 BUSCAR DADOS EXISTENTES DO BANCO PRIMEIRO
                 let existingData = {};
                 try {
-                    const fetchResponse = await fetch(`${API_BASE_URL}/api/anexos/por-data/${dataFormatted}/${employee.rawData?.Empresa || 0}`, {
+                    const fetchResponse = await fetch(`${API_BASE_URL}/api/anexos/${dataFormatted}/${employee.rawData?.Empresa || 0}`, {
                         headers: getAuthHeaders()
                     });
                     if (fetchResponse.ok) {
@@ -7192,7 +7753,18 @@
             console.log('✅ Funcionário encontrado:', employee.name);
 
             const punchTime = employee.punches[punchType] || '--:--';
-            const punchLabel = PUNCH_LABELS[punchType];
+            const punchLabel = {
+                'ent1': 'Entrada 1',
+                'sai1': 'SAÍda 1',
+                'ent2': 'Entrada 2',
+                'sai2': 'SAÍda 2',
+                'ent3': 'Entrada 3',
+                'sai3': 'SAÍda 3',
+                'ent4': 'Entrada 4',
+                'sai4': 'SAÍda 4',
+                'ent5': 'Entrada 5',
+                'sai5': 'SAÍda 5'
+            }[punchType];
 
             console.log('📝 Preparando modal:', { punchLabel, punchTime });
 
@@ -7332,7 +7904,7 @@
                 
                 // Buscar perguntas_rh atual do banco de dados
                 let perguntasRH = {};
-                const anexoAtual = await fetch(`${API_BASE_URL}/api/anexos/por-reg/${reg}/${dataNormalizada}`, {
+                const anexoAtual = await fetch(`${API_BASE_URL}/api/anexos/${reg}/${dataNormalizada}`, {
                     headers: getAuthHeaders()
                 });
                 if (anexoAtual.ok) {
@@ -7399,7 +7971,18 @@
             if (!employee) return;
 
             const punchTime = employee.punches[punchType] || '--:--';
-            const punchLabel = PUNCH_LABELS[punchType];
+            const punchLabel = {
+                'ent1': 'Entrada 1',
+                'sai1': 'SAÍda 1',
+                'ent2': 'Entrada 2',
+                'sai2': 'SAÍda 2',
+                'ent3': 'Entrada 3',
+                'sai3': 'SAÍda 3',
+                'ent4': 'Entrada 4',
+                'sai4': 'SAÍda 4',
+                'ent5': 'Entrada 5',
+                'sai5': 'SAÍda 5'
+            }[punchType];
 
             // Armazenar contexto
             currentQuestionContext = { reg, date, punchType, isApproval: true };
@@ -7536,9 +8119,19 @@
             const sourceTime = employee.punches[sourcePunch] || '--:--';
             const targetTime = employee.punches[targetPunch] || '--:--';
 
-            const punchLabels = PUNCH_LABELS;
+            const punchLabels = {
+                'ent1': 'Entrada 1', 'sai1': 'Saída 1',
+                'ent2': 'Entrada 2', 'sai2': 'Saída 2',
+                'ent3': 'Entrada 3', 'sai3': 'Saída 3',
+                'ent4': 'Entrada 4', 'sai4': 'Saída 4',
+                'ent5': 'Entrada 5', 'sai5': 'Saída 5'
+            };
 
+            const confirmed = true; // Execução direta sem confirmação
+            
             console.log(`🔄 Movendo horário: ${punchLabels[sourcePunch]} (${sourceTime}) → ${punchLabels[targetPunch]} (${targetTime})`);
+
+            if (!confirmed) return;
 
             // MOVER horário (não trocar)
             employee.punches[targetPunch] = sourceTime; // Coloca horário no destino
@@ -7670,9 +8263,21 @@
                 return;
             }
 
-            const punch1Label = PUNCH_LABELS[punch1];
+            const punch1Label = {
+                'ent1': 'Entrada 1', 'sai1': 'SAÍda 1',
+                'ent2': 'Entrada 2', 'sai2': 'SAÍda 2',
+                'ent3': 'Entrada 3', 'sai3': 'SAÍda 3',
+                'ent4': 'Entrada 4', 'sai4': 'SAÍda 4',
+                'ent5': 'Entrada 5', 'sai5': 'SAÍda 5'
+            }[punch1];
 
-            const punch2Label = PUNCH_LABELS[punch2];
+            const punch2Label = {
+                'ent1': 'Entrada 1', 'sai1': 'SAÍda 1',
+                'ent2': 'Entrada 2', 'sai2': 'SAÍda 2',
+                'ent3': 'Entrada 3', 'sai3': 'SAÍda 3',
+                'ent4': 'Entrada 4', 'sai4': 'SAÍda 4',
+                'ent5': 'Entrada 5', 'sai5': 'SAÍda 5'
+            }[punch2];
 
             const time1 = employee.punches[punch1] || '--:--';
             const time2 = employee.punches[punch2] || '--:--';
@@ -7752,11 +8357,8 @@
         }
 
         function logout() {
-            // Limpar apenas dados de autenticação
-            localStorage.removeItem('secullum_token');
-            localStorage.removeItem('secullum_username');
-            localStorage.removeItem('jwt_token');
-            localStorage.removeItem('user_data');
+            // Limpar todos os dados do localStorage
+            localStorage.clear();
             sessionStorage.clear();
             
             // Redirecionar para login
@@ -7784,11 +8386,9 @@
                     return;
                 }
                 
-                // Buscar máquinas de todas as empresas em paralelo
+                // Buscar méquinas de todas as empresas em paralelo (SEM autenticaçãoO)
                 const promises = bancosParaConsultar.map(bancoid => {
-                    return fetch(`${API_BASE_URL}/api/machine-monitor?bancoid=${bancoid}`, {
-                        headers: getAuthHeaders()
-                    })
+                    return fetch(`${API_BASE_URL}/api/machine-monitor?bancoid=${bancoid}`)
                         .then(async r => {
                             if (!r.ok) {
                                 console.warn(`ℹ Erro ao consultar banco ${bancoid}: HTTP ${r.status}`);
@@ -7879,9 +8479,9 @@
                     html += `
                         <tr style="background: ${bgRow}; border-bottom: 1px solid #e2e8f0; transition: all 0.2s;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='${bgRow}'">
                             <td style="padding: 14px 16px; font-weight: 600; color: #1e293b; font-size: 14px;">
-                                ${escapeHtml(machine.name)}
+                                ${machine.name}
                                 <div style="font-size: 11px; color: #94a3b8; font-weight: 400; margin-top: 2px;">
-                                    ℹ ${escapeHtml(machine.id)} ã ℹ ${escapeHtml(machine.ip) || 'N/A'}
+                                    ℹ ${machine.id} ã ℹ ${machine.ip || 'N/A'}
                                 </div>
                             </td>
                             <td style="padding: 14px 16px; text-align: center; color: #475569; font-size: 13px;">
@@ -8745,11 +9345,12 @@
                 
                 // ⚠️ AVISAR APENAS SE HÁ REIMPRESSÕES
                 if (existentes > 0 && nomesExistentes && nomesExistentes.length > 0) {
-                    hideLoading();
+                    hideLoading(); // Esconder loading antes do confirm
                     const nomes = nomesExistentes.join('\n• ');
-                    const confirmar = await showConfirm(
-                        'REIMPRESSÃO DETECTADA',
-                        `Os seguintes registros já foram impressos:\n\n• ${nomes}\n\nDeseja REIMPRIMIR mesmo assim?`
+                    const confirmar = confirm(
+                        `⚠️ REIMPRESSÃO DETECTADA\n\n` +
+                        `Os seguintes registros já foram impressos:\n\n• ${nomes}\n\n` +
+                        `Deseja REIMPRIMIR mesmo assim?`
                     );
                     
                     if (!confirmar) {
