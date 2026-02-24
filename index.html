@@ -1620,6 +1620,10 @@
                     <span>📅</span>
                     <span>PRESENÇA</span>
                 </button>
+                <button class="btn" onclick="openColetasPanel()" style="margin: 0; font-size: 16px; padding: 12px 24px; background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);">
+                    <span>📡</span>
+                    <span>COLETAS</span>
+                </button>
                 <button class="btn" onclick="openReportDashboard()" style="margin: 0; font-size: 16px; padding: 12px 24px; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);">
                     <span>📈</span>
                     <span>RELATÓRIO</span>
@@ -8581,10 +8585,16 @@
             window.open('monitor.html', '_blank');
         }
 
-        // PAINEL DE PRESENçãA
+        // PAINEL DE PRESENÇA
         function openPresencePanel() {
             // Abrir presenca.html em nova guia
             window.open('presenca.html', '_blank');
+        }
+
+        // PAINEL DE COLETAS
+        function openColetasPanel() {
+            // Abrir coletas.html em nova guia
+            window.open('coletas.html', '_blank');
         }
 
         // ==========================================

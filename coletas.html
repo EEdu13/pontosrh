@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coletas - Status das Comunicações</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%);
+            min-height: 100vh;
+            color: #e2e8f0;
+        }
+
+        .container { max-width: 1400px; margin: 0 auto; padding: 24px; }
+
+        /* HEADER */
+        .header {
+            background: rgba(30, 41, 59, 0.8);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(148, 163, 184, 0.1);
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .header p { color: #94a3b8; margin-top: 4px; }
+
+        .header-actions {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: white;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+        }
+
+        .btn-secondary {
+            background: rgba(71, 85, 105, 0.5);
+            color: #e2e8f0;
+            border: 1px solid rgba(148, 163, 184, 0.2);
+        }
+
+        .btn-secondary:hover { background: rgba(71, 85, 105, 0.8); }
+
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none !important; }
+
+        /* AUTO-REFRESH */
+        .auto-refresh {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            color: #94a3b8;
+        }
+
+        .auto-refresh input[type="checkbox"] {
+            accent-color: #8b5cf6;
+            width: 16px;
+            height: 16px;
+        }
+
+        .countdown {
+            color: #a78bfa;
+            font-weight: 600;
+            min-width: 40px;
+        }
+
+        /* STATS CARDS */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        @media (max-width: 900px) { .stats-grid { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 500px) { .stats-grid { grid-template-columns: 1fr; } }
+
+        .stat-card {
+            border-radius: 14px;
+            padding: 20px;
+            text-align: center;
+            transition: transform 0.2s;
+        }
+
+        .stat-card:hover { transform: translateY(-3px); }
+        .stat-card.blue   { background: linear-gradient(135deg, #3b82f6, #1d4ed8); }
+        .stat-card.green  { background: linear-gradient(135deg, #10b981, #059669); }
+        .stat-card.yellow { background: linear-gradient(135deg, #f59e0b, #d97706); }
+        .stat-card.red    { background: linear-gradient(135deg, #ef4444, #dc2626); }
+
+        .stat-card .label {
+            font-size: 12px;
+            color: rgba(255,255,255,0.8);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 6px;
+        }
+
+        .stat-card .value {
+            font-size: 36px;
+            font-weight: 800;
+            color: white;
+        }
+
+        .stat-card .sublabel {
+            font-size: 11px;
+            color: rgba(255,255,255,0.6);
+            margin-top: 4px;
+        }
+
+        /* TABLE CARD */
+        .table-card {
+            background: rgba(30, 41, 59, 0.8);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(148, 163, 184, 0.1);
+            border-radius: 16px;
+            padding: 24px;
+            overflow: hidden;
+        }
+
+        .table-card h3 {
+            font-size: 18px;
+            font-weight: 700;
+            color: #e2e8f0;
+            margin-bottom: 16px;
+        }
+
+        .table-wrapper { overflow-x: auto; }
+
+        table { width: 100%; border-collapse: collapse; }
+
+        th {
+            padding: 14px 16px;
+            text-align: left;
+            font-weight: 600;
+            color: #94a3b8;
+            border-bottom: 2px solid rgba(148, 163, 184, 0.2);
+            background: rgba(15, 23, 42, 0.6);
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            white-space: nowrap;
+        }
+
+        th.center { text-align: center; }
+
+        td {
+            padding: 14px 16px;
+            border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+            color: #e2e8f0;
+            font-size: 14px;
+        }
+
+        td.center { text-align: center; }
+
+        tr:hover { background: rgba(148, 163, 184, 0.05); }
+
+        /* STATUS BADGES */
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 6px;
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.online  { background: #10b981; box-shadow: 0 0 6px #10b981; }
+        .status-dot.warning  { background: #f59e0b; box-shadow: 0 0 6px #f59e0b; }
+        .status-dot.offline  { background: #ef4444; box-shadow: 0 0 6px #ef4444; }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 12px;
+            white-space: nowrap;
+        }
+
+        .status-badge.online  { background: rgba(16, 185, 129, 0.15); color: #10b981; }
+        .status-badge.warning  { background: rgba(245, 158, 11, 0.15); color: #f59e0b; }
+        .status-badge.offline  { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
+
+        .time-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 8px;
+            background: rgba(99, 102, 241, 0.15);
+            color: #a78bfa;
+            font-weight: 600;
+            font-size: 13px;
+            white-space: nowrap;
+        }
+
+        .batidas-num {
+            font-weight: 700;
+            font-size: 16px;
+            color: #3b82f6;
+        }
+
+        .empresa-tag {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 6px;
+            background: rgba(148, 163, 184, 0.1);
+            color: #cbd5e1;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .ip-mono {
+            font-family: 'Cascadia Code', 'Fira Code', monospace;
+            color: #94a3b8;
+            font-size: 13px;
+        }
+
+        /* LOADING */
+        .loading-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(15, 23, 42, 0.9);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .loading-overlay.active { display: flex; }
+
+        .loading-spinner {
+            width: 48px; height: 48px;
+            border: 4px solid rgba(99, 102, 241, 0.2);
+            border-top-color: #8b5cf6;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .loading-text { color: #e2e8f0; font-weight: 600; }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #64748b;
+        }
+
+        .empty-state span {
+            font-size: 48px;
+            display: block;
+            margin-bottom: 16px;
+        }
+
+        /* LAST UPDATE */
+        .last-update {
+            text-align: right;
+            margin-right: 16px;
+        }
+
+        .last-update small { font-size: 12px; color: #94a3b8; display: block; }
+        .last-update strong { font-size: 16px; font-weight: 700; color: #e2e8f0; }
+
+        /* RESPONSIVE */
+        @media (max-width: 768px) {
+            .header { flex-direction: column; text-align: center; }
+            .header-actions { flex-wrap: wrap; justify-content: center; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-spinner"></div>
+        <div class="loading-text" id="loadingText">Carregando...</div>
+    </div>
+
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <div>
+                <h1>📡 Coletas de Ponto</h1>
+                <p>Status das comunicações com os relógios de ponto</p>
+            </div>
+            <div class="header-actions">
+                <div class="last-update">
+                    <small>Última consulta:</small>
+                    <strong id="lastUpdate">--:--:--</strong>
+                </div>
+                <div class="auto-refresh">
+                    <input type="checkbox" id="autoRefreshToggle" checked>
+                    <label for="autoRefreshToggle">Auto</label>
+                    <span class="countdown" id="countdown">5:00</span>
+                </div>
+                <button class="btn btn-primary" id="btnRefresh" onclick="carregarTudo()">
+                    🔄 Atualizar
+                </button>
+                <button class="btn btn-secondary" onclick="window.close()">
+                    ❌ Fechar
+                </button>
+            </div>
+        </div>
+
+        <!-- Stats -->
+        <div class="stats-grid">
+            <div class="stat-card blue">
+                <div class="label">🖥️ Equipamentos</div>
+                <div class="value" id="statTotal">0</div>
+                <div class="sublabel">Total de máquinas</div>
+            </div>
+            <div class="stat-card green">
+                <div class="label">✅ Comunicando</div>
+                <div class="value" id="statOnline">0</div>
+                <div class="sublabel">Últimas 24h</div>
+            </div>
+            <div class="stat-card yellow">
+                <div class="label">⚠️ Atenção</div>
+                <div class="value" id="statWarning">0</div>
+                <div class="sublabel">1-3 dias sem dados</div>
+            </div>
+            <div class="stat-card red">
+                <div class="label">❌ Sem Comunicação</div>
+                <div class="value" id="statOffline">0</div>
+                <div class="sublabel">+3 dias ou nunca</div>
+            </div>
+        </div>
+
+        <!-- Table -->
+        <div class="table-card">
+            <h3>📋 Detalhamento por Equipamento</h3>
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Equipamento</th>
+                            <th>Empresa</th>
+                            <th class="center">IP</th>
+                            <th class="center">Última Batida</th>
+                            <th class="center">Há Quanto Tempo</th>
+                            <th class="center">Batidas (Período)</th>
+                            <th class="center">Batidas (Último Dia)</th>
+                            <th class="center">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody">
+                        <tr>
+                            <td colspan="8" class="empty-state">
+                                <span>📡</span>
+                                Carregando dados das máquinas...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ==========================================
+        // CONFIG
+        // ==========================================
+        let SECULLUM_TOKEN = null;
+        let EMPRESAS = [];
+        let allMachines = [];
+        let autoRefreshTimer = null;
+        let countdownTimer = null;
+        let countdownSeconds = 300; // 5 min
+
+        // ==========================================
+        // INIT
+        // ==========================================
+        document.addEventListener('DOMContentLoaded', async () => {
+            await init();
+        });
+
+        async function init() {
+            showLoading('Autenticando na Secullum...');
+            const ok = await authenticate();
+            if (!ok) {
+                hideLoading();
+                document.getElementById('tableBody').innerHTML = `
+                    <tr><td colspan="8" class="empty-state">
+                        <span>🔒</span> Falha na autenticação. Recarregue a página.
+                    </td></tr>`;
+                return;
+            }
+
+            showLoading('Carregando empresas...');
+            await loadEmpresas();
+
+            showLoading('Consultando equipamentos...');
+            await carregarTudo();
+
+            startAutoRefresh();
+        }
+
+        // ==========================================
+        // AUTH
+        // ==========================================
+        async function authenticate() {
+            try {
+                const resp = await fetch('https://autenticador.secullum.com.br/Token', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: new URLSearchParams({
+                        grant_type: 'password',
+                        username: 'ferreira.eduardo@larsil.com.br',
+                        password: 'larsil123@',
+                        client_id: '3'
+                    })
+                });
+
+                if (!resp.ok) throw new Error(`Auth ${resp.status}`);
+                const data = await resp.json();
+                SECULLUM_TOKEN = data.access_token;
+                console.log('✅ Token obtido');
+                return true;
+            } catch (err) {
+                console.error('❌ Auth falhou:', err);
+                return false;
+            }
+        }
+
+        // ==========================================
+        // EMPRESAS
+        // ==========================================
+        async function loadEmpresas() {
+            try {
+                const resp = await fetch('https://autenticador.secullum.com.br/ContasSecullumExterno/ListarBancos', {
+                    headers: { 'Authorization': `Bearer ${SECULLUM_TOKEN}` }
+                });
+
+                if (!resp.ok) throw new Error(`Empresas ${resp.status}`);
+                EMPRESAS = await resp.json();
+                console.log(`✅ ${EMPRESAS.length} empresas`);
+            } catch (err) {
+                console.error('❌ Erro empresas:', err);
+                EMPRESAS = [];
+            }
+        }
+
+        // ==========================================
+        // LOAD ALL MACHINES
+        // ==========================================
+        async function carregarTudo() {
+            const btn = document.getElementById('btnRefresh');
+            btn.disabled = true;
+            btn.textContent = '⏳ Consultando...';
+
+            try {
+                showLoading('Consultando todas as empresas...');
+
+                // Period: last 30 days
+                const hoje = new Date();
+                const inicio = new Date();
+                inicio.setDate(hoje.getDate() - 30);
+                const dataInicio = inicio.toISOString().split('T')[0];
+                const dataFim = hoje.toISOString().split('T')[0];
+
+                allMachines = [];
+
+                for (let i = 0; i < EMPRESAS.length; i++) {
+                    const empresa = EMPRESAS[i];
+                    const empresaNome = empresa.nome || empresa.razaoSocial || `Empresa ${empresa.id}`;
+                    showLoading(`Consultando: ${empresaNome} (${i + 1}/${EMPRESAS.length})...`);
+
+                    try {
+                        // Get equipment list
+                        const equipResp = await fetch('https://pontowebintegracaoexterna.secullum.com.br/IntegracaoExterna/Equipamentos', {
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${SECULLUM_TOKEN}`,
+                                'secullumidbancoselecionado': empresa.id
+                            }
+                        });
+
+                        if (equipResp.status === 401) {
+                            console.warn('⚠️ Token expirou, re-autenticando...');
+                            await authenticate();
+                            continue;
+                        }
+
+                        if (!equipResp.ok) continue;
+
+                        const equipamentos = await equipResp.json();
+                        if (!Array.isArray(equipamentos) || equipamentos.length === 0) continue;
+
+                        // Get batidas for each equipment
+                        const machines = await Promise.all(equipamentos.map(async (equip) => {
+                            try {
+                                const equipId = equip.Id || equip.EquipamentoId || equip.id;
+                                const equipNome = equip.Descricao || equip.Nome || equip.descricao || `Equipamento ${equipId}`;
+                                const equipIP = equip.EnderecoIP || equip.enderecoIP || 'N/A';
+
+                                const fontUrl = `https://pontowebintegracaoexterna.secullum.com.br/IntegracaoExterna/FonteDados?equipamentoId=${equipId}&dataInicio=${dataInicio}&dataFim=${dataFim}`;
+                                const fontResp = await fetch(fontUrl, {
+                                    headers: {
+                                        'Content-Type': 'application/json',
+                                        'Authorization': `Bearer ${SECULLUM_TOKEN}`,
+                                        'secullumidbancoselecionado': empresa.id
+                                    }
+                                });
+
+                                let lastSync = null;
+                                let totalBatidas = 0;
+                                let lastSyncCount = 0;
+
+                                if (fontResp.ok) {
+                                    const batidas = await fontResp.json();
+                                    totalBatidas = Array.isArray(batidas) ? batidas.length : 0;
+
+                                    if (totalBatidas > 0) {
+                                        batidas.sort((a, b) => new Date(b.Data || b.data) - new Date(a.Data || a.data));
+                                        lastSync = batidas[0].Data || batidas[0].data;
+
+                                        const lastSyncDate = new Date(lastSync).toISOString().split('T')[0];
+                                        lastSyncCount = batidas.filter(b => {
+                                            const bData = (b.Data || b.data || '').split('T')[0];
+                                            return bData === lastSyncDate;
+                                        }).length;
+                                    }
+                                }
+
+                                return {
+                                    id: equipId,
+                                    name: equipNome,
+                                    empresa: empresaNome,
+                                    empresaId: empresa.id,
+                                    ip: equipIP,
+                                    lastSync,
+                                    totalBatidas,
+                                    lastSyncCount
+                                };
+                            } catch (err) {
+                                return null;
+                            }
+                        }));
+
+                        allMachines.push(...machines.filter(m => m !== null));
+
+                    } catch (err) {
+                        console.warn(`⚠️ Erro empresa ${empresaNome}:`, err.message);
+                    }
+                }
+
+                // Sort: online first, then by name
+                allMachines.sort((a, b) => {
+                    const sa = getStatus(a.lastSync).order;
+                    const sb = getStatus(b.lastSync).order;
+                    if (sa !== sb) return sa - sb;
+                    return a.name.localeCompare(b.name);
+                });
+
+                renderTable();
+                updateStats();
+                document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString('pt-BR');
+
+                hideLoading();
+                resetCountdown();
+
+            } catch (err) {
+                console.error('❌ Erro geral:', err);
+                hideLoading();
+                document.getElementById('tableBody').innerHTML = `
+                    <tr><td colspan="8" class="empty-state">
+                        <span>❌</span> Erro ao carregar: ${err.message}
+                    </td></tr>`;
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '🔄 Atualizar';
+            }
+        }
+
+        // ==========================================
+        // RENDER
+        // ==========================================
+        function renderTable() {
+            const tbody = document.getElementById('tableBody');
+
+            if (allMachines.length === 0) {
+                tbody.innerHTML = `
+                    <tr><td colspan="8" class="empty-state">
+                        <span>📭</span> Nenhum equipamento encontrado
+                    </td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = allMachines.map(m => {
+                const status = getStatus(m.lastSync);
+                const timeAgo = getTimeAgo(m.lastSync);
+                const lastDate = m.lastSync ? formatDate(m.lastSync) : '—';
+
+                return `<tr>
+                    <td style="font-weight: 600;">🖥️ ${m.name}</td>
+                    <td><span class="empresa-tag">${m.empresa}</span></td>
+                    <td class="center"><span class="ip-mono">${m.ip}</span></td>
+                    <td class="center">${lastDate}</td>
+                    <td class="center"><span class="time-badge">${timeAgo}</span></td>
+                    <td class="center"><span class="batidas-num">${m.totalBatidas}</span></td>
+                    <td class="center"><span class="batidas-num">${m.lastSyncCount}</span></td>
+                    <td class="center">
+                        <span class="status-badge ${status.cls}">
+                            <span class="status-dot ${status.cls}"></span>
+                            ${status.label}
+                        </span>
+                    </td>
+                </tr>`;
+            }).join('');
+        }
+
+        function updateStats() {
+            let total = allMachines.length;
+            let online = 0, warning = 0, offline = 0;
+
+            allMachines.forEach(m => {
+                const s = getStatus(m.lastSync);
+                if (s.cls === 'online') online++;
+                else if (s.cls === 'warning') warning++;
+                else offline++;
+            });
+
+            document.getElementById('statTotal').textContent = total;
+            document.getElementById('statOnline').textContent = online;
+            document.getElementById('statWarning').textContent = warning;
+            document.getElementById('statOffline').textContent = offline;
+        }
+
+        // ==========================================
+        // HELPERS
+        // ==========================================
+        function getStatus(lastSync) {
+            if (!lastSync) return { cls: 'offline', label: 'Sem Dados', order: 3 };
+            const hours = (Date.now() - new Date(lastSync).getTime()) / (1000 * 60 * 60);
+            if (hours < 24)  return { cls: 'online',  label: 'OK',      order: 1 };
+            if (hours < 72)  return { cls: 'warning', label: 'Atenção', order: 2 };
+            return { cls: 'offline', label: 'Parado',  order: 3 };
+        }
+
+        function getTimeAgo(lastSync) {
+            if (!lastSync) return 'Nunca';
+            const diffMs = Date.now() - new Date(lastSync).getTime();
+            const mins  = Math.floor(diffMs / 60000);
+            const hours = Math.floor(mins / 60);
+            const days  = Math.floor(hours / 24);
+
+            if (mins < 1)    return 'Agora';
+            if (mins < 60)   return `${mins}min atrás`;
+            if (hours < 24)  return `${hours}h atrás`;
+            if (days === 1)  return 'Ontem';
+            if (days < 7)    return `${days} dias atrás`;
+            const weeks = Math.floor(days / 7);
+            return `${weeks} semana${weeks > 1 ? 's' : ''} atrás`;
+        }
+
+        function formatDate(dateStr) {
+            try {
+                const d = new Date(dateStr);
+                const dd = String(d.getDate()).padStart(2, '0');
+                const mm = String(d.getMonth() + 1).padStart(2, '0');
+                const yy = String(d.getFullYear()).slice(-2);
+                const hh = String(d.getHours()).padStart(2, '0');
+                const mi = String(d.getMinutes()).padStart(2, '0');
+                return `${dd}/${mm}/${yy} ${hh}:${mi}`;
+            } catch {
+                return dateStr;
+            }
+        }
+
+        // ==========================================
+        // AUTO REFRESH
+        // ==========================================
+        function startAutoRefresh() {
+            const toggle = document.getElementById('autoRefreshToggle');
+            toggle.addEventListener('change', () => {
+                if (toggle.checked) {
+                    resetCountdown();
+                } else {
+                    clearInterval(countdownTimer);
+                    clearTimeout(autoRefreshTimer);
+                    document.getElementById('countdown').textContent = '—';
+                }
+            });
+            resetCountdown();
+        }
+
+        function resetCountdown() {
+            clearInterval(countdownTimer);
+            clearTimeout(autoRefreshTimer);
+            countdownSeconds = 300; // 5 min
+
+            const toggle = document.getElementById('autoRefreshToggle');
+            if (!toggle.checked) return;
+
+            updateCountdownDisplay();
+            countdownTimer = setInterval(() => {
+                countdownSeconds--;
+                updateCountdownDisplay();
+                if (countdownSeconds <= 0) {
+                    clearInterval(countdownTimer);
+                    carregarTudo();
+                }
+            }, 1000);
+        }
+
+        function updateCountdownDisplay() {
+            const m = Math.floor(countdownSeconds / 60);
+            const s = countdownSeconds % 60;
+            document.getElementById('countdown').textContent = `${m}:${String(s).padStart(2, '0')}`;
+        }
+
+        // ==========================================
+        // LOADING
+        // ==========================================
+        function showLoading(text = 'Carregando...') {
+            document.getElementById('loadingText').textContent = text;
+            document.getElementById('loadingOverlay').classList.add('active');
+        }
+
+        function hideLoading() {
+            document.getElementById('loadingOverlay').classList.remove('active');
+        }
+    </script>
+</body>
+</html>
