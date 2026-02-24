@@ -750,7 +750,7 @@
 
             const origemCount = {};
             batidas.forEach(b => {
-                const origem = b.Origem ?? 0;
+                const origem = parseInt(b.Origem) || 0;
                 origemCount[origem] = (origemCount[origem] || 0) + 1;
             });
 
