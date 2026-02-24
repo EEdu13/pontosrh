@@ -253,6 +253,23 @@
             font-weight: 500;
         }
 
+        /* EMPRESA GROUP HEADER */
+        .empresa-group-row td {
+            background: rgba(99, 102, 241, 0.1);
+            border-bottom: 2px solid rgba(99, 102, 241, 0.3);
+            padding: 12px 16px;
+            font-weight: 700;
+            font-size: 15px;
+            color: #a78bfa;
+        }
+
+        .empresa-group-row td .empresa-summary {
+            font-size: 12px;
+            font-weight: 500;
+            color: #94a3b8;
+            margin-left: 12px;
+        }
+
         .ip-mono {
             font-family: 'Cascadia Code', 'Fira Code', monospace;
             color: #94a3b8;
@@ -556,12 +573,16 @@
                                     totalBatidas = Array.isArray(batidas) ? batidas.length : 0;
 
                                     if (totalBatidas > 0) {
-                                        batidas.sort((a, b) => new Date(b.Data || b.data) - new Date(a.Data || a.data));
-                                        lastSync = batidas[0].Data || batidas[0].data;
+                                        // Combinar Data + Hora para obter timestamp real
+                                        batidas.forEach(b => {
+                                            b._dateTime = combinarDataHora(b.Data || b.data, b.Hora || b.hora);
+                                        });
+                                        batidas.sort((a, b) => new Date(b._dateTime) - new Date(a._dateTime));
+                                        lastSync = batidas[0]._dateTime;
 
                                         const lastSyncDate = new Date(lastSync).toISOString().split('T')[0];
                                         lastSyncCount = batidas.filter(b => {
-                                            const bData = (b.Data || b.data || '').split('T')[0];
+                                            const bData = new Date(b._dateTime).toISOString().split('T')[0];
                                             return bData === lastSyncDate;
                                         }).length;
                                     }
@@ -589,8 +610,10 @@
                     }
                 }
 
-                // Sort: online first, then by name
+                // Sort: by empresa first, then status, then name
                 allMachines.sort((a, b) => {
+                    const empCmp = a.empresa.localeCompare(b.empresa);
+                    if (empCmp !== 0) return empCmp;
                     const sa = getStatus(a.lastSync).order;
                     const sb = getStatus(b.lastSync).order;
                     if (sa !== sb) return sa - sb;
@@ -631,13 +654,34 @@
                 return;
             }
 
-            tbody.innerHTML = allMachines.map(m => {
+            // Group by empresa
+            let currentEmpresa = null;
+            let html = '';
+
+            allMachines.forEach(m => {
+                // Insert empresa group header
+                if (m.empresa !== currentEmpresa) {
+                    currentEmpresa = m.empresa;
+                    const empresaMachines = allMachines.filter(x => x.empresa === currentEmpresa);
+                    const totalBat = empresaMachines.reduce((s, x) => s + x.totalBatidas, 0);
+                    const onlineCount = empresaMachines.filter(x => getStatus(x.lastSync).cls === 'online').length;
+
+                    html += `<tr class="empresa-group-row">
+                        <td colspan="8">
+                            🏢 ${currentEmpresa}
+                            <span class="empresa-summary">
+                                ${empresaMachines.length} equip. · ${totalBat} batidas · ${onlineCount} comunicando
+                            </span>
+                        </td>
+                    </tr>`;
+                }
+
                 const status = getStatus(m.lastSync);
                 const timeAgo = getTimeAgo(m.lastSync);
                 const lastDate = m.lastSync ? formatDate(m.lastSync) : '—';
 
-                return `<tr>
-                    <td style="font-weight: 600;">🖥️ ${m.name}</td>
+                html += `<tr>
+                    <td style="font-weight: 600; padding-left: 32px;">🖥️ ${m.name}</td>
                     <td><span class="empresa-tag">${m.empresa}</span></td>
                     <td class="center"><span class="ip-mono">${m.ip}</span></td>
                     <td class="center">${lastDate}</td>
@@ -651,7 +695,9 @@
                         </span>
                     </td>
                 </tr>`;
-            }).join('');
+            });
+
+            tbody.innerHTML = html;
         }
 
         function updateStats() {
@@ -674,6 +720,23 @@
         // ==========================================
         // HELPERS
         // ==========================================
+
+        // Combinar campo Data ("2026-02-24T00:00:00") + Hora ("08:30" ou "08:30:00") da FonteDados
+        function combinarDataHora(dataStr, horaStr) {
+            if (!dataStr) return null;
+            try {
+                const datePart = (dataStr || '').split('T')[0]; // "2026-02-24"
+                if (horaStr) {
+                    // Hora pode vir como "08:30", "08:30:00", "08-30", etc.
+                    const horaClean = horaStr.replace(/-/g, ':');
+                    return `${datePart}T${horaClean}`;
+                }
+                return dataStr; // fallback: usa como veio
+            } catch {
+                return dataStr;
+            }
+        }
+
         function getStatus(lastSync) {
             if (!lastSync) return { cls: 'offline', label: 'Sem Dados', order: 3 };
             const hours = (Date.now() - new Date(lastSync).getTime()) / (1000 * 60 * 60);
