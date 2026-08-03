@@ -1548,7 +1548,7 @@
     <div class="custom-alert" id="questionModal">
         <div class="alert-content" style="min-width: 500px;">
             <div class="alert-header warning">
-                <div class="alert-title">? Pergunta ao Colaborador</div>
+                <div class="alert-title">Pergunta ao Colaborador</div>
             </div>
             <div class="alert-body">
                 <p id="questionContext" style="margin-bottom: 16px; font-weight: 600;"></p>
@@ -3730,7 +3730,7 @@
         async function connectToAPI() {
             const apiStatus = document.getElementById('apiStatus');
             
-            apiStatus.innerHTML = '? Autenticando...';
+            apiStatus.innerHTML = 'Autenticando...';
             
             const authenticated = await authenticateAPI();
             
@@ -3780,7 +3780,7 @@
             }
             
             showLoading(`Buscando ${diffDays} dias de dados...`);
-            apiStatus.innerHTML = `? Buscando ${diffDays} dias de dados...`;
+            apiStatus.innerHTML = `Buscando ${diffDays} dias de dados...`;
             const startTime = performance.now();
             
             const apiData = await fetchEmployeesFromAPI(dateStart, dateEnd);
@@ -4168,7 +4168,7 @@
                 return;
             }
             
-            document.getElementById('apiStatus').innerHTML = '? Carregando...';
+            document.getElementById('apiStatus').innerHTML = 'Carregando...';
             const startTime = performance.now();
             
             const apiData = await fetchEmployeesFromAPI(dateStart, dateEnd);
@@ -7184,7 +7184,7 @@
                 
             } catch (err) {
                 console.error('? Erro ao salvar perguntas:', err);
-                showAlert('Erro', `não foi posSóvel salvar: ${err.message}`, 'error');
+                showAlert('Erro', `Não foi possível salvar: ${err.message}`, 'error');
             }
         }
 
@@ -7267,7 +7267,7 @@
                 
             } catch (err) {
                 console.error('? Erro ao salvar aprovação:', err);
-                showAlert('Erro', `não foi posSóvel salvar a aprovação: ${err.message}`, 'error');
+                showAlert('Erro', `Não foi possível salvar a aprovação: ${err.message}`, 'error');
             }
         }
 
@@ -7898,7 +7898,7 @@
 
         async function refreshMachineMonitor() {
             try {
-                showLoading('Consultando méquinas de todas as empresas...');
+                showLoading('Consultando máquinas de todas as empresas...');
                 
                 // Definir quais bancos consultar
                 let bancosParaConsultar = [];
@@ -7942,7 +7942,7 @@
                 const content = document.getElementById('machineMonitorContent');
                 
                 if (machines.length === 0) {
-                    content.innerHTML = '<div style="text-align: center; padding: 40px; color: #64748b;">Nenhuma méquina encontrada</div>';
+                    content.innerHTML = '<div style="text-align: center; padding: 40px; color: #64748b;">Nenhuma máquina encontrada</div>';
                     hideLoading();
                     return;
                 }
@@ -8046,7 +8046,7 @@
                 hideLoading();
             } catch (err) {
                 console.error('? Erro ao buscar méquinas:', err);
-                showAlert('Erro', 'não foi posSóvel consultar as méquinas: ' + err.message, 'error');
+                showAlert('Erro', 'Não foi possível consultar as máquinas: ' + err.message, 'error');
                 hideLoading();
             }
         }
@@ -8143,7 +8143,7 @@
             } catch (err) {
                 console.error('? Erro ao apagar ponto:', err);
                 hideLoading();
-                showAlert('Erro', `não foi posSóvel apagar o ponto: ${err.message}`, 'error');
+                showAlert('Erro', `Não foi possível apagar o ponto: ${err.message}`, 'error');
             }
         }
 
