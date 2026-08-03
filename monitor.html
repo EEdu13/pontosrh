@@ -3,6 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/assets/theme.css">
+    <script src="/assets/session.js"></script>
     <title>Monitor de Relógios de Ponto - Secullum</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
@@ -28,7 +31,7 @@
         /* HEADER COM CONTROLES */
         .header {
             background: rgba(30, 41, 59, 0.8);
-            backdrop-filter: blur(20px);
+            backdrop-filter: blur(8px);
             border: 1px solid rgba(148, 163, 184, 0.1);
             border-radius: 20px;
             padding: 30px;
@@ -157,7 +160,7 @@
 
         .stat-card {
             background: rgba(30, 41, 59, 0.8);
-            backdrop-filter: blur(20px);
+            backdrop-filter: blur(8px);
             border: 1px solid rgba(148, 163, 184, 0.1);
             border-radius: 16px;
             padding: 24px;
@@ -231,7 +234,7 @@
 
         .machine-card {
             background: rgba(30, 41, 59, 0.8);
-            backdrop-filter: blur(20px);
+            backdrop-filter: blur(8px);
             border: 1px solid rgba(148, 163, 184, 0.1);
             border-radius: 16px;
             padding: 24px;
@@ -545,74 +548,15 @@
             }
         });
 
-        // Autenticar na API Secullum
+        // Usa o token obtido no login (assets/session.js) — sem credenciais aqui
         async function authenticateSecullum() {
-            try {
-                console.log('🔑 Autenticando na API Secullum...');
-                
-                const response = await fetch('https://autenticador.secullum.com.br/Token', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded'
-                    },
-                    body: new URLSearchParams({
-                        grant_type: 'password',
-                        username: 'ferreira.eduardo@larsil.com.br',
-                        password: 'larsil123@',
-                        client_id: '3'
-                    })
-                });
-
-                if (!response.ok) {
-                    throw new Error(`Autenticação falhou: ${response.status}`);
-                }
-
-                const data = await response.json();
-                SECULLUM_TOKEN = data.access_token;
-                console.log('✅ Token Secullum obtido com sucesso');
-                
-                return true;
-            } catch (err) {
-                console.error('❌ Erro ao autenticar:', err);
-                alert('Erro ao autenticar na API Secullum. Recarregue a página.');
-                return false;
-            }
+            SECULLUM_TOKEN = SESSION.getSecullumToken();
+            return SECULLUM_TOKEN !== null;
         }
 
         // Buscar empresas disponíveis
         async function loadCompanies() {
-            try {
-                console.log('🏢 Buscando empresas disponíveis...');
-                
-                const response = await fetch('https://autenticador.secullum.com.br/ContasSecullumExterno/ListarBancos', {
-                    headers: {
-                        'Authorization': `Bearer ${SECULLUM_TOKEN}`
-                    }
-                });
-
-                if (!response.ok) {
-                    throw new Error(`Erro ao buscar empresas: ${response.status}`);
-                }
-
-                const bancos = await response.json();
-                EMPRESAS = bancos;
-                console.log(`✅ ${bancos.length} empresas encontradas`);
-
-                // Preencher select de empresas
-                const select = document.getElementById('empresaSelect');
-                select.innerHTML = '<option value="">Selecione uma empresa...</option>';
-                
-                bancos.forEach(banco => {
-                    const option = document.createElement('option');
-                    option.value = banco.id;
-                    option.textContent = banco.nome || banco.razaoSocial || `Empresa ${banco.id}`;
-                    select.appendChild(option);
-                });
-
-            } catch (err) {
-                console.error('❌ Erro ao buscar empresas:', err);
-                alert('Erro ao buscar lista de empresas.');
-            }
+            EMPRESAS = await SESSION.fillCompanySelect(document.getElementById('empresaSelect'));
         }
 
         async function loadMachines() {

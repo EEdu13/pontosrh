@@ -87,8 +87,8 @@ AZURE_STORAGE_CONTAINER=justificativas
 # API Secullum
 SECULLUM_API_URL=https://pontowebintegracaoexterna.secullum.com.br
 SECULLUM_AUTH_URL=https://autenticador.secullum.com.br/Token
-SECULLUM_USERNAME=ferreira.eduardo@larsil.com.br
-SECULLUM_PASSWORD=larsil123@
+SECULLUM_USERNAME=usuario_de_servico@empresa.com.br
+SECULLUM_PASSWORD=defina_no_painel_do_railway
 SECULLUM_CLIENT_ID=3
 ```
 

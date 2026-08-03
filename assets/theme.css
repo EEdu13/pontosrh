@@ -1,0 +1,99 @@
+/* ==========================================================================
+   theme.css — Tokens compartilhados do Sistema de Justificativas
+   Adicionado em modo aditivo: NÃO sobrescreve CSS existente, apenas
+   disponibiliza variáveis e utilitários para uso futuro.
+   ========================================================================== */
+
+:root {
+    /* Cores base (slate dark) */
+    --color-bg-1: #0f172a;
+    --color-bg-2: #1e293b;
+    --color-bg-3: #334155;
+    --color-surface: rgba(30, 41, 59, 0.8);
+    --color-surface-strong: rgba(15, 23, 42, 0.6);
+    --color-border: rgba(148, 163, 184, 0.1);
+    --color-border-strong: rgba(148, 163, 184, 0.2);
+
+    /* Texto */
+    --color-text: #e2e8f0;
+    --color-text-muted: #94a3b8;
+    --color-text-soft: #64748b;
+
+    /* Acentos */
+    --color-blue: #3b82f6;
+    --color-purple: #8b5cf6;
+    --color-green: #10b981;
+    --color-red: #ef4444;
+    --color-amber: #f59e0b;
+    --color-cyan: #06b6d4;
+
+    /* Gradientes */
+    --grad-bg: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%);
+    --grad-blue: linear-gradient(135deg, #3b82f6, #8b5cf6);
+    --grad-amber: linear-gradient(135deg, #f59e0b, #d97706);
+    --grad-green: linear-gradient(135deg, #10b981, #059669);
+    --grad-red: linear-gradient(135deg, #ef4444, #dc2626);
+
+    /* Layout */
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 16px;
+    --radius-xl: 20px;
+    --shadow-card: 0 15px 40px rgba(0, 0, 0, 0.4);
+    --shadow-hover: 0 20px 50px rgba(0, 0, 0, 0.5);
+
+    /* Animação */
+    --transition-fast: 0.15s ease;
+    --transition: 0.25s ease;
+}
+
+/* Otimização: evita flash sem fonte (FOUT) menos visível */
+html { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+
+/* Acessibilidade: foco visível em todos os interativos */
+:focus-visible {
+    outline: 2px solid var(--color-blue);
+    outline-offset: 2px;
+    border-radius: 4px;
+}
+
+/* Scroll mais suave e barras compactas no tema escuro */
+* { scrollbar-width: thin; scrollbar-color: rgba(148,163,184,0.3) transparent; }
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-thumb {
+    background: rgba(148, 163, 184, 0.3);
+    border-radius: 8px;
+}
+*::-webkit-scrollbar-thumb:hover { background: rgba(148, 163, 184, 0.5); }
+*::-webkit-scrollbar-track { background: transparent; }
+
+/* Respeitar preferência de redução de movimento */
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+/* Skeletons (uso opcional) */
+@keyframes skeleton-shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+}
+.skeleton {
+    background: linear-gradient(90deg,
+        rgba(148,163,184,0.08) 0%,
+        rgba(148,163,184,0.18) 50%,
+        rgba(148,163,184,0.08) 100%);
+    background-size: 200% 100%;
+    animation: skeleton-shimmer 1.4s infinite linear;
+    border-radius: 8px;
+}
+
+/* Utilitário para botão de ícone-só com a11y */
+.icon-only-btn { position: relative; }
+.icon-only-btn[aria-label]::after {
+    /* tooltip simples opcional, usado se o consumidor quiser */
+    content: '';
+}

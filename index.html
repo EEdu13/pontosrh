@@ -1,8 +1,11 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/assets/theme.css">
+    <script src="/assets/session.js"></script>
     <title>Gestão de Ponto - Justificativas</title>
     <style>
         * {
@@ -27,7 +30,7 @@
         /* Header Card */
         .header-card {
             background: rgba(30, 41, 59, 0.8);
-            backdrop-filter: blur(20px);
+            backdrop-filter: blur(8px);
             border: 1px solid rgba(148, 163, 184, 0.1);
             border-radius: 20px;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
@@ -78,7 +81,7 @@
 
         .stat-card {
             background: rgba(30, 41, 59, 0.8);
-            backdrop-filter: blur(20px);
+            backdrop-filter: blur(8px);
             border: 1px solid rgba(148, 163, 184, 0.1);
             border-radius: 16px;
             box-shadow: 0 15px 40px rgba(0, 0, 0, 0.4);
@@ -110,7 +113,7 @@
         /* Controls */
         .controls-card {
             background: rgba(30, 41, 59, 0.8);
-            backdrop-filter: blur(20px);
+            backdrop-filter: blur(8px);
             border: 1px solid rgba(148, 163, 184, 0.1);
             border-radius: 16px;
             box-shadow: 0 15px 40px rgba(0, 0, 0, 0.4);
@@ -579,7 +582,7 @@
             max-width: 210mm;
             margin: 0 auto 24px;
             background: rgba(30, 41, 59, 0.95);
-            backdrop-filter: blur(20px);
+            backdrop-filter: blur(8px);
             border: 1px solid rgba(148, 163, 184, 0.1);
             border-radius: 8px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.3);
@@ -1320,7 +1323,7 @@
 
         .loading-content {
             background: rgba(30, 41, 59, 0.95);
-            backdrop-filter: blur(20px);
+            backdrop-filter: blur(8px);
             border: 1px solid rgba(148, 163, 184, 0.1);
             padding: 32px 48px;
             border-radius: 16px;
@@ -1382,7 +1385,7 @@
 
         .alert-content {
             background: rgba(30, 41, 59, 0.95);
-            backdrop-filter: blur(20px);
+            backdrop-filter: blur(8px);
             padding: 0;
             border-radius: 16px;
             min-width: 400px;
@@ -1485,22 +1488,19 @@
         // Verificar autenticação ANTES de carregar a página
         (function() {
             const token = localStorage.getItem('secullum_token');
+            const jwt = localStorage.getItem('token');
             const expiry = localStorage.getItem('secullum_token_expiry');
             const userName = localStorage.getItem('user_name') || localStorage.getItem('secullum_username') || 'Usuário';
-            
-            // Se não tem token OU token expirou, redirecionar para login
-            if (!token || !expiry || Date.now() >= parseInt(expiry)) {
-                console.log('🔑 Token inválido ou expirado, redirecionando para login...');
+
+            // Precisa dos DOIS tokens: Secullum (API de ponto) e JWT (backend).
+            // Sessões antigas só têm o Secullum — forçamos novo login para obter o JWT.
+            if (!token || !jwt || !expiry || Date.now() >= parseInt(expiry)) {
+                console.log('🔑 Sessão inválida ou expirada, redirecionando para login...');
                 localStorage.clear(); // Limpar tudo
                 window.location.href = '/login.html';
                 return;
             }
-            
-            // 🔑 RESTAURAR TOKEN: Carregar token salvo no localStorage de volta para memória
-            if (typeof API_CONFIG !== 'undefined') {
-                API_CONFIG.token = token;
-            }
-            
+
             console.log('? Usuário autenticado:', userName);
             window.CURRENT_USER = userName;
             window.CURRENT_USER_EMAIL = localStorage.getItem('secullum_username') || userName; // Email do login
@@ -1769,7 +1769,7 @@
 
         <!-- Modal de Edição de Batidas -->
         <div id="editModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); backdrop-filter: blur(10px); z-index: 9999; justify-content: center; align-items: center;">
-            <div style="background: rgba(30, 41, 59, 0.95); backdrop-filter: blur(20px); border: 1px solid rgba(148, 163, 184, 0.1); border-radius: 12px; padding: 32px; max-width: 600px; width: 90%; box-shadow: 0 20px 60px rgba(0,0,0,0.5);">
+            <div style="background: rgba(30, 41, 59, 0.95); backdrop-filter: blur(8px); border: 1px solid rgba(148, 163, 184, 0.1); border-radius: 12px; padding: 32px; max-width: 600px; width: 90%; box-shadow: 0 20px 60px rgba(0,0,0,0.5);">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
                     <h2 style="font-size: 24px; font-weight: bold; background: linear-gradient(135deg, #60a5fa, #a78bfa); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; margin: 0;">✏️ Editar Batidas</h2>
                     <button onclick="closeEditModal()" style="background: none; border: none; font-size: 28px; cursor: pointer; color: #94a3b8; padding: 0; width: 32px; height: 32px; line-height: 1;"></button>
@@ -1887,11 +1887,25 @@
 
             const toast = document.createElement('div');
             toast.className = `toast ${type}`;
-            toast.innerHTML = `
-                <span class="toast-icon">${icons[type] || icons.info}</span>
-                <span class="toast-msg">${message.replace(/\n/g, '<br>')}</span>
-                <button class="toast-close" onclick="this.parentElement.classList.add('removing');setTimeout(()=>this.parentElement.remove(),300)">&times;</button>
-            `;
+
+            const icon = document.createElement('span');
+            icon.className = 'toast-icon';
+            icon.textContent = icons[type] || icons.info;
+
+            // textContent + white-space:pre-line: quebras de linha preservadas sem
+            // interpretar HTML. A mensagem pode conter nome de funcionário / texto de OCR.
+            const msg = document.createElement('span');
+            msg.className = 'toast-msg';
+            msg.style.whiteSpace = 'pre-line';
+            msg.textContent = String(message);
+
+            // O clique fecha via o listener no próprio toast (logo abaixo)
+            const close = document.createElement('button');
+            close.className = 'toast-close';
+            close.setAttribute('aria-label', 'Fechar');
+            close.textContent = '×';
+
+            toast.append(icon, msg, close);
             container.appendChild(toast);
 
             // Auto-remove
@@ -2022,16 +2036,12 @@
         // ==========================================
         // configuração DA API SECULLUM
         // ==========================================
+        // O token é obtido no login (login.html) e lido do localStorage.
+        // NUNCA colocar credenciais aqui — este arquivo é público para o navegador.
         const API_CONFIG = {
             authURL: 'https://autenticador.secullum.com.br/Token',
             baseURL: 'https://pontowebintegracaoexterna.secullum.com.br',
             token: '',
-            credentials: {
-                grant_type: 'password',
-                username: 'ferreira.eduardo@larsil.com.br',
-                password: 'larsil123@',
-                client_id: '3'
-            },
             companies: [], // Será preenchido dinamicamente pela API
             selectedCompanies: ['all'], // 'all' ou array de IDs
             endpoints: {
@@ -2258,11 +2268,11 @@
         // ==========================================
         function getAuthHeaders(additionalHeaders = {}) {
             const token = localStorage.getItem('token') || sessionStorage.getItem('token');
-            
+
             if (!token) {
                 throw new Error('Token não fornecido');
             }
-            
+
             return {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${token}`,
@@ -2270,34 +2280,34 @@
             };
         }
 
-        // Helper para fetch com autenticação (retorna null se não autenticado)
-        async function authenticatedFetch(url, options = {}) {
-            const headers = getAuthHeaders(options.headers || {});
-            if (!headers) {
-                console.warn('⚠️ Requisição ignorada - sem autenticação:', url);
-                return null;
+        // Fetch para a API do backend. Sempre envia o JWT e trata sessão expirada
+        // em um lugar só — use isto em vez de fetch() cru para rotas /api.
+        async function apiFetch(path, options = {}) {
+            const url = path.startsWith('http') ? path : `${API_BASE_URL}${path}`;
+
+            let headers;
+            try {
+                headers = getAuthHeaders(options.headers || {});
+            } catch (err) {
+                sessaoExpirada();
+                throw err;
             }
-            return fetch(url, { ...options, headers });
+
+            const response = await fetch(url, { ...options, headers });
+
+            if (response.status === 401 || response.status === 403) {
+                sessaoExpirada();
+            }
+
+            return response;
         }
 
         // ==========================================
         // configuração GLOBAL DA API
         // ==========================================
-        const API_BASE_URL = window.location.hostname === 'localhost' 
-            ? 'http://localhost:3000' 
-            : 'https://justificativas.up.railway.app';
-
-        // ==========================================
-        // configuração SQL AZURE (Node.js API)
-        // ==========================================
-        const SQL_API = {
-            baseURL: `${API_BASE_URL}/api`,
-            endpoints: {
-                colaboradores: '/colaboradores',
-                colaboradorByCPF: '/colaboradores/cpf',
-                colaboradoresBatchCPF: '/colaboradores/batch-cpf'
-            }
-        };
+        const API_BASE_URL = window.location.hostname === 'localhost'
+            ? 'http://localhost:3000'
+            : window.location.origin;
 
         // Cache de dados do SQL Azure
         let sqlColaboradoresCache = {};
@@ -2311,8 +2321,8 @@
                     return sqlColaboradoresCache[cpfLimpo];
                 }
 
-                const response = await fetch(`${SQL_API.baseURL}${SQL_API.endpoints.colaboradorByCPF}/${cpfLimpo}`);
-                
+                const response = await apiFetch(`/api/colaboradores/cpf/${cpfLimpo}`);
+
                 if (response.ok) {
                     const data = await response.json();
                     sqlColaboradoresCache[cpfLimpo] = data;
@@ -2329,11 +2339,8 @@
         // função para buscar múltiplos colaboradores por CPFs (batch - mais rápido)
         async function getColaboradoresBatchCPF(cpfs) {
             try {
-                const response = await fetch(`${SQL_API.baseURL}${SQL_API.endpoints.colaboradoresBatchCPF}`, {
+                const response = await apiFetch('/api/colaboradores/batch-cpf', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
                     body: JSON.stringify({ cpfs })
                 });
                 
@@ -2357,75 +2364,42 @@
             }
         }
 
-        // função para autenticar na API Secullum
+        // Carrega os tokens obtidos no login. Não há re-autenticação aqui:
+        // se o token expirou, o usuário volta para a tela de login.
         async function authenticateAPI() {
             try {
-                const body = new URLSearchParams({
-                    grant_type: API_CONFIG.credentials.grant_type,
-                    username: API_CONFIG.credentials.username,
-                    password: API_CONFIG.credentials.password,
-                    client_id: API_CONFIG.credentials.client_id
-                });
+                const secullumToken = localStorage.getItem('secullum_token');
+                const expiry = parseInt(localStorage.getItem('secullum_token_expiry') || '0');
 
-                const response = await fetch(API_CONFIG.authURL, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded'
-                    },
-                    body: body.toString()
-                });
-
-                if (!response.ok) {
-                    const errorText = await response.text();
-                    throw new Error(`Falha na autenticação: ${response.status} - ${errorText}`);
+                if (!secullumToken || Date.now() >= expiry) {
+                    sessaoExpirada();
+                    return false;
                 }
 
-                const data = await response.json();
-                API_CONFIG.token = data.access_token;
-                
-                // 🔑 SALVAR TOKEN SECULLUM
-                localStorage.setItem('secullum_token', data.access_token);
-                localStorage.setItem('secullum_token_expiry', Date.now() + (data.expires_in * 1000));
-                
-                console.log('✅ Secullum autenticado com sucesso!');
-                console.log('🔑 Token Secullum:', API_CONFIG.token.substring(0, 50) + '...');
-                
-                // 🔐 AUTENTICAR NO BACKEND (Railway) para obter JWT
-                try {
-                    const backendResponse = await fetch('https://justificativas.up.railway.app/api/auth/login', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            username: API_CONFIG.credentials.username,
-                            password: API_CONFIG.credentials.password
-                        })
-                    });
-                    
-                    if (backendResponse.ok) {
-                        const backendData = await backendResponse.json();
-                        // Salvar token JWT do backend (usado para /api/anexos/upload, etc)
-                        localStorage.setItem('token', backendData.token);
-                        console.log('✅ Backend autenticado com sucesso!');
-                        console.log('🔑 Token JWT:', backendData.token.substring(0, 50) + '...');
-                    } else {
-                        console.warn('⚠️ Falha ao autenticar no backend, mas Secullum OK');
-                    }
-                } catch (err) {
-                    console.warn('⚠️ Erro ao autenticar no backend:', err.message);
-                }
-                
-                // Buscar empresas disponíveis após autenticação
+                API_CONFIG.token = secullumToken;
+
+                // Buscar empresas disponíveis
                 await loadCompanies();
-                
+
                 // Buscar justificativas
                 await fetchJustificativas();
-                
+
                 return true;
             } catch (error) {
-                console.error('? Erro na autenticação:', error);
+                console.error('❌ Erro na conexão:', error);
                 showAlert('Erro', `Erro ao conectar com a API Secullum: ${error.message}`, 'error');
                 return false;
             }
+        }
+
+        // Sessão expirada/inválida: limpa e volta ao login
+        let redirecionandoParaLogin = false;
+        function sessaoExpirada() {
+            if (redirecionandoParaLogin) return;
+            redirecionandoParaLogin = true;
+            showToast('Sessão expirada. Redirecionando para o login...', 'warning');
+            localStorage.clear();
+            setTimeout(() => { window.location.href = '/login.html'; }, 1200);
         }
 
         // função para buscar empresas (bancos) disponíveis
@@ -2590,83 +2564,99 @@
             }
         }
 
+        // Cache da lista de funcionários por empresa. A lista muda raramente, mas o
+        // endpoint é pesado — sem isso, toda busca refazia o download inteiro.
+        const funcionariosPorEmpresa = new Map(); // empresaId -> { dados, timestamp }
+        const TTL_FUNCIONARIOS = 10 * 60 * 1000;  // 10 minutos
+
+        async function fetchFuncionariosDaEmpresa(company) {
+            const cached = funcionariosPorEmpresa.get(company.id);
+            if (cached && (Date.now() - cached.timestamp) < TTL_FUNCIONARIOS) {
+                return cached.dados;
+            }
+
+            const url = `${API_CONFIG.baseURL}/IntegracaoExterna/Funcionarios`;
+            const response = await fetch(url, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${API_CONFIG.token}`,
+                    'secullumidbancoselecionado': company.id,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+            const dados = await response.json();
+            funcionariosPorEmpresa.set(company.id, { dados, timestamp: Date.now() });
+            return dados;
+        }
+
         // função para enriquecer batidas com nomes dos funcionários
         async function enrichWithEmployeeNames(batidas, companies) {
-            // Enriquecer com nomes dos funcionários
-            
             const funcionariosCache = new Map();
             const funcionariosAtivosSet = new Set(); // ? REGISTRAR APENAS FUNCIONÁRIOS ATIVOS
-            
-            for (const company of companies) {
+
+            // TODAS as empresas em paralelo. Antes era um for/await sequencial:
+            // com 6 empresas, 6 downloads pesados um atrás do outro.
+            const listas = await Promise.all(companies.map(async (company) => {
                 try {
-                    const url = `${API_CONFIG.baseURL}/IntegracaoExterna/Funcionarios`;
-                    
-                    const response = await fetch(url, {
-                        method: 'GET',
-                        headers: {
-                            'Authorization': `Bearer ${API_CONFIG.token}`,
-                            'secullumidbancoselecionado': company.id,
-                            'Content-Type': 'application/json'
+                    return { company, funcionarios: await fetchFuncionariosDaEmpresa(company) };
+                } catch (error) {
+                    console.warn(`⚠️ Erro ao buscar funcionários de ${company.name}:`, error.message);
+                    return { company, funcionarios: [] };
+                }
+            }));
+
+            for (const { company, funcionarios } of listas) {
+                // FILTRAR: Apenas funcionários ATIVOS (sem data de demissão)
+                const funcionariosAtivos = funcionarios.filter(func => {
+                    // ? CAMPO CORRETO: "Demissao" (conforme documentação Secullum)
+                    const dataDemissao = func.Demissao || null;
+
+                    // Se tem data de demissão preenchida, EXCLUIR (não mostrar)
+                    if (dataDemissao && dataDemissao !== '0001-01-01T00:00:00') {
+                        return false; // Demitido - não mostrar
+                    }
+
+                    // Se não tem demissão, é ATIVO
+                    return true;
+                });
+
+                debugLog(`${company.name}: ${funcionariosAtivos.length} funcionários ativos (total: ${funcionarios.length})`);
+
+                funcionariosAtivos.forEach(func => {
+                    const reg = func.NumeroIdentificador || func.NumeroFolha;
+                    const key = `${company.id}_${reg}`;
+
+                    // ? EXTRAIR DEPARTAMENTO (pode ser string ou objeto)
+                    let departamento = null;
+                    if (func.Departamento) {
+                        if (typeof func.Departamento === 'string') {
+                            departamento = func.Departamento;
+                        } else if (typeof func.Departamento === 'object') {
+                            // Se for objeto, tentar pegar Nome, Descricao, Codigo ou Id
+                            departamento = func.Departamento.Nome ||
+                                          func.Departamento.Descricao ||
+                                          func.Departamento.Codigo ||
+                                          func.Departamento.Id ||
+                                          null;
                         }
+                    }
+
+                    funcionariosCache.set(key, {
+                        nome: func.Nome || func.NomeCompleto || 'Nome não informado',
+                        cpf: func.Cpf || func.CPF || '',
+                        pis: func.NumeroPis || func.PIS || '',
+                        // ? DEPARTAMENTO DA API SECULLUM
+                        projetoSecullum: departamento
                     });
 
-                    if (response.ok) {
-                        const funcionarios = await response.json();
-                        
-                        // FILTRAR: Apenas funcionários ATIVOS (sem data de demissão)
-                        const funcionariosAtivos = funcionarios.filter(func => {
-                            // ? CAMPO CORRETO: "Demissao" (conforme documentação Secullum)
-                            const dataDemissao = func.Demissao || null;
-                            
-                            // Se tem data de demissão preenchida, EXCLUIR (não mostrar)
-                            if (dataDemissao && dataDemissao !== '0001-01-01T00:00:00' && dataDemissao !== null) {
-                                return false; // Demitido - não mostrar
-                            }
-                            
-                            // Se não tem demissão, ã ATIVO
-                            return true;
-                        });
-                        
-                        console.log(`? ${company.name}: ${funcionariosAtivos.length} funcionários ativos (total: ${funcionarios.length})`);
-                        
-                        funcionariosAtivos.forEach(func => {
-                            const reg = func.NumeroIdentificador || func.NumeroFolha;
-                            const key = `${company.id}_${reg}`;
-                            
-                            // Debug removido para performance
-                            
-                            // ? EXTRAIR DEPARTAMENTO (pode ser string ou objeto)
-                            let departamento = null;
-                            if (func.Departamento) {
-                                if (typeof func.Departamento === 'string') {
-                                    departamento = func.Departamento;
-                                } else if (typeof func.Departamento === 'object') {
-                                    // Se for objeto, tentar pegar Nome, Descricao, Codigo ou Id
-                                    departamento = func.Departamento.Nome || 
-                                                  func.Departamento.Descricao || 
-                                                  func.Departamento.Codigo || 
-                                                  func.Departamento.Id || 
-                                                  null;
-                                }
-                            }
-                            
-                            funcionariosCache.set(key, {
-                                nome: func.Nome || func.NomeCompleto || 'Nome não informado',
-                                cpf: func.Cpf || func.CPF || '',
-                                pis: func.NumeroPis || func.PIS || '',
-                                // ? DEPARTAMENTO DA API SECULLUM
-                                projetoSecullum: departamento
-                            });
-                            
-                            // ? MARCAR como ATIVO
-                            funcionariosAtivosSet.add(key);
-                        });
-                    }
-                } catch (error) {
-                    console.warn(`⚠️ Erro ao buscar funcionários de ${company.name}`);
-                }
+                    // ? MARCAR como ATIVO
+                    funcionariosAtivosSet.add(key);
+                });
             }
-            
+
             // ? FILTRAR batidas: mostrar APENAS funcionários ATIVOS (silencioso)
             const batidasFiltradas = batidas.filter(batida => {
                 const reg = batida.Funcionario?.NumeroIdentificador || batida.Funcionario?.NumeroFolha;
@@ -2799,25 +2789,8 @@
                         }
                         
                         const data = await response.json();
-                        console.log(`✅ ${empresa.name}: ${data.length} batidas recebidas`);
-                        
-                        // 🔍 DEBUG: Ver JOCELIA especificamente
-                        const jocelia = data.find(b => b.Funcionario?.Nome?.includes('JOCELIA') || b.Nome?.includes('JOCELIA'));
-                        if (jocelia) {
-                            console.log(`🔍 JOCELIA encontrada:`, jocelia);
-                        }
-                        
-                        // 🔍 DEBUG: Ver estrutura completa de uma batida
-                        if (data.length > 0) {
-                            console.log(`🔍 Estrutura da primeira batida:`, data[0]);
-                        }
-                        
-                        // 🔍 DEBUG: Ver justificativas retornadas pela API
-                        const batidasComJustificativa = data.filter(b => b.Justificativa || b.JustificativaAbreviacao || b.Entrada1Justificativa || b.Saida1Justificativa);
-                        if (batidasComJustificativa.length > 0) {
-                            console.log(`🔍 ${batidasComJustificativa.length} batidas com justificativa:`, batidasComJustificativa[0]);
-                        }
-                        
+                        debugLog(`${empresa.name}: ${data.length} batidas recebidas`);
+
                         return {
                             empresaId: empresa.id,
                             empresaNome: empresa.name,
@@ -3369,7 +3342,7 @@
                 
                 // DEBUG: Log para investigar afastamentos
                 if (batida.Entrada1 === 'A. INSS' || batida.Entrada1 === 'AFASTAMENTO INSS') {
-                    console.log('🏥 AFASTAMENTO DETECTADO:', {
+                    debugLog('🏥 AFASTAMENTO DETECTADO:', {
                         nome: batida._funcionarioNome,
                         reg: reg,
                         data: dataFormatada,
@@ -3523,7 +3496,7 @@
                     
                     if (atual <= anterior) {
                         ordemIncorreta = true;
-                        console.log(` Ordem incorreta: ${func.name} - ${horariosOrdenados[i - 1].nome} (${horariosOrdenados[i - 1].hora}) >= ${horariosOrdenados[i].nome} (${horariosOrdenados[i].hora})`);
+                        debugLog(` Ordem incorreta: ${func.name} - ${horariosOrdenados[i - 1].nome} (${horariosOrdenados[i - 1].hora}) >= ${horariosOrdenados[i].nome} (${horariosOrdenados[i].hora})`);
                         break;
                     }
                 }
@@ -3531,7 +3504,7 @@
                 // ✅ VERIFICAR SE ORDEM INCORRETA FOI APROVADA PELO RH
                 const ordemAprovada = func.approved && func.approved['ordem_horarios'] === true;
                 if (ordemIncorreta) {
-                    console.log(`🔍 ${func.name} - Ordem incorreta detectada. Verificando aprovação:`, {
+                    debugLog(`🔍 ${func.name} - Ordem incorreta detectada. Verificando aprovação:`, {
                         hasApproved: !!func.approved,
                         approvedKeys: func.approved ? Object.keys(func.approved) : [],
                         ordemHorarios: func.approved?.ordem_horarios,
@@ -3539,7 +3512,7 @@
                     });
                 }
                 if (ordemAprovada) {
-                    console.log(`✅ ${func.name}: Ordem de horários APROVADA, removendo inconsistência`);
+                    debugLog(`✅ ${func.name}: Ordem de horários APROVADA, removendo inconsistência`);
                     ordemIncorreta = false; // Se foi aprovado, não é mais inconsistência
                 }
                 
@@ -3559,7 +3532,7 @@
                     // 🏢 ALR: Segunda a Sábado = EXATAMENTE 4 batidas (menos ou mais é inconsistência)
                     batidaIncorreta = totalBatidas !== 4 || ordemIncorreta;
                     if (batidaIncorreta && totalBatidas !== 4) {
-                        console.log(`⚠️ ALR ${func.name}: ${totalBatidas} batidas (esperado: 4)`);
+                        debugLog(`⚠️ ALR ${func.name}: ${totalBatidas} batidas (esperado: 4)`);
                     }
                 } else {
                     // Regra geral:
@@ -3573,7 +3546,7 @@
                 }
                 
                 if (batidaIncorreta && !temMotivoEspecial) {
-                    console.log(`❌ ${func.name} marcado como INCONSISTÊNCIA:`, {
+                    debugLog(`❌ ${func.name} marcado como INCONSISTÊNCIA:`, {
                         pontosImpares,
                         ordemIncorreta,
                         batidaIncorreta,
@@ -3908,12 +3881,8 @@
                 console.log('🚀 Carregando dados em BATCH:', { dataInicio, dataFim, empresaIds });
                 
                 // 🎯 1 ÚNICO REQUEST ao backend
-                const response = await fetch(`${API_BASE_URL}/api/anexos/batch-period`, {
+                const response = await apiFetch('/api/anexos/batch-period', {
                     method: 'POST',
-                    headers: {
-                        ...getAuthHeaders(),
-                        'Content-Type': 'application/json'
-                    },
                     body: JSON.stringify({
                         dateStart: dataInicio,
                         dateEnd: dataFim,
@@ -4011,289 +3980,7 @@
             }
         }
 
-        // 🗑️ FUNÇÃO ANTIGA: carregarAnexos (DESCONTINUADA - usar carregarDadosCompletos)
-        async function carregarAnexos() {
-            loadingAnexos = true;
-            
-            try {
-                const dataInicio = document.getElementById('dateStart').value;
-                const dataFim = document.getElementById('dateEnd').value;
-                
-                // Buscar empresas selecionadas corretamente
-                const companies = API_CONFIG.selectedCompanies.includes('all') 
-                    ? API_CONFIG.companies 
-                    : API_CONFIG.companies.filter(c => API_CONFIG.selectedCompanies.includes(c.id));
-                
-                const empresasSelecionadas = companies.map(c => c.id);
-                
-                for (let empresaId of empresasSelecionadas) {
-                    // Buscar anexos de cada dia do Período
-                    const inicio = new Date(dataInicio);
-                    const fim = new Date(dataFim);
-                    
-                    for (let d = new Date(inicio); d <= fim; d.setDate(d.getDate() + 1)) {
-                        const dataStr = d.toISOString().split('T')[0];
-                        
-                        try {
-                            const response = await fetch(`${API_BASE_URL}/api/anexos/${dataStr}/${empresaId}`);
-                            
-                            if (!response.ok) {
-                                continue; // Nenhum anexo nesta data
-                            }
-                            
-                            const anexos = await response.json();
-                            
-                            if (Array.isArray(anexos) && anexos.length > 0) {
-                                
-                                
-                                // ? FAZER MATCH COM FUNCIONÁRIOS USANDO CPF + DATA (identificador único)
-                                anexos.forEach(anexo => {
-                                    
-                                    
-                                    // Normalizar data do anexo (pode vir como 2025-10-24T00:00:00.000Z ou 2025-10-24)
-                                    const dataAnexo = anexo.data.split('T')[0];
-                                    
-                                    // ? BUSCAR FUNCIONÁRIO POR CPF + DATA (exato, não parcial!)
-                                    const emp = allEmployees.find(e => {
-                                        // Match CPF exato (remover pontos e traãos para comparar apenas nçãmeros)
-                                        const cpfEmp = String(e.cpf || '').replace(/[.\-]/g, '').trim();
-                                        const cpfAnexo = String(anexo.cpf || '').replace(/[.\-]/g, '').trim();
-                                        
-                                        if (cpfEmp !== cpfAnexo || !cpfEmp) return false;
-                                        
-                                        // Normalizar data do FUNCIONÁRIO
-                                        let dataEmp = '';
-                                        if (e.rawData?.Data) {
-                                            // Tentar formato estranho da API: 27T00:00:00/10/2025 -> 2025-10-27
-                                            const partsStrange = e.rawData.Data.match(/(\d+)T\d{2}:\d{2}:\d{2}\/(\d+)\/(\d{4})/);
-                                            if (partsStrange) {
-                                                const dia = partsStrange[1].padStart(2, '0');
-                                                const mes = partsStrange[2].padStart(2, '0');
-                                                const ano = partsStrange[3];
-                                                dataEmp = `${ano}-${mes}-${dia}`;
-                                            } else {
-                                                // Formato ISO normal: 2025-10-24T00:00:00
-                                                dataEmp = e.rawData.Data.split('T')[0];
-                                            }
-                                        } else if (e.date) {
-                                            dataEmp = e.date.split('T')[0];
-                                        }
-                                        
-                                        // Match DATA exata
-                                        const match = dataEmp === dataAnexo;
-                                        
-                                        if (match) {
-                                            
-                                        }
-                                        
-                                        return match;
-                                    });
-                                    
-                                    if (emp) {
-                                        emp.anexoId = anexo.id; // 🆔 ID da tabela ANEXOS
-                                        emp.anexoUrl = anexo.blob_url;
-                                        emp.anexoDate = dataAnexo; // 📅 Guardar data do anexo
-                                        emp.motivo = anexo.motivo_detectado || emp.motivo;
-                                        emp.attachments = [anexo.blob_filename];
-                                        
-                                        
-                                        
-                                        // 💬 CARREGAR PERGUNTAS E APROVAÇÕES DO RH DO BANCO DE DADOS
-                                        if (anexo.perguntas_rh && anexo.perguntas_rh !== '{}') {
-                                            try {
-                                                const allData = JSON.parse(anexo.perguntas_rh);
-                                                
-                                                // Separar perguntas de aprovações
-                                                emp.questions = {};
-                                                emp.approved = {};
-                                                
-                                                for (const [key, value] of Object.entries(allData)) {
-                                                    if (key.endsWith('_approved')) {
-                                                        // ã uma aprovação (ex: "ent1_approved")
-                                                        const punchType = key.replace('_approved', '');
-                                                        emp.approved[punchType] = value;
-                                                    } else if (key === 'ordem_horarios') {
-                                                        // ✅ Flag especial: ordem_horarios aprovada
-                                                        emp.approved['ordem_horarios'] = value;
-                                                    } else {
-                                                        // ã uma pergunta normal
-                                                        emp.questions[key] = value;
-                                                    }
-                                                }
-                                                
-                                                const numPerguntas = Object.keys(emp.questions).length;
-                                                const numAprovacoes = Object.keys(emp.approved).length;
-                                                
-                                                if (numPerguntas > 0) {
-                                                    
-                                                }
-                                                if (numAprovacoes > 0) {
-                                                    
-                                                }
-                                            } catch (err) {
-                                                console.warn(`⚠️ Erro ao parsear perguntas_rh para ${emp.name}:`, err);
-                                                emp.questions = {};
-                                                emp.approved = {};
-                                            }
-                                        } else {
-                                            emp.questions = {};
-                                            emp.approved = {};
-                                        }
-                                        
-                                        // ? não PREENCHER BATIDAS DO SQL!
-                                        // A tabela deve mostrar APENAS dados da Secullum
-                                        // Os Horários salvos no anexo Sóo apenas backup/histórico
-                                        
-                                        
-                                    } else {
-                                        console.warn(`⚠️ Anexo não vinculado: REG ${anexo.reg} - ${dataAnexo} (FUNCIONÁRIO não encontrado)`);
-                                    }
-                                });
-                            }
-                        } catch (err) {
-                            console.warn(`ℹ Erro ao buscar anexos de ${dataStr}:`, err.message);
-                        }
-                    }
-                }
-                
-                console.log('? Carregamento de anexos concluído!');
-                
-            } catch (err) {
-                console.error('? Erro ao carregar anexos:', err);
-            } finally {
-                loadingAnexos = false;
-            }
-        }
 
-        // Carregar perguntas e aprovações de TODOS os funcionários (mesmo sem anexo)
-        async function carregarPerguntasEAprovacoes() {
-            try {
-                const dataInicio = document.getElementById('dateStart').value;
-                const dataFim = document.getElementById('dateEnd').value;
-                
-                const companies = API_CONFIG.selectedCompanies.includes('all') 
-                    ? API_CONFIG.companies 
-                    : API_CONFIG.companies.filter(c => API_CONFIG.selectedCompanies.includes(c.id));
-                
-                const empresasSelecionadas = companies.map(c => c.id);
-                
-                // ? ADICIONAR empresa_id = 0 (registros sem empresa específica)
-                if (!empresasSelecionadas.includes('0')) {
-                    empresasSelecionadas.push('0');
-                }
-                
-                console.log('🏢 Empresas a consultar (incluindo 0):', empresasSelecionadas);
-                
-                for (let empresaId of empresasSelecionadas) {
-                    const inicio = new Date(dataInicio);
-                    const fim = new Date(dataFim);
-                    
-                    for (let d = new Date(inicio); d <= fim; d.setDate(d.getDate() + 1)) {
-                        const dataStr = d.toISOString().split('T')[0];
-                        
-                        try {
-                            const response = await fetch(`${API_BASE_URL}/api/anexos/${dataStr}/${empresaId}`, {
-                                headers: getAuthHeaders()
-                            });
-                            
-                            if (!response.ok) continue;
-                            
-                            const anexos = await response.json();
-                            
-                            if (Array.isArray(anexos) && anexos.length > 0) {
-                                
-                                anexos.forEach(anexo => {
-                                    if (!anexo.perguntas_rh) return;
-                                    
-                                    // ? IGNORAR se perguntas_rh for "{}" vazio
-                                    if (anexo.perguntas_rh === '{}') return;
-                                    
-                                    // ? MATCH APENAS POR CPF + DATA (não filtrar por empresa)
-                                    // Comentérios Sóo do CPF, não da empresa!
-                                    
-                                    // Buscar FUNCIONÁRIO por CPF e DATA
-                                    const cpfAnexo = (anexo.cpf || '').replace(/\D/g, '');
-                                    const dataAnexo = dataStr;
-                                    
-                                    // DEBUG: Log de busca
-                                    if (anexo.perguntas_rh && anexo.perguntas_rh !== '{}') {
-                                    
-                                        
-                                    }
-                                    
-                                    const emp = allEmployees.find(e => {
-                                        const cpfEmp = (e.cpf || '').replace(/\D/g, '');
-                                        if (cpfEmp !== cpfAnexo || !cpfEmp) return false;
-                                        
-                                        let dataEmp = null;
-                                        if (e.rawData?.Data) {
-                                            const partsStrange = e.rawData.Data.match(/^(\d{1,2})T\d{2}:\d{2}:\d{2}\/(\d{1,2})\/(\d{4})/);
-                                            if (partsStrange) {
-                                                const dia = partsStrange[1].padStart(2, '0');
-                                                const mes = partsStrange[2].padStart(2, '0');
-                                                const ano = partsStrange[3];
-                                                dataEmp = `${ano}-${mes}-${dia}`;
-                                            } else {
-                                                dataEmp = e.rawData.Data.split('T')[0];
-                                            }
-                                        } else if (e.date) {
-                                            // Converter formato brasileiro DD/MM/YYYY para ISO YYYY-MM-DD
-                                            const partsBR = e.date.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
-                                            if (partsBR) {
-                                                dataEmp = `${partsBR[3]}-${partsBR[2]}-${partsBR[1]}`;
-                                            } else {
-                                                dataEmp = e.date.split('T')[0];
-                                            }
-                                        }
-                                        
-                                        return dataEmp === dataAnexo;
-                                    });
-                                    
-                                    if (emp) {
-                                        try {
-                                            const allData = JSON.parse(anexo.perguntas_rh);
-                                            
-                                            emp.questions = emp.questions || {};
-                                            emp.approved = emp.approved || {};
-                                            
-                                            for (const [key, value] of Object.entries(allData)) {
-                                                if (key.endsWith('_approved')) {
-                                                    const punchType = key.replace('_approved', '');
-                                                    emp.approved[punchType] = value;
-                                                } else if (key === 'ordem_horarios') {
-                                                    // ✅ Flag especial: ordem_horarios aprovada
-                                                    emp.approved['ordem_horarios'] = value;
-                                                    console.log(`✅ ${emp.name}: ordem_horarios carregado = ${value}`);
-                                                } else {
-                                                    emp.questions[key] = value;
-                                                }
-                                            }
-                                            
-                                            console.log(`? ${emp.name}: aprovações carregadas:`, emp.approved);
-                                            
-                                        } catch (err) {
-                                            console.warn(`ℹ Erro ao parsear perguntas_rh:`, err);
-                                        }
-                                    } else {
-                                        // DEBUG: FUNCIONÁRIO não encontrado
-                                        console.warn(`ℹ Anexo não vinculado: CPF=${cpfAnexo}, Data=${dataAnexo}, Perguntas:`, anexo.perguntas_rh);
-                                    }
-                                });
-                            }
-                        } catch (err) {
-                            // Silenciar erros de dias sem dados
-                        }
-                    }
-                }
-                
-                console.log('? Perguntas e aprovações carregadas!');
-                
-                // 🔄 RECALCULAR inconsistências após carregar aprovações
-                recalcularInconsistenciasComAprovacoes();
-            } catch (err) {
-                console.error('? Erro ao carregar perguntas/aprovações:', err);
-            }
-        }
         
         // 🔄 Recalcular inconsistências considerando aprovações carregadas
         function recalcularInconsistenciasComAprovacoes() {
@@ -4337,11 +4024,8 @@
                 
                 if (registros.length === 0) return;
                 
-                const response = await fetch(`${API_BASE_URL}/api/justificativa/buscar-ids`, {
+                const response = await apiFetch('/api/justificativa/buscar-ids', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
                     body: JSON.stringify({ registros })
                 });
                 
@@ -4920,29 +4604,6 @@
             document.getElementById('employeeTable')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
 
-        // Simular OCR - Extrair Horários e justificativa da imagem
-        function simulateOCR(fileName) {
-            // Simulação de extração de dados
-            const possibleTimes = ['07:30', '11:30', '12:30', '17:30', '18:00', '19:00'];
-            const possibleReasons = [
-                'Esquecimento do cartéo',
-                'méquina do ponto quebrada',
-                'Atendimento emergencial',
-                'Reunião externa',
-                'Visita ao cliente',
-                'Problema no sistema'
-            ];
-            
-            // Simula que extraiu um Horário aleatério e uma justificativa
-            const extractedTime = possibleTimes[Math.floor(Math.random() * possibleTimes.length)];
-            const extractedReason = possibleReasons[Math.floor(Math.random() * possibleReasons.length)];
-            
-            return {
-                time: extractedTime,
-                reason: extractedReason
-            };
-        }
-
         // Upload de arquivo
         // ==========================================
         // SISTEMA DE ANEXOS (CTRL+V + OCR + Azure Blob)
@@ -4951,7 +4612,16 @@
         let currentAnexoEmployee = null;
         let currentAnexoImage = null;
         let currentOCRData = null;
-        
+
+        // Controle de OCR: cada processamento tem uma "geração". Só a geração atual
+        // pode alterar a tela — resultados antigos que chegam atrasados são ignorados.
+        let ocrGeneration = 0;
+        let ocrEmAndamento = false;
+
+        // Identifica a abertura atual do modal (muda a cada abrir/fechar), para que
+        // respostas de rede de um anexo anterior não interfiram no atual.
+        let modalAnexoSession = 0;
+
         // Abrir modal de anexo
         function handleFileUpload(event, reg, date) {
             
@@ -4992,7 +4662,12 @@
             currentAnexoEmployee = employee;
             currentAnexoImage = null;
             currentOCRData = null;
-            
+
+            // Invalida qualquer OCR ainda em voo do anexo anterior
+            ocrGeneration++;
+            ocrEmAndamento = false;
+            const sessao = ++modalAnexoSession;
+
             // ✅ RESETAR ESTADO DO BOTÃO (evitar ficar travado)
             const btn = document.getElementById('btnConfirmarAnexo');
             btn.disabled = false;
@@ -5003,42 +4678,38 @@
             document.getElementById('ocrStatus').style.display = 'none';
             document.getElementById('ocrResult').style.display = 'none';
             document.getElementById('btnConfirmarAnexo').style.display = 'none';
-            
-            // VERIFICAR SE já EXISTE ANEXO (Só para avisar Usuário)
-            let anexoExistenteId = null;
+
+            // Abrir o modal IMEDIATAMENTE. Antes ele só aparecia depois da consulta
+            // ao servidor, o que dava a sensação de travamento em conexão lenta.
+            document.getElementById('modalAnexo').style.display = 'flex';
+            setupDropZone();
+
+            // VERIFICAR SE já EXISTE ANEXO em segundo plano (só para avisar o usuário)
             try {
                 const dataFormatada = employee.rawData?.Data?.split('T')[0] || employee.date;
-                const empresaId = employee.empresaId || employee.companyId;
-                
-                const response = await fetch(`${API_BASE_URL}/api/anexos/${dataFormatada}/${employee.reg}`, {
-                    headers: getAuthHeaders()
-                });
-                
-                // Se retornou 404, não existe anexo (normal)
-                if (response.status === 404) {
-                    
-                } else if (response.ok) {
+                const response = await apiFetch(`/api/anexos/reg/${employee.reg}/${dataFormatada}`);
+
+                // Se o usuário já fechou o modal ou trocou de funcionário, ignorar
+                if (sessao !== modalAnexoSession) return;
+
+                // 404 = não existe anexo (caso normal)
+                if (response.ok) {
                     const anexo = await response.json();
-                    
+
                     if (anexo && anexo.blob_url) {
-                        // já EXISTE ANEXO - Mostrar aviso e abrir para visualização
+                        // já EXISTE ANEXO - fechar o modal e abrir para visualização
+                        fecharModalAnexo();
                         showAlert('Anexo Existente', `Já existe um anexo para ${employee.name} nesta data. Abrindo para visualização...`, 'info');
                         setTimeout(() => {
                             window.open(anexo.blob_url, '_blank');
                         }, 1500);
-                        return;
                     }
-                } else {
+                } else if (response.status !== 404) {
                     console.warn(`ℹ Erro ao verificar anexo existente: ${response.status}`);
                 }
             } catch (err) {
                 console.warn('⚠️ Erro ao verificar anexo:', err.message);
             }
-            
-            document.getElementById('modalAnexo').style.display = 'flex';
-            
-            // Ativar área de drop
-            setupDropZone();
         }
         
         function fecharModalAnexo() {
@@ -5046,7 +4717,12 @@
             currentAnexoEmployee = null;
             currentAnexoImage = null;
             currentOCRData = null;
-            
+
+            // Invalida OCR em andamento para não repintar o modal depois de fechado
+            ocrGeneration++;
+            ocrEmAndamento = false;
+            modalAnexoSession++;
+
             // ✅ RESETAR ESTADO DO BOTÃO ao fechar
             const btn = document.getElementById('btnConfirmarAnexo');
             btn.disabled = false;
@@ -5162,7 +4838,7 @@
             if (azureVisionConfig) return azureVisionConfig;
             
             try {
-                const response = await fetch(`${API_BASE_URL}/api/azure-vision-config`);
+                const response = await apiFetch('/api/azure-vision-config');
                 if (response.ok) {
                     azureVisionConfig = await response.json();
                     return azureVisionConfig;
@@ -5263,14 +4939,18 @@
                 const operationLocation = response.headers.get('Operation-Location');
                 
                 
-                // Poll até resultado estar pronto
+                // Poll até resultado estar pronto.
+                // Começa rápido (300ms) e vai desacelerando: o Azure costuma responder
+                // em menos de 1s, e a espera fixa de 1s era puro tempo perdido.
                 let result;
                 let attempts = 0;
-                const maxAttempts = 10;
-                
+                const maxAttempts = 12;
+                let espera = 300;
+
                 while (attempts < maxAttempts) {
-                    await new Promise(resolve => setTimeout(resolve, 1000)); // Esperar 1 segundo
-                    
+                    await new Promise(resolve => setTimeout(resolve, espera));
+                    espera = Math.min(espera * 1.5, 2000);
+
                     const resultResponse = await fetch(operationLocation, {
                         headers: {
                             'Ocp-Apim-Subscription-Key': API_KEY
@@ -5554,8 +5234,8 @@
                     console.log('');
                     console.log('📋 RESULTADO DETECÇÃO DE ASSINATURAS');
                     console.log('');
-                    console.log(`ℹ FUNCIONÁRIO: ${assinaturaFuncionarioDetectada ? '? ASSINADO' : '? não ASSINADO'}`);
-                console.log(`ℹ Líder: ${assinaturaLiderDetectada ? '? ASSINADO' : '? não ASSINADO'}`);
+                    console.log(`FUNCIONÁRIO: ${assinaturaFuncionarioDetectada ? '? ASSINADO' : '? não ASSINADO'}`);
+                console.log(`Líder: ${assinaturaLiderDetectada ? '? ASSINADO' : '? não ASSINADO'}`);
                 console.log('');
                 } catch (err) {
                     console.warn('ℹ Erro ao detectar assinaturas:', err);
@@ -6140,14 +5820,14 @@
                                 <h1>ℹ Detecçãão de Assinaturas</h1>
                                 <div class="stats">
                                     <div class="stat-box ${resultados.funcionario ? 'funcionario' : 'unsigned'}">
-                                        <h3>ℹ FUNCIONÁRIO</h3>
+                                        <h3>FUNCIONÁRIO</h3>
                                         <div class="status">${resultados.funcionario ? '?' : '?'}</div>
-                                        <div class="label">${resultados.funcionario ? 'ASSINADO' : 'não ASSINADO'}</div>
+                                        <div class="label">${resultados.funcionario ? 'ASSINADO' : 'NÃO ASSINADO'}</div>
                                     </div>
                                     <div class="stat-box ${resultados.lider ? 'lider' : 'unsigned'}">
-                                        <h3>ℹ Líder</h3>
+                                        <h3>Líder</h3>
                                         <div class="status">${resultados.lider ? '?' : '?'}</div>
-                                        <div class="label">${resultados.lider ? 'ASSINADO' : 'não ASSINADO'}</div>
+                                        <div class="label">${resultados.lider ? 'ASSINADO' : 'NÃO ASSINADO'}</div>
                                     </div>
                                 </div>
                                 <img src="${debugUrl}">
@@ -6376,36 +6056,55 @@
         // ==========================================
         async function processarImagem(file) {
             console.log('🛠️ Processando imagem:', file.name || 'clipboard');
-            
-            // Mostrar preview
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                document.getElementById('previewImage').src = e.target.result;
-                document.getElementById('previewArea').style.display = 'block';
-                currentAnexoImage = e.target.result;
-            };
-            reader.readAsDataURL(file);
-            
+
+            // Cada processamento recebe um número de geração. Se o modal for fechado
+            // ou outra imagem for carregada, a execução antiga fica obsoleta e para de
+            // mexer na tela — antes ela repintava o formulário com o estado já zerado,
+            // e todo clique em Confirmar dava "Nenhuma imagem selecionada".
+            const geracao = ++ocrGeneration;
+            const obsoleto = () => geracao !== ocrGeneration ||
+                              document.getElementById('modalAnexo').style.display !== 'flex';
+
+            ocrEmAndamento = true;
+            document.getElementById('btnConfirmarAnexo').style.display = 'none';
+
             // Mostrar status
             document.getElementById('ocrStatus').style.display = 'block';
             document.getElementById('ocrResult').style.display = 'none';
             document.getElementById('ocrStatusText').textContent = 'ℹ Analisando com Google Vision AI...';
-            
+
             try {
-                // Converter para base64
-                const readerBase64 = new FileReader();
-                const base64Image = await new Promise((resolve) => {
-                    readerBase64.onload = (e) => resolve(e.target.result);
-                    readerBase64.readAsDataURL(file);
+                // Lê o arquivo UMA vez (antes eram dois FileReader sobre o mesmo arquivo)
+                const base64Image = await new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => resolve(e.target.result);
+                    reader.onerror = () => reject(new Error('Falha ao ler o arquivo de imagem'));
+                    reader.readAsDataURL(file);
                 });
-                
+
+                if (obsoleto()) {
+                    console.log('⏭️ Processamento obsoleto descartado (modal fechado ou nova imagem)');
+                    return;
+                }
+
+                // Registrar a imagem ANTES do OCR: mesmo se o OCR falhar,
+                // o anexo pode ser confirmado manualmente.
+                currentAnexoImage = base64Image;
+                document.getElementById('previewImage').src = base64Image;
+                document.getElementById('previewArea').style.display = 'block';
+
                 // ======================================
                 // ETAPA 1: VALIDAR ID (mantém légica existente)
                 // ======================================
                 document.getElementById('ocrStatusText').textContent = 'ℹ Verificando ID do formulério...';
-                
+
                 const dadosExtraidos = await extrairDadosComGoogleVision(base64Image);
-                
+
+                if (obsoleto()) {
+                    console.log('⏭️ Resultado de OCR obsoleto descartado');
+                    return;
+                }
+
                 const idEncontrado = dadosExtraidos.id;
                 const idEsperado = currentAnexoEmployee?.id;
                 
@@ -6432,7 +6131,7 @@
                 
                 // 📝 CASO 4: Primeiro formulário
                 if (!idEsperado) {
-                    console.log(`ℹ FUNCIONÁRIO ainda não possui ID no sistema`);
+                    console.log(`FUNCIONÁRIO ainda não possui ID no sistema`);
                 }
                 
                 // ======================================
@@ -6447,445 +6146,22 @@
                 document.getElementById('btnConfirmarAnexo').style.display = 'block';
                 
             } catch (err) {
-                console.error('? Erro no OCR:', err);
-                console.error('Stack:', err.stack);
-                document.getElementById('ocrStatusText').textContent = 'ℹ Erro - você pode continuar manualmente';
-                document.getElementById('btnConfirmarAnexo').style.display = 'block';
-            }
-        }
+                console.error('❌ Erro no OCR:', err);
 
-        
-        // 📝 funçãoO ANTIGA - não MAIS USADA (substituçãda por extrairIdDoPDF(canvas))
-        /*
-        function extrairIdDoPDF_OLD(texto, palavrasComConfidencia = []) {
-            console.log('🔍 Buscando ID no PDF...');
-            
-            // méTODO 1: Buscar padrão "ID #22" no texto completo
-            const patterns = [
-                /ID\s*#\s*(\d+)/i,
-                /ID#(\d+)/i,
-                /ID:(\d+)/i,
-                /ID\s+(\d+)/i,
-                /\bI\s*D\s*#?\s*(\d+)/i
-            ];
-            
-            for (const pattern of patterns) {
-                const match = texto.match(pattern);
-                if (match) {
-                    const id = match[1];
-                    // Validar que não ã REG, Projeto ou Data
-                    if (parseInt(id) < 200 && id.length <= 3) {
-                        console.log(`ℹ ID encontrado (método 1 - texto): #${id}`);
-                        return id;
-                    }
-                }
-            }
-            
-            // méTODO 2: Buscar "#" seguido de nçãmero pequeno em qualquer lugar
-            const hashMatch = texto.match(/#\s*(\d{1,3})\b/);
-            if (hashMatch) {
-                const id = hashMatch[1];
-                if (parseInt(id) > 0 && parseInt(id) < 200) {
-                    console.log(`ℹ ID encontrado (método 2 - hash): #${id}`);
-                    return id;
-                }
-            }
-            
-            // MÉTODO 3: Buscar em palavras com alta confiança no CANTO SUPERIOR DIREITO
-            if (palavrasComConfidencia && palavrasComConfidencia.length > 0) {
-                console.log('📊 Analisando posiçãoes das palavras...');
-                
-                const candidatosID = [];
-                
-                palavrasComConfidencia.forEach((word, index) => {
-                    // Procurar números de 1-3 dígitos no canto superior direito
-                    const match = word.text.match(/^#?(\d{1,3})$/);
-                    if (match && word.confidence > 80) {
-                        const id = match[1];
-                        const x = word.bbox.x0;
-                        const y = word.bbox.y0;
-                        const num = parseInt(id);
-                        
-                        // ID deve estar: TOPO (Y < 250) e DIREITA (X > 550)
-                        // Nçãmero pequeno (< 200) para diferenciar de REG/Projeto
-                        if (num > 0 && num < 200 && x > 550 && y < 250) {
-                            candidatosID.push({
-                                id: id,
-                                confidence: word.confidence,
-                                x: x,
-                                y: y,
-                                score: x - (y * 2) // Prioriza X alto e Y baixo (nçãmeros positivos)
-                            });
-                        }
-                    }
-                });
-                
-                // Ordenar por score (prioriza topo-direito)
-                candidatosID.sort((a, b) => b.score - a.score);
-                
-                if (candidatosID.length > 0) {
-                    const melhor = candidatosID[0];
-                    console.log(`ℹ ID encontrado (método 3 - posiçãoo): #${melhor.id}`);
-                    console.log(`   X=${Math.round(melhor.x)}, Y=${Math.round(melhor.y)}, Score=${Math.round(melhor.score)}, Confiança=${Math.round(melhor.confidence)}%`);
-                    if (candidatosID.length > 1) {
-                        console.log(`   Rejeitados: ${candidatosID.slice(1).map(c => `#${c.id} (X=${Math.round(c.x)}, Y=${Math.round(c.y)}, Score=${Math.round(c.score)})`).join(', ')}`);
-                    }
-                    return melhor.id;
-                }
-            }
-            
-            console.warn('ℹ ID não encontrado no PDF');
-            return null;
-        }
-        */
+                if (obsoleto()) return;
 
-        // 📝 função ANTIGA - não MAIS USADA (sistema hçãbrido agora detecta caixas automaticamente)
-        /*
-        // 📝 EXTRAÇÃO MELHORADA COM validação INTELIGENTE
-        function extrairDadosOCRMelhorado(texto, palavrasFiltradas, ocrData) {
-            console.log('🔍 Iniciando extração melhorada de dados...');
-            
-            const dados = {
-                ent1: null,
-                sai1: null,
-                ent2: null,
-                sai2: null,
-                ent3: null,
-                sai3: null,
-                motivo: null,
-                confidence: {
-                    ent1: 0,
-                    sai1: 0,
-                    ent2: 0,
-                    sai2: 0,
-                    ent3: 0,
-                    sai3: 0,
-                    motivo: 0
-                }
-            };
-            
-            // EXTRaçãO DE HorárioS COM validaçãoO
-            const horariosEncontrados = [];
-            
-            // Buscar Horários nas palavras filtradas (confiança > 70%)
-            for (let i = 0; i < palavrasFiltradas.length; i++) {
-                const word = palavrasFiltradas[i];
-                
-                // Padrão 1: HH:MM
-                const match1 = word.text.match(/^(\d{1,2}):(\d{2})$/);
-                if (match1) {
-                    const hora = parseInt(match1[1]);
-                    const min = parseInt(match1[2]);
-                    
-                    if (hora >= 0 && hora <= 23 && min >= 0 && min <= 59) {
-                        horariosEncontrados.push({
-                            horario: `${hora.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')}`,
-                            confidence: word.confidence,
-                            posicao: word.bbox.x0
-                        });
-                        console.log(`? Horário detectado: ${hora}:${min} (confiança: ${Math.round(word.confidence)}%)`);
-                    }
-                }
-                
-                // Padrão 2: HHMM (4 dígitos)
-                const match2 = word.text.match(/^(\d{4})$/);
-                if (match2) {
-                    const valor = match2[1];
-                    const hora = parseInt(valor.substring(0, 2));
-                    const min = parseInt(valor.substring(2, 4));
-                    
-                    if (hora >= 0 && hora <= 23 && min >= 0 && min <= 59) {
-                        if (parseInt(valor) < 2020 || parseInt(valor) > 2030) {
-                            horariosEncontrados.push({
-                                horario: `${hora.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')}`,
-                                confidence: word.confidence,
-                                posicao: word.bbox.x0
-                            });
-                            console.log(`? Horário detectado (4 dígitos): ${hora}:${min} (confiança: ${Math.round(word.confidence)}%)`);
-                        }
-                    }
-                }
-                
-                // Padrão 3: HH MM (dois nçãmeros separados por espaão) - "07 10"
-                const match3 = word.text.match(/^(\d{2})$/);
-                if (match3 && i + 1 < palavrasFiltradas.length) {
-                    const nextWord = palavrasFiltradas[i + 1];
-                    const match4 = nextWord.text.match(/^(\d{2})$/);
-                    
-                    if (match4) {
-                        const hora = parseInt(match3[1]);
-                        const min = parseInt(match4[1]);
-                        
-                        // Verificar se prçãxima palavra esté prçãxima horizontalmente (mesmo Horário)
-                        const distancia = Math.abs(nextWord.bbox.x0 - (word.bbox.x0 + 30));
-                        const distanciaVertical = Math.abs(nextWord.bbox.y0 - word.bbox.y0);
-                        
-                        console.log(`ℹ Par "${word.text}" + "${nextWord.text}": X1=${Math.round(word.bbox.x0)}, X2=${Math.round(nextWord.bbox.x0)}, distH=${Math.round(distancia)}px, distV=${Math.round(distanciaVertical)}px`);
-                        
-                        if (distancia < 80 && distanciaVertical < 20 && hora >= 0 && hora <= 23 && min >= 0 && min <= 59) {
-                            horariosEncontrados.push({
-                                horario: `${hora.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')}`,
-                                confidence: (word.confidence + nextWord.confidence) / 2,
-                                posicao: word.bbox.x0
-                            });
-                            console.log(`? Horário detectado (espaçado): ${hora}:${min} (confiança: ${Math.round((word.confidence + nextWord.confidence) / 2)}%)`);
-                            i++; // Pular prçãxima palavra já processada
-                        } else {
-                            const motivos = [];
-                            if (distancia >= 80) motivos.push('muito distante');
-                            if (distanciaVertical >= 20) motivos.push('não alinhado');
-                            if (hora < 0 || hora > 23 || min < 0 || min > 59) motivos.push('inválido');
-                            console.log(`? Rejeitado: ${motivos.join(', ')}`);
-                        }
-                    }
-                }
-            }
-            
-            // Ordenar Horários por posiçãoo (esquerda ? direita, cima ? baixo)
-            horariosEncontrados.sort((a, b) => a.posicao - b.posicao);
-            
-            console.log(`ℹ Total de Horários válidos encontrados: ${horariosEncontrados.length}`);
-            
-            // Atribuir Horários aos campos (máximo 6: ent1, sai1, ent2, sai2, ent3, sai3)
-            const campos = ['ent1', 'sai1', 'ent2', 'sai2', 'ent3', 'sai3'];
-            horariosEncontrados.slice(0, 6).forEach((h, index) => {
-                if (campos[index]) {
-                    dados[campos[index]] = h.horario;
-                    dados.confidence[campos[index]] = Math.round(h.confidence);
-                }
-            });
-            
-            // EXTRaçãO DE MOTIVO COM DETECçããO DE CHECKBOX MARCADO
-            const textoLower = texto.toLowerCase();
-            const distanciaMax = 100;
-            
-            // Buscar marcaçães "X" com alta confiançãa
-            const marcacoesX = palavrasFiltradas.filter(word => 
-                /^[xX]$/.test(word.text) && word.confidence > 60
-            );
-            
-            console.log(`? Marcaçães "X" encontradas (confiançãa > 60%): ${marcacoesX.length}`);
-            
-            // Lista de justificativas
-            const justificativasMap = [
-                { palavras: ['esquec', 'registr.*ponto'], motivo: 'Esqueceu de registrar o Ponto' },
-                { palavras: ['falha.*app', 'app'], motivo: 'Falha no App' },
-                { palavras: ['falta'], motivo: 'Falta' },
-                { palavras: ['folga'], motivo: 'Folga' },
-                { palavras: ['hora.*parada', 'parada'], motivo: 'Hora Parada' },
-                { palavras: ['maquina.*defeito', 'méquina.*defeito', 'defeito'], motivo: 'Maquina Ponto com defeito' },
-                { palavras: ['duplicidade', 'duplicado'], motivo: 'Registro em duplicidade' },
-                { palavras: ['indevido'], motivo: 'Registro indevido' }
-            ];
-            
-            let motivoDetectado = null;
-            let menorDistancia = Infinity;
-            let confidenciaMotivo = 0;
-            
-            justificativasMap.forEach(item => {
-                item.palavras.forEach(palavra => {
-                    const regex = new RegExp(palavra, 'i');
-                    const match = textoLower.search(regex);
-                    
-                    if (match !== -1) {
-                        // Procurar "X" próximo
-                        marcacoesX.forEach(xWord => {
-                            const dist = Math.abs(xWord.bbox.x0 - match);
-                            if (dist < distanciaMax && dist < menorDistancia) {
-                                menorDistancia = dist;
-                                motivoDetectado = item.motivo;
-                                confidenciaMotivo = Math.round(xWord.confidence);
-                                console.log(`? Motivo detectado: "${item.motivo}" (confiança: ${confidenciaMotivo}%, distância: ${dist})`);
-                            }
-                        });
-                    }
-                });
-            });
-            
-            dados.motivo = motivoDetectado;
-            dados.confidence.motivo = confidenciaMotivo;
-            
-            console.log('✅ Extração finalizada:', dados);
-            return dados;
-        }
-        */
-
-        // Extrair Horários e motivo do texto OCR (funçãoO ANTIGA - MANTER COMO FALLBACK)
-        function extrairDadosOCR(texto) {
-            console.log('📄 Texto OCR completo:', texto);
-            
-            const dados = {
-                ent1: null,
-                sai1: null,
-                ent2: null,
-                sai2: null,
-                ent3: null,
-                sai3: null,
-                ent4: null,
-                sai4: null,
-                ent5: null,
-                sai5: null,
-                motivo: null
-            };
-            
-            // MELHORAR DETECÇÃO DE HorárioS
-            // Procurar múltiplos padrões
-            const horariosEncontrados = [];
-            
-            // Padrão 1: HH:MM ou HH MM (com separador)
-            const regex1 = /\b(\d{1,2})\s*[:\s]\s*(\d{2})\b/g;
-            let match;
-            
-            while ((match = regex1.exec(texto)) !== null) {
-                let hora = parseInt(match[1]);
-                let min = parseInt(match[2]);
-                
-                if (hora >= 0 && hora <= 23 && min >= 0 && min <= 59) {
-                    horariosEncontrados.push({
-                        hora: match[1].padStart(2, '0'),
-                        min: match[2].padStart(2, '0'),
-                        original: match[0],
-                        posicao: match.index,
-                        tipo: 'separado'
-                    });
-                }
-            }
-            
-            // Padrão 2: HHMM (4 dígitos juntos) - NOVO!
-            const regex2 = /\b(\d{4})\b/g;
-            
-            while ((match = regex2.exec(texto)) !== null) {
-                const valor = match[1];
-                const hora = parseInt(valor.substring(0, 2));
-                const min = parseInt(valor.substring(2, 4));
-                
-                console.log(`ℹ Padrão2 encontrado: "${valor}" ? Hora=${hora}, Min=${min}`);
-                
-                // FILTROS DE validaçãoO
-                // 1. Validar se pode ser Horário
-                if (hora < 0 || hora > 23 || min < 0 || min > 59) {
-                    console.log(`   ? Rejeitado: Horário inválido (hora ${hora}, min ${min})`);
-                    continue;
-                }
-                
-                // 2. Ignorar anos (2024, 2025, etc)
-                if (parseInt(valor) >= 2000 && parseInt(valor) <= 2100) {
-                    console.log(`   ? Rejeitado: parece ano (${valor})`);
-                    continue;
-                }
-                
-                // 3. Ignorar se vier depois de "Data:" ou "/" (contexto de data)
-                const contextoAntes = texto.substring(Math.max(0, match.index - 20), match.index);
-                if (/data:\s*\d+\/\d+\/$/i.test(contextoAntes)) {
-                    console.log(`   ? Rejeitado: contexto de data (${contextoAntes})`);
-                    continue;
-                }
-                if (/\/\d+\/$/i.test(contextoAntes)) {
-                    console.log(`   ? Rejeitado: contexto de barra (${contextoAntes})`);
-                    continue;
-                }
-                
-                const horarioStr = `${hora.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')}`;
-                
-                // não adicionar se já existe (evitar duplicata)
-                const jaExiste = horariosEncontrados.find(h => `${h.hora}:${h.min}` === horarioStr);
-                
-                if (!jaExiste) {
-                    console.log(`   ? Aceito: ${horarioStr}`);
-                    horariosEncontrados.push({
-                        hora: hora.toString().padStart(2, '0'),
-                        min: min.toString().padStart(2, '0'),
-                        original: match[0],
-                        posicao: match.index,
-                        tipo: '4digitos'
-                    });
+                // Se a imagem chegou a ser lida, dá para confirmar o anexo mesmo sem OCR.
+                if (currentAnexoImage) {
+                    document.getElementById('ocrStatusText').textContent = 'ℹ Erro no OCR - você pode preencher manualmente';
+                    document.getElementById('btnConfirmarAnexo').style.display = 'block';
                 } else {
-                    console.log(`   ℹ Duplicado: ${horarioStr}`);
+                    document.getElementById('ocrStatusText').textContent = '❌ Não foi possível ler a imagem. Tente enviar outra.';
                 }
+            } finally {
+                if (geracao === ocrGeneration) ocrEmAndamento = false;
             }
-            
-            // Ordenar por posiçãoo no texto
-            horariosEncontrados.sort((a, b) => a.posicao - b.posicao);
-            
-            console.log('? Horários detectados:', horariosEncontrados);
-            
-            // Filtrar duplicatas por valor
-            const horariosLimpos = [];
-            horariosEncontrados.forEach(h => {
-                const horarioStr = `${h.hora}:${h.min}`;
-                if (!horariosLimpos.find(hl => hl === horarioStr)) {
-                    horariosLimpos.push(horarioStr);
-                }
-            });
-            
-            console.log('? Horários únicos:', horariosLimpos);
-            
-            // Atribuir Horários detectados
-            if (horariosLimpos.length >= 1) dados.ent1 = horariosLimpos[0];
-            if (horariosLimpos.length >= 2) dados.sai1 = horariosLimpos[1];
-            if (horariosLimpos.length >= 3) dados.ent2 = horariosLimpos[2];
-            if (horariosLimpos.length >= 4) dados.sai2 = horariosLimpos[3];
-            if (horariosLimpos.length >= 5) dados.ent3 = horariosLimpos[4];
-            if (horariosLimpos.length >= 6) dados.sai3 = horariosLimpos[5];
-            
-            // DETECTAR MOTIVO com méltiplas estratégias
-            const textoLower = texto.toLowerCase();
-            
-            // 1. Procurar por "X" ou marcaçães próximo ãs palavras-chave
-            const distanciaMax = 100; // aumentado para captar melhor
-            
-            // Lista de palavras-chave para cada justificativa
-            const justificativasMap = [
-                { palavras: ['esquec', 'registr.*ponto'], motivo: 'Esqueceu de registrar o Ponto' },
-                { palavras: ['falha.*app', 'app'], motivo: 'Falha no App' },
-                { palavras: ['falta'], motivo: 'Falta' },
-                { palavras: ['folga'], motivo: 'Folga' },
-                { palavras: ['hora.*parada', 'parada'], motivo: 'Hora Parada' },
-                { palavras: ['maquina.*defeito', 'méquina.*defeito', 'defeito'], motivo: 'Maquina Ponto com defeito' },
-                { palavras: ['duplicidade', 'duplicado'], motivo: 'Registro em duplicidade' },
-                { palavras: ['indevido'], motivo: 'Registro indevido' }
-            ];
-            
-            // Procurar "X", checkboxes marcados, ou qualquer Sómbolo de marcação
-            // Melhorado para captar mais variaçães
-            const regexX = /\b[xX]\b|\\[xX\\]|\(\\s*[xX]\\s*\)|\[[xX]\]/g;
-            const xMatches = [];
-            let xMatch;
-            while ((xMatch = regexX.exec(texto)) !== null) {
-                xMatches.push(xMatch.index);
-            }
-            
-            console.log('? Marcaçães "X" encontradas em:', xMatches);
-            
-            // Verificar qual opéão tem "X" mais próximo
-            let motivoDetectado = null;
-            let menorDistancia = Infinity;
-            
-            justificativasMap.forEach(item => {
-                item.palavras.forEach(palavra => {
-                    const regex = new RegExp(palavra, 'i');
-                    const match = textoLower.search(regex);
-                    
-                    if (match !== -1) {
-                        xMatches.forEach(xPos => {
-                            const dist = Math.abs(xPos - match);
-                            if (dist < distanciaMax && dist < menorDistancia) {
-                                menorDistancia = dist;
-                                motivoDetectado = item.motivo;
-                                console.log(`? Motivo detectado: "${item.motivo}" (disténcia: ${dist} do "X")`);
-                                console.log(`? Motivo detectado: "${item.motivo}" (disténcia: ${dist} do "X")`);
-                            }
-                        });
-                    }
-                });
-            });
-            
-            dados.motivo = motivoDetectado;
-            console.log('📋 Motivo detectado:', motivoDetectado);
-            
-            return dados;
         }
-        
+
         // 📝 Mostrar resultado do OCR COM INDICADORES DE CONFIANÇA
         function mostrarResultadoOCR(dados) {
             // função auxiliar para cor do indicador baseado na confiança
@@ -6920,7 +6196,7 @@
                 const bloqueado = jaBatido ? 'disabled' : '';
                 const corBorda = jaBatido ? '#94a3b8' : getConfidenceColor(confidence || 0);
                 const bgColor = jaBatido ? '#f1f5f9' : 'white';
-                const badge = jaBatido ? '<span style="display: inline-block; margin-left: 8px; padding: 2px 8px; background: #64748b; color: white; border-radius: 12px; font-size: 10px; font-weight: 600;">ℹ já BATIDO</span>' : getConfidenceBadge(confidence, label);
+                const badge = jaBatido ? '<span style="display: inline-block; margin-left: 8px; padding: 2px 8px; background: #64748b; color: white; border-radius: 12px; font-size: 10px; font-weight: 600;">JÁ BATIDO</span>' : getConfidenceBadge(confidence, label);
                 
                 return `
                     <div>
@@ -6937,13 +6213,13 @@
                 <div style="margin-bottom: 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
                     <div style="padding: 12px; background: ${dados.assinaturaFuncionario ? '#dbeafe' : '#fee2e2'}; border-left: 4px solid ${dados.assinaturaFuncionario ? '#3b82f6' : '#ef4444'}; border-radius: 6px;">
                         <div style="display: flex; align-items: center; gap: 8px;">
-                            <span style="font-size: 24px;">${dados.assinaturaFuncionario ? '?' : '?'}</span>
+                            <span style="font-size: 24px;">${dados.assinaturaFuncionario ? '✔' : '✖'}</span>
                             <div>
                                 <div style="font-weight: 600; color: ${dados.assinaturaFuncionario ? '#1e40af' : '#991b1b'}; font-size: 14px;">
-                                    ℹ FUNCIONÁRIO
+                                    FUNCIONÁRIO
                                 </div>
                                 <div style="font-size: 11px; color: ${dados.assinaturaFuncionario ? '#1e40af' : '#b91c1c'}; margin-top: 2px;">
-                                    ${dados.assinaturaFuncionario ? 'ASSINADO' : 'não ASSINADO'}
+                                    ${dados.assinaturaFuncionario ? 'ASSINADO' : 'NÃO ASSINADO'}
                                 </div>
                             </div>
                         </div>
@@ -6951,13 +6227,13 @@
                     
                     <div style="padding: 12px; background: ${dados.assinaturaLider ? '#d1fae5' : '#fee2e2'}; border-left: 4px solid ${dados.assinaturaLider ? '#10b981' : '#ef4444'}; border-radius: 6px;">
                         <div style="display: flex; align-items: center; gap: 8px;">
-                            <span style="font-size: 24px;">${dados.assinaturaLider ? '?' : '?'}</span>
+                            <span style="font-size: 24px;">${dados.assinaturaLider ? '✔' : '✖'}</span>
                             <div>
                                 <div style="font-weight: 600; color: ${dados.assinaturaLider ? '#065f46' : '#991b1b'}; font-size: 14px;">
-                                    ℹ Líder
+                                    Líder
                                 </div>
                                 <div style="font-size: 11px; color: ${dados.assinaturaLider ? '#047857' : '#b91c1c'}; margin-top: 2px;">
-                                    ${dados.assinaturaLider ? 'ASSINADO' : 'não ASSINADO'}
+                                    ${dados.assinaturaLider ? 'ASSINADO' : 'NÃO ASSINADO'}
                                 </div>
                             </div>
                         </div>
@@ -6968,7 +6244,7 @@
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
                     <div>
                         <label style="display: block; font-weight: 600; color: #065f46; margin-bottom: 8px;">
-                            ℹ Motivo: ${getConfidenceBadge(dados.confidence?.motivo, 'Motivo')}
+                            Motivo: ${getConfidenceBadge(dados.confidence?.motivo, 'Motivo')}
                         </label>
                         <select id="ocrMotivo" style="width: 100%; padding: 8px; border: 2px solid ${getConfidenceColor(dados.confidence?.motivo || 0)}; border-radius: 6px; font-size: 14px;">
                             <option value="">-- Selecione --</option>
@@ -6991,25 +6267,25 @@
                 </div>
                 
                 <div style="margin-bottom: 8px;">
-                    <label style="display: block; font-weight: 600; color: #065f46; margin-bottom: 8px;">? Horários (corrija se necesSório):</label>
+                    <label style="display: block; font-weight: 600; color: #065f46; margin-bottom: 8px;">Horários (corrija se necessário):</label>
                 </div>
                 
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
                     ${criarCampo('ocrEnt1', 'Entrada 1', dados.ent1, horariosJaBatidos.ent1, dados.confidence?.ent1)}
-                    ${criarCampo('ocrSai1', 'SAÍda 1', dados.sai1, horariosJaBatidos.sai1, dados.confidence?.sai1)}
+                    ${criarCampo('ocrSai1', 'Saída 1', dados.sai1, horariosJaBatidos.sai1, dados.confidence?.sai1)}
                     ${criarCampo('ocrEnt2', 'Entrada 2', dados.ent2, horariosJaBatidos.ent2, dados.confidence?.ent2)}
-                    ${criarCampo('ocrSai2', 'SAÍda 2', dados.sai2, horariosJaBatidos.sai2, dados.confidence?.sai2)}
+                    ${criarCampo('ocrSai2', 'Saída 2', dados.sai2, horariosJaBatidos.sai2, dados.confidence?.sai2)}
                     ${criarCampo('ocrEnt3', 'Entrada 3', dados.ent3, horariosJaBatidos.ent3, dados.confidence?.ent3)}
-                    ${criarCampo('ocrSai3', 'SAÍda 3', dados.sai3, horariosJaBatidos.sai3, dados.confidence?.sai3)}
+                    ${criarCampo('ocrSai3', 'Saída 3', dados.sai3, horariosJaBatidos.sai3, dados.confidence?.sai3)}
                 </div>
                 
                 <div style="margin-top: 12px; padding: 12px; background: #dbeafe; border-left: 4px solid #3b82f6; border-radius: 4px;">
                     <div style="font-size: 12px; color: #1e40af; line-height: 1.5;">
-                        <strong>ℹ Indicadores:</strong><br>
-                        <span style="color: #64748b;"></span> Cinza: Horário já batido (bloqueado)<br>
-                        <span style="color: #10b981;">?</span> Verde (=80%): Alta confiança<br>
-                        <span style="color: #f59e0b;">?</span> Amarelo (60-80%): média confiança - revisar<br>
-                        <span style="color: #ef4444;">?</span> Vermelho (<60%): Baixa confiança - corrigir
+                        <strong>Indicadores:</strong><br>
+                        <span style="color: #64748b;">■</span> Cinza: Horário já batido (bloqueado)<br>
+                        <span style="color: #10b981;">■</span> Verde (≥80%): Alta confiança<br>
+                        <span style="color: #f59e0b;">■</span> Amarelo (60-80%): Média confiança - revisar<br>
+                        <span style="color: #ef4444;">■</span> Vermelho (&lt;60%): Baixa confiança - corrigir
                     </div>
                 </div>
             `;
@@ -7025,11 +6301,23 @@
         
         // Confirmar e enviar anexo
         async function confirmarAnexo() {
-            if (!currentAnexoEmployee || !currentAnexoImage) {
-                showAlert('Erro', 'Nenhuma imagem selecionada', 'error');
+            // Mensagens distintas: o usuário precisa saber SE é para esperar,
+            // reenviar a foto, ou reabrir o anexo.
+            if (ocrEmAndamento && !currentAnexoImage) {
+                showToast('Aguarde, a imagem ainda está sendo carregada...', 'info');
                 return;
             }
-            
+
+            if (!currentAnexoEmployee) {
+                showToast('Este anexo já foi salvo. Feche e abra novamente para enviar outro.', 'warning');
+                return;
+            }
+
+            if (!currentAnexoImage) {
+                showToast('Nenhuma imagem carregada. Cole (Ctrl+V) ou selecione a foto novamente.', 'error');
+                return;
+            }
+
             // 📝 VALIDAR ASSINATURAS ANTES DE ENVIAR - apenas aviso, não bloqueia
             if (currentOCRData && (currentOCRData.assinaturaFuncionario === false || currentOCRData.assinaturaLider === false)) {
                 const faltantes = [];
@@ -7126,9 +6414,8 @@
                 
                 // Upload pro servidor (Azure Blob + SQL)
                 // O servidor farçã UPDATE automaticamente se registro já existir (REG+DATA+EMPRESA_ID)
-                const response = await fetch(`${API_BASE_URL}/api/anexos/upload`, {
+                const response = await apiFetch('/api/anexos/upload', {
                     method: 'POST',
-                    headers: getAuthHeaders(),
                     body: JSON.stringify(payload)
                 });
                 
@@ -7206,7 +6493,7 @@
                                 'Sucesso!',
                                 `? Anexo salvo e Horários enviados para Secullum!\n\n` +
                                 `ℹ Arquivo: ${result.filename}\n` +
-                                `ℹ Motivo: ${result.motivo || 'não detectado'}\n` +
+                                `Motivo: ${result.motivo || 'não detectado'}\n` +
                                 `? Horários: ${horariosStr}`,
                                 'success'
                             );
@@ -7217,7 +6504,15 @@
                             showAlert('Erro', `Anexo salvo mas erro ao enviar para Secullum:\n${err.message}`, 'error');
                         }
                     } else {
-                        throw new Error('FUNCIONÁRIO não encontrado em allEmployees');
+                        // O anexo JÁ foi salvo no servidor. Fechar o modal para o usuário
+                        // não clicar de novo achando que falhou.
+                        console.warn('⚠️ Anexo salvo, mas funcionário não localizado na tabela em memória');
+                        fecharModalAnexo();
+                        showToast(
+                            'Anexo salvo, mas a linha não foi encontrada na tabela.\n' +
+                            'Atualize a busca para ver os horários.',
+                            'warning'
+                        );
                     }
                 } else {
                     throw new Error(result.error || 'Erro desconhecido');
@@ -7560,9 +6855,8 @@
                 if (!employee) return;
                 
                 // Buscar ID do anexo no SQL
-                const response = await fetch(`${API_BASE_URL}/api/anexos/${reg}/${employee.rawData?.Data || date}`, {
-                    headers: getAuthHeaders()
-                });
+                const dataAnexo = (employee.rawData?.Data || date).split('T')[0];
+                const response = await apiFetch(`/api/anexos/reg/${reg}/${dataAnexo}`);
                 const anexo = await response.json();
                 
                 if (!anexo || anexo.error) {
@@ -7570,10 +6864,7 @@
                 }
                 
                 // Deletar do servidor
-                const deleteResponse = await fetch(`${API_BASE_URL}/api/anexos/${anexo.id}`, {
-                    method: 'DELETE',
-                    headers: getAuthHeaders()
-                });
+                const deleteResponse = await apiFetch(`/api/anexos/${anexo.id}`, { method: 'DELETE' });
                 
                 const result = await deleteResponse.json();
                 
@@ -7596,10 +6887,6 @@
             }
         }
 
-        // Remover anexo (verSóo antiga - manter compatibilidade)
-        function simulateOCR(filename) {
-            return { time: '--:--', reason: 'Arquivo: ' + filename };
-        }
 
         // Gerar formulério para um empregado
         // Gerar slots de Horário SEMPRE com 4 batidas (2 entradas + 2 SAÍdas)
@@ -7927,9 +7214,7 @@
                 // 📝 BUSCAR DADOS EXISTENTES DO BANCO PRIMEIRO
                 let existingData = {};
                 try {
-                    const fetchResponse = await fetch(`${API_BASE_URL}/api/anexos/${dataFormatted}/${employee.rawData?.Empresa || 0}`, {
-                        headers: getAuthHeaders()
-                    });
+                    const fetchResponse = await apiFetch(`/api/anexos/${dataFormatted}/${employee.rawData?.Empresa || 0}`);
                     if (fetchResponse.ok) {
                         const anexos = await fetchResponse.json();
                         const anexoExistente = anexos.find(a => 
@@ -7956,9 +7241,8 @@
                 
                 console.log(`ℹ Dados a salvar (mesclados):`, mergedData);
                 
-                const response = await fetch(`${API_BASE_URL}/api/anexos/${employee.cpf}/${dataFormatted}/questions`, {
+                const response = await apiFetch(`/api/anexos/${employee.cpf}/${dataFormatted}/questions`, {
                     method: 'PUT',
-                    headers: getAuthHeaders(),
                     body: JSON.stringify({
                         perguntas_rh: JSON.stringify(mergedData),
                         reg: employee.reg,
@@ -8002,15 +7286,15 @@
             const punchTime = employee.punches[punchType] || '--:--';
             const punchLabel = {
                 'ent1': 'Entrada 1',
-                'sai1': 'SAÍda 1',
+                'sai1': 'Saída 1',
                 'ent2': 'Entrada 2',
-                'sai2': 'SAÍda 2',
+                'sai2': 'Saída 2',
                 'ent3': 'Entrada 3',
-                'sai3': 'SAÍda 3',
+                'sai3': 'Saída 3',
                 'ent4': 'Entrada 4',
-                'sai4': 'SAÍda 4',
+                'sai4': 'Saída 4',
                 'ent5': 'Entrada 5',
-                'sai5': 'SAÍda 5'
+                'sai5': 'Saída 5'
             }[punchType];
 
             console.log('📝 Preparando modal:', { punchLabel, punchTime });
@@ -8068,7 +7352,7 @@
                 let employee = allEmployees.find(emp => emp.reg === reg && emp.date === date);
                 
                 if (!employee) {
-                    console.warn(`ℹ FUNCIONÁRIO não encontrado: REG=${reg}, Data=${date}`);
+                    console.warn(`FUNCIONÁRIO não encontrado: REG=${reg}, Data=${date}`);
                     showAlert('Erro', 'FUNCIONÁRIO não encontrado para esta data.', 'error');
                     return;
                 }
@@ -8151,9 +7435,7 @@
                 
                 // Buscar perguntas_rh atual do banco de dados
                 let perguntasRH = {};
-                const anexoAtual = await fetch(`${API_BASE_URL}/api/anexos/${reg}/${dataNormalizada}`, {
-                    headers: getAuthHeaders()
-                });
+                const anexoAtual = await apiFetch(`/api/anexos/reg/${reg}/${dataNormalizada}`);
                 if (anexoAtual.ok) {
                     const data = await anexoAtual.json();
                     if (data.perguntas_rh) {
@@ -8176,12 +7458,8 @@
                 const empresaConfigDel = API_CONFIG.companies?.find(c => c.id == empresaIdDel);
                 const empresaNomeDel = empresaConfigDel?.name || employee.companyName || employee.rawData?.EmpresaNome || 'N/A';
                 
-                const updateResponse = await fetch(`${API_BASE_URL}/api/anexos/${cpf}/${dataNormalizada}/questions`, {
+                const updateResponse = await apiFetch(`/api/anexos/${cpf}/${dataNormalizada}/questions`, {
                     method: 'PUT',
-                    headers: {
-                        ...getAuthHeaders(),
-                        'Content-Type': 'application/json'
-                    },
                     body: JSON.stringify({
                         perguntas_rh: JSON.stringify(perguntasRH),
                         reg: reg,
@@ -8220,15 +7498,15 @@
             const punchTime = employee.punches[punchType] || '--:--';
             const punchLabel = {
                 'ent1': 'Entrada 1',
-                'sai1': 'SAÍda 1',
+                'sai1': 'Saída 1',
                 'ent2': 'Entrada 2',
-                'sai2': 'SAÍda 2',
+                'sai2': 'Saída 2',
                 'ent3': 'Entrada 3',
-                'sai3': 'SAÍda 3',
+                'sai3': 'Saída 3',
                 'ent4': 'Entrada 4',
-                'sai4': 'SAÍda 4',
+                'sai4': 'Saída 4',
                 'ent5': 'Entrada 5',
-                'sai5': 'SAÍda 5'
+                'sai5': 'Saída 5'
             }[punchType];
 
             // Armazenar contexto
@@ -8511,19 +7789,19 @@
             }
 
             const punch1Label = {
-                'ent1': 'Entrada 1', 'sai1': 'SAÍda 1',
-                'ent2': 'Entrada 2', 'sai2': 'SAÍda 2',
-                'ent3': 'Entrada 3', 'sai3': 'SAÍda 3',
-                'ent4': 'Entrada 4', 'sai4': 'SAÍda 4',
-                'ent5': 'Entrada 5', 'sai5': 'SAÍda 5'
+                'ent1': 'Entrada 1', 'sai1': 'Saída 1',
+                'ent2': 'Entrada 2', 'sai2': 'Saída 2',
+                'ent3': 'Entrada 3', 'sai3': 'Saída 3',
+                'ent4': 'Entrada 4', 'sai4': 'Saída 4',
+                'ent5': 'Entrada 5', 'sai5': 'Saída 5'
             }[punch1];
 
             const punch2Label = {
-                'ent1': 'Entrada 1', 'sai1': 'SAÍda 1',
-                'ent2': 'Entrada 2', 'sai2': 'SAÍda 2',
-                'ent3': 'Entrada 3', 'sai3': 'SAÍda 3',
-                'ent4': 'Entrada 4', 'sai4': 'SAÍda 4',
-                'ent5': 'Entrada 5', 'sai5': 'SAÍda 5'
+                'ent1': 'Entrada 1', 'sai1': 'Saída 1',
+                'ent2': 'Entrada 2', 'sai2': 'Saída 2',
+                'ent3': 'Entrada 3', 'sai3': 'Saída 3',
+                'ent4': 'Entrada 4', 'sai4': 'Saída 4',
+                'ent5': 'Entrada 5', 'sai5': 'Saída 5'
             }[punch2];
 
             const time1 = employee.punches[punch1] || '--:--';
@@ -8639,9 +7917,9 @@
                     return;
                 }
                 
-                // Buscar méquinas de todas as empresas em paralelo (SEM autenticaçãoO)
+                // Buscar máquinas de todas as empresas em paralelo
                 const promises = bancosParaConsultar.map(bancoid => {
-                    return fetch(`${API_BASE_URL}/api/machine-monitor?bancoid=${bancoid}`)
+                    return apiFetch(`/api/machine-monitor?bancoid=${bancoid}`)
                         .then(async r => {
                             if (!r.ok) {
                                 console.warn(`ℹ Erro ao consultar banco ${bancoid}: HTTP ${r.status}`);
@@ -9219,15 +8497,15 @@
             let ordemIncorreta = false;
             const horariosOrdenados = [
                 { nome: 'Entrada 1', hora: p.ent1 },
-                { nome: 'SAÍda 1', hora: p.sai1 },
+                { nome: 'Saída 1', hora: p.sai1 },
                 { nome: 'Entrada 2', hora: p.ent2 },
-                { nome: 'SAÍda 2', hora: p.sai2 },
+                { nome: 'Saída 2', hora: p.sai2 },
                 { nome: 'Entrada 3', hora: p.ent3 },
-                { nome: 'SAÍda 3', hora: p.sai3 },
+                { nome: 'Saída 3', hora: p.sai3 },
                 { nome: 'Entrada 4', hora: p.ent4 },
-                { nome: 'SAÍda 4', hora: p.sai4 },
+                { nome: 'Saída 4', hora: p.sai4 },
                 { nome: 'Entrada 5', hora: p.ent5 },
-                { nome: 'SAÍda 5', hora: p.sai5 }
+                { nome: 'Saída 5', hora: p.sai5 }
             ].filter(h => h.hora && h.hora !== '--:--');
             
             for (let i = 1; i < horariosOrdenados.length; i++) {
@@ -9361,15 +8639,15 @@
                 // Enviar cada batida individualmente
                 const batidas = [
                     { tipo: 'E', hora: updatedPunches.ent1, label: 'Entrada 1', coluna: 'Entrada1' },
-                    { tipo: 'S', hora: updatedPunches.sai1, label: 'SAÍda 1', coluna: 'Saida1' },
+                    { tipo: 'S', hora: updatedPunches.sai1, label: 'Saída 1', coluna: 'Saida1' },
                     { tipo: 'E', hora: updatedPunches.ent2, label: 'Entrada 2', coluna: 'Entrada2' },
-                    { tipo: 'S', hora: updatedPunches.sai2, label: 'SAÍda 2', coluna: 'Saida2' },
+                    { tipo: 'S', hora: updatedPunches.sai2, label: 'Saída 2', coluna: 'Saida2' },
                     { tipo: 'E', hora: updatedPunches.ent3, label: 'Entrada 3', coluna: 'Entrada3' },
-                    { tipo: 'S', hora: updatedPunches.sai3, label: 'SAÍda 3', coluna: 'Saida3' },
+                    { tipo: 'S', hora: updatedPunches.sai3, label: 'Saída 3', coluna: 'Saida3' },
                     { tipo: 'E', hora: updatedPunches.ent4, label: 'Entrada 4', coluna: 'Entrada4' },
-                    { tipo: 'S', hora: updatedPunches.sai4, label: 'SAÍda 4', coluna: 'Saida4' },
+                    { tipo: 'S', hora: updatedPunches.sai4, label: 'Saída 4', coluna: 'Saida4' },
                     { tipo: 'E', hora: updatedPunches.ent5, label: 'Entrada 5', coluna: 'Entrada5' },
-                    { tipo: 'S', hora: updatedPunches.sai5, label: 'SAÍda 5', coluna: 'Saida5' }
+                    { tipo: 'S', hora: updatedPunches.sai5, label: 'Saída 5', coluna: 'Saida5' }
                 ];
 
                 for (const batida of batidas) {
@@ -9577,9 +8855,8 @@
                 }));
                 
                 // 📦 Enviar todos de uma vez
-                const response = await fetch(`${API_BASE_URL}/api/justificativa/salvar-batch`, {
+                const response = await apiFetch('/api/justificativa/salvar-batch', {
                     method: 'POST',
-                    headers: getAuthHeaders(),
                     body: JSON.stringify({ registros })
                 });
                 
@@ -9770,7 +9047,7 @@
     
     <!-- Modal de Upload de Anexo -->
     <div id="modalAnexo" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); backdrop-filter: blur(10px); z-index: 10000; justify-content: center; align-items: center; overflow-y: auto;">
-        <div style="background: rgba(30, 41, 59, 0.95); backdrop-filter: blur(20px); border: 1px solid rgba(148, 163, 184, 0.1); border-radius: 16px; padding: 24px 32px; max-width: 900px; width: 90%; max-height: 85vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.7); position: relative; margin: 20px auto;">
+        <div style="background: rgba(30, 41, 59, 0.95); backdrop-filter: blur(8px); border: 1px solid rgba(148, 163, 184, 0.1); border-radius: 16px; padding: 24px 32px; max-width: 900px; width: 90%; max-height: 85vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.7); position: relative; margin: 20px auto;">
             <button onclick="fecharModalAnexo()" style="position: absolute; top: 16px; right: 16px; background: none; border: none; font-size: 32px; cursor: pointer; color: #94a3b8; padding: 0; width: 40px; height: 40px; line-height: 1;"></button>
             
             <h2 style="font-size: 24px; font-weight: bold; background: linear-gradient(135deg, #60a5fa, #a78bfa); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; margin: 0 0 8px 0;">ℹ Anexar Justificativa</h2>
@@ -9795,7 +9072,7 @@
             </div>
             
             <div id="ocrResult" style="display: none; padding: 16px; background: rgba(16, 185, 129, 0.15); border: 2px solid rgba(16, 185, 129, 0.4); border-radius: 8px; margin-bottom: 16px;">
-                <h4 style="margin: 0 0 12px 0; color: #6ee7b7; font-size: 16px; font-weight: 600;">? Dados Detectados:</h4>
+                <h4 style="margin: 0 0 12px 0; color: #6ee7b7; font-size: 16px; font-weight: 600;">Dados Detectados:</h4>
                 <div id="ocrResultContent" style="color: #a7f3d0; font-size: 14px; line-height: 1.8;"></div>
             </div>
             

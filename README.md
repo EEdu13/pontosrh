@@ -108,46 +108,61 @@ SECULLUM_CLIENT_ID=3
 
 - ✅ Use `.env` para variáveis locais (já está no `.gitignore`)
 - ✅ Configure variáveis de ambiente no Railway
-- ✅ Use senhas fortes para JWT_SECRET
+- ✅ Use senhas fortes para JWT_SECRET — em produção o servidor **não sobe** sem ela
 - ✅ Mantenha credenciais do SQL Server e Azure privadas
+- ✅ `.env.example` só contém placeholders — nunca preencha com valores reais
+- ❌ Nunca coloque senha em arquivo `.html` ou `.js` do frontend
 
 ## 📁 Estrutura do Projeto
 
 ```
 pontosrh/
-├── server.js                 # Servidor Node.js principal
+├── server.js                 # Servidor Node.js principal (API + estáticos)
 ├── login.html                # Página de login
 ├── index.html                # Painel de justificativas
 ├── presenca.html             # Painel de presença
-├── monitor.html              # Monitor de batidas
+├── monitor.html              # Monitor de relógios de ponto
+├── coletas.html              # Status das comunicações dos relógios
+├── relatorio.html            # Dashboard de estatísticas
+├── assets/
+│   ├── theme.css             # Tokens de tema compartilhados
+│   └── session.js            # Sessão/tokens compartilhados entre as páginas
 ├── package.json              # Dependências do projeto
 ├── .env.example              # Exemplo de variáveis de ambiente
 ├── .gitignore                # Arquivos ignorados pelo Git
 └── README.md                 # Este arquivo
 ```
 
-## 🔄 Atualizando server.js para usar variáveis de ambiente
+## 🔑 Como funciona a autenticação
 
-O arquivo `server.js` precisa ser atualizado para ler as variáveis do `.env`. Exemplo:
+O usuário faz login **uma vez**, com as credenciais dele:
 
-```javascript
-require('dotenv').config();
+1. `login.html` envia e-mail/senha para `POST /api/auth/login`.
+2. O backend valida essas credenciais na Secullum e devolve dois tokens:
+   - **JWT da aplicação** → usado em todas as rotas `/api/*`
+   - **token Secullum** → usado nas chamadas diretas à API de ponto
+3. Ambos ficam no `localStorage` e são lidos por `assets/session.js`.
+4. Quando expiram, o usuário é mandado de volta para o login.
 
-const sqlConfig = {
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    server: process.env.DB_SERVER,
-    database: process.env.DB_DATABASE,
-    // ...
-};
-```
+Regras que valem para qualquer alteração no projeto:
+
+- **Nenhuma página carrega credenciais.** O HTML é público para o navegador —
+  qualquer senha ali é uma senha vazada. Use sempre o token da sessão.
+- **Toda rota `/api/*` exige JWT** por um middleware global no `server.js`.
+  Para abrir uma rota, adicione o caminho em `PUBLIC_API_PATHS` — é uma decisão
+  explícita, não um esquecimento.
+- `SECULLUM_USERNAME`/`SECULLUM_PASSWORD` no `.env` são de uma **conta de
+  serviço**, usada só pelo backend (monitor de equipamentos). Não é a conta dos
+  usuários.
 
 ## 📱 Páginas do Sistema
 
 - `/` ou `/login.html` - Login
 - `/index.html` - Justificativas (requer autenticação)
 - `/presenca.html` - Painel de Presença
-- `/monitor.html` - Monitor de Batidas
+- `/monitor.html` - Monitor de Relógios de Ponto
+- `/coletas.html` - Coletas / Comunicações
+- `/relatorio.html` - Dashboard de Relatórios
 
 ## 🤝 Contribuindo
 

@@ -13,10 +13,16 @@ const multer = require('multer');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const fetch = require('node-fetch');
+const compression = require('compression');
+const helmet = require('helmet');
+const morgan = require('morgan');
+const rateLimit = require('express-rate-limit');
+const path = require('path');
 const upload = multer({ storage: multer.memoryStorage() });
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+app.set('trust proxy', 1); // Railway/proxy reverso
 
 // ==========================================
 // CONFIGURAÇÃO DE AUTENTICAÇÃO
@@ -24,23 +30,38 @@ const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'sua_chave_secreta_super_segura_aqui_mude_em_producao';
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
 
-// Usuários do sistema (em produção, usar banco de dados)
-const USERS = [
-    {
-        id: 1,
-        username: 'admin',
-        password: '$2a$10$XQZ5YJ8C2L8rqYJ8C2L8rOxYJ8C2L8rqYJ8C2L8rqYJ8C2L8rqYJ8', // senha: admin123
-        name: 'Administrador',
-        role: 'admin'
-    },
-    {
-        id: 2,
-        username: 'rh',
-        password: '$2a$10$XQZ5YJ8C2L8rqYJ8C2L8rOxYJ8C2L8rqYJ8C2L8rqYJ8C2L8rqYJ8', // senha: rh123
-        name: 'RH',
-        role: 'rh'
+if (process.env.NODE_ENV === 'production' &&
+    JWT_SECRET === 'sua_chave_secreta_super_segura_aqui_mude_em_producao') {
+    console.error('❌ FATAL: JWT_SECRET não configurado em produção. Defina a variável de ambiente JWT_SECRET.');
+    process.exit(1);
+}
+
+// ==========================================
+// CONFIGURAÇÃO DA API SECULLUM
+// ==========================================
+const SECULLUM_AUTH_URL = process.env.SECULLUM_AUTH_URL || 'https://autenticador.secullum.com.br/Token';
+const SECULLUM_API_URL = process.env.SECULLUM_API_URL || 'https://pontowebintegracaoexterna.secullum.com.br';
+const SECULLUM_CLIENT_ID = process.env.SECULLUM_CLIENT_ID || '3';
+
+// ==========================================
+// UTILITÁRIOS
+// ==========================================
+
+// Normaliza data para YYYY-MM-DD, aceitando DD/MM/YYYY e ISO com timestamp.
+// Retorna null se não for possível normalizar.
+function normalizarData(data) {
+    if (!data) return null;
+    const str = String(data);
+
+    if (str.includes('/')) {
+        const [dia, mes, ano] = str.split('/');
+        if (!dia || !mes || !ano) return null;
+        return `${ano}-${mes.padStart(2, '0')}-${dia.padStart(2, '0')}`;
     }
-];
+
+    const semHora = str.includes('T') ? str.split('T')[0] : str;
+    return /^\d{4}-\d{2}-\d{2}$/.test(semHora) ? semHora : null;
+}
 
 // Middleware de autenticação
 function authenticateToken(req, res, next) {
@@ -61,12 +82,55 @@ function authenticateToken(req, res, next) {
 }
 
 // Middleware
+app.use(helmet({
+    contentSecurityPolicy: false, // Desabilitado: muitos inline scripts/styles no projeto
+    crossOriginEmbedderPolicy: false,
+    crossOriginResourcePolicy: { policy: 'cross-origin' }
+}));
+app.use(compression());
+app.use(morgan(process.env.NODE_ENV === 'production' ? 'tiny' : 'dev'));
 app.use(cors());
 app.use(express.json({ limit: '50mb' })); // Aumentar limite para imagens base64
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
-// Servir arquivos estáticos (HTML, CSS, JS)
-app.use(express.static('.'));
+// Rate limit anti-brute-force só no login
+const loginLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 10,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Muitas tentativas de login. Tente novamente em 15 minutos.' }
+});
+
+// ==========================================
+// PROTEÇÃO: bloquear download de arquivos sensíveis via static
+// ==========================================
+const BLOCKED_PATTERNS = [
+    /\.bak$/i, /\.backup$/i, /\.sql$/i, /\.env/i,
+    /token\.txt$/i, /pdfseculum/i, /package(-lock)?\.json$/i,
+    /^\/server[^/]*\.js$/i, /^\/servidor\.js$/i, /^\/config\.js$/i,
+    /\.md$/i, /leiame\.txt$/i,
+    /^\/_backup_/i, /\.git\//i, /node_modules/i,
+    /^\/Captura/i // screenshots na raiz
+];
+app.use((req, res, next) => {
+    const p = req.path;
+    if (BLOCKED_PATTERNS.some(rx => rx.test(p))) {
+        return res.status(404).end();
+    }
+    next();
+});
+
+// Servir arquivos estáticos (HTML, CSS, JS) com cache
+app.use(express.static('.', {
+    maxAge: '1h',
+    etag: true,
+    setHeaders: (res, filePath) => {
+        if (/\.html$/i.test(filePath)) {
+            res.setHeader('Cache-Control', 'no-cache'); // HTML sempre fresco
+        }
+    }
+}));
 
 // Rota raiz vai para login
 app.get('/', (req, res) => {
@@ -75,10 +139,10 @@ app.get('/', (req, res) => {
 
 // Configuração do SQL Azure
 const sqlConfig = {
-    user: process.env.DB_USER || 'sqladmin',
-    password: process.env.DB_PASSWORD || 'SenhaForte123!',
-    server: process.env.DB_SERVER || 'alrflorestal.database.windows.net',
-    database: process.env.DB_DATABASE || 'Tabela_teste',
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    server: process.env.DB_SERVER,
+    database: process.env.DB_DATABASE,
     options: {
         encrypt: true, // Azure requer criptografia
         trustServerCertificate: false,
@@ -122,6 +186,15 @@ function initBlobStorage() {
 let poolPromise;
 let sqlConnected = false;
 let tokenRenewalInProgress = false;
+let tokenRenewalTimer = null;
+
+// Agenda a próxima renovação, cancelando a anterior.
+// Sem isso, um sucesso após uma falha deixava duas cadeias de setTimeout ativas.
+function scheduleTokenRenewal(delayMs) {
+    if (tokenRenewalTimer) clearTimeout(tokenRenewalTimer);
+    tokenRenewalTimer = setTimeout(authenticateSecullum, delayMs);
+    tokenRenewalTimer.unref?.(); // não segura o processo aberto no shutdown
+}
 
 // Autenticar na API Secullum e obter token
 async function authenticateSecullum() {
@@ -129,24 +202,29 @@ async function authenticateSecullum() {
         console.log('⏳ Renovação de token já em andamento, aguardando...');
         return;
     }
-    
+
     tokenRenewalInProgress = true;
-    
+
     try {
+        if (!process.env.SECULLUM_USERNAME || !process.env.SECULLUM_PASSWORD) {
+            console.error('❌ SECULLUM_USERNAME/SECULLUM_PASSWORD não configurados — token de serviço indisponível');
+            return;
+        }
+
         console.log('🔑 Autenticando na API Secullum...');
-        const response = await fetch('https://autenticador.secullum.com.br/Token', {
+        const response = await fetch(SECULLUM_AUTH_URL, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded'
             },
             body: new URLSearchParams({
                 grant_type: 'password',
-                username: 'ferreira.eduardo@larsil.com.br',
-                password: 'larsil123@',
-                client_id: '3'
+                username: process.env.SECULLUM_USERNAME,
+                password: process.env.SECULLUM_PASSWORD,
+                client_id: SECULLUM_CLIENT_ID
             })
         });
-        
+
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
@@ -154,14 +232,15 @@ async function authenticateSecullum() {
         const data = await response.json();
         SECULLUM_TOKEN = data.access_token;
         console.log('✅ Token Secullum obtido com sucesso');
-        
-        // Renovar token antes de expirar (a cada 50 minutos, expira em 60)
-        setTimeout(authenticateSecullum, 50 * 60 * 1000);
-        
+
+        // Renovar 10 minutos antes de expirar (expires_in vem em segundos)
+        const ttlMs = (Number(data.expires_in) || 3600) * 1000;
+        scheduleTokenRenewal(Math.max(60000, ttlMs - 10 * 60 * 1000));
+
     } catch (err) {
         console.error('❌ Erro ao autenticar Secullum:', err.message);
         // Tentar novamente após 30 segundos em caso de erro
-        setTimeout(authenticateSecullum, 30000);
+        scheduleTokenRenewal(30000);
     } finally {
         tokenRenewalInProgress = false;
     }
@@ -180,11 +259,26 @@ async function connectDB() {
 }
 
 // ==========================================
-// ROTAS DE AUTENTICAÇÃO (SEM PROTEÇÃO)
+// PROTEÇÃO GLOBAL DA API
+// Tudo sob /api exige JWT, exceto as rotas listadas aqui.
+// Vale para rotas futuras também — não há como esquecer de proteger uma.
+// ==========================================
+const PUBLIC_API_PATHS = new Set([
+    '/auth/login',
+    '/auth/logout'
+]);
+
+app.use('/api', (req, res, next) => {
+    if (PUBLIC_API_PATHS.has(req.path)) return next();
+    return authenticateToken(req, res, next);
+});
+
+// ==========================================
+// ROTAS DE AUTENTICAÇÃO
 // ==========================================
 
 // POST - Login
-app.post('/api/auth/login', async (req, res) => {
+app.post('/api/auth/login', loginLimiter, async (req, res) => {
     try {
         const { username, password } = req.body;
 
@@ -193,7 +287,7 @@ app.post('/api/auth/login', async (req, res) => {
         }
 
         // Autenticar na API Secullum
-        const authResponse = await fetch('https://autenticador.secullum.com.br/Token', {
+        const authResponse = await fetch(SECULLUM_AUTH_URL, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded'
@@ -202,7 +296,7 @@ app.post('/api/auth/login', async (req, res) => {
                 grant_type: 'password',
                 username,
                 password,
-                client_id: '3'
+                client_id: SECULLUM_CLIENT_ID
             })
         });
 
@@ -211,7 +305,7 @@ app.post('/api/auth/login', async (req, res) => {
         }
 
         const secullumData = await authResponse.json();
-        
+
         // Buscar dados do usuário autenticado
         let userName = username.split('@')[0];
         const userInfoResponse = await fetch('https://autenticador.secullum.com.br/api/Account/UserInfo', {
@@ -225,19 +319,23 @@ app.post('/api/auth/login', async (req, res) => {
 
         // Gerar token JWT interno do sistema
         const token = jwt.sign(
-            { 
+            {
                 username,
                 name: userName,
-                role: 'user',
-                secullumToken: secullumData.access_token
+                role: 'user'
             },
             JWT_SECRET,
             { expiresIn: JWT_EXPIRES_IN }
         );
 
+        // Validade do token Secullum (expires_in vem em segundos; fallback 1h)
+        const secullumExpiresIn = Number(secullumData.expires_in) || 3600;
+
         res.json({
             success: true,
             token,
+            secullumToken: secullumData.access_token,
+            secullumExpiresIn,
             user: { username, name: userName, role: 'user' }
         });
 
@@ -248,7 +346,7 @@ app.post('/api/auth/login', async (req, res) => {
 });
 
 // GET - Verificar token
-app.get('/api/auth/verify', authenticateToken, (req, res) => {
+app.get('/api/auth/verify', (req, res) => {
     res.json({
         success: true,
         user: req.user
@@ -261,20 +359,16 @@ app.post('/api/auth/logout', (req, res) => {
 });
 
 // GET - Obter configurações da API Secullum (protegido)
-app.get('/api/secullum-config', authenticateToken, (req, res) => {
+// NUNCA devolve credenciais: o cliente usa o token obtido no próprio login.
+app.get('/api/secullum-config', (req, res) => {
     res.json({
-        authURL: process.env.SECULLUM_AUTH_URL || 'https://autenticador.secullum.com.br/Token',
-        baseURL: process.env.SECULLUM_API_URL || 'https://pontowebintegracaoexterna.secullum.com.br',
-        credentials: {
-            grant_type: 'password',
-            username: process.env.SECULLUM_USERNAME || '',
-            password: process.env.SECULLUM_PASSWORD || '',
-            client_id: process.env.SECULLUM_CLIENT_ID || '3'
-        }
+        authURL: SECULLUM_AUTH_URL,
+        baseURL: SECULLUM_API_URL,
+        clientId: SECULLUM_CLIENT_ID
     });
 });
 
-// GET - Obter configurações do Azure Vision (SEM autenticação - usado antes do login)
+// GET - Obter configurações do Azure Vision (protegido)
 app.get('/api/azure-vision-config', (req, res) => {
     res.json({
         apiKey: process.env.AZURE_VISION_KEY || '',
@@ -287,7 +381,7 @@ app.get('/api/azure-vision-config', (req, res) => {
 // ==========================================
 
 // GET - Listar todos os colaboradores
-app.get('/api/colaboradores', authenticateToken, async (req, res) => {
+app.get('/api/colaboradores', async (req, res) => {
     try {
         const pool = await poolPromise;
         const result = await pool.request()
@@ -411,7 +505,7 @@ app.post('/api/colaboradores/batch-cpf', async (req, res) => {
         res.json(result.recordset);
     } catch (err) {
         console.error('Erro ao buscar colaboradores por CPFs:', err.message);
-        res.status(500).json({ error: err.message, details: err.stack });
+        res.status(500).json({ error: err.message });
     }
 });
 
@@ -586,7 +680,7 @@ app.post('/api/anexos/upload', async (req, res) => {
         
     } catch (err) {
         console.error('❌ Erro ao fazer upload:', err);
-        res.status(500).json({ error: err.message, stack: err.stack });
+        res.status(500).json({ error: err.message });
     }
 });
 
@@ -598,12 +692,16 @@ app.get('/api/anexos/:data/:empresa_id', async (req, res) => {
         }
         
         let { data, empresa_id } = req.params;
-        
+
         // Normalizar data: remover timestamp se existir (2025-10-23T00:00:00 → 2025-10-23)
         if (data.includes('T')) {
             data = data.split('T')[0];
         }
-        
+
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(data)) {
+            return res.status(400).json({ error: 'Formato de data inválido. Use YYYY-MM-DD' });
+        }
+
         const pool = await poolPromise;
         const result = await pool.request()
             .input('data', sql.Date, data)
@@ -622,7 +720,9 @@ app.get('/api/anexos/:data/:empresa_id', async (req, res) => {
 });
 
 // GET - Buscar anexo específico por REG e Data
-app.get('/api/anexos/:reg/:data', async (req, res) => {
+// Caminho com prefixo /reg/ para não colidir com /api/anexos/:data/:empresa_id acima
+// (ambas eram rotas de 2 segmentos e a primeira capturava todas as requisições).
+app.get('/api/anexos/reg/:reg/:data', async (req, res) => {
     try {
         if (!sqlConnected || !poolPromise) {
             return res.status(404).json({ error: 'Anexo não encontrado' });
@@ -893,12 +993,8 @@ app.get('/api/colaboradores/empresa/:empresa', async (req, res) => {
 app.get('/api/test', async (req, res) => {
     try {
         const pool = await poolPromise;
-        const result = await pool.request().query('SELECT @@VERSION as version');
-        res.json({ 
-            status: 'Conectado!', 
-            database: 'Tabela_teste',
-            version: result.recordset[0].version 
-        });
+        await pool.request().query('SELECT 1');
+        res.json({ status: 'Conectado!', database: sqlConfig.database });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -1019,7 +1115,7 @@ app.get('/api/machine-monitor', async (req, res) => {
         
     } catch (err) {
         console.error('❌ Erro ao consultar equipamentos:', err.message);
-        res.status(500).json({ error: err.message, details: err.toString() });
+        res.status(500).json({ error: err.message });
     }
 });
 
@@ -1122,18 +1218,6 @@ app.get('/api/relatorio/estatisticas', async (req, res) => {
     }
 });
 
-async function initServer() {
-    await connectDB();
-    initBlobStorage();
-    await authenticateSecullum();
-    
-    app.listen(PORT, () => {
-        console.log('\nServidor iniciado em http://localhost:' + PORT + '\n');
-    });
-}
-            
-
-initServer();
 // 🆔 SALVAR JUSTIFICATIVA PARA IMPRESSÃO
 // Salva a justificativa no banco e retorna o ID auto-increment
 app.post('/api/justificativa/salvar', async (req, res) => {
@@ -1321,35 +1405,65 @@ app.post('/api/justificativa/buscar-ids', async (req, res) => {
         
         const pool = await poolPromise;
         const ids = {};
-        
-        for (const { reg, data, empresa_id } of registros) {
-            // Normalizar data
-            let dataNormalizada = data;
-            if (data.includes('/')) {
-                const [dia, mes, ano] = data.split('/');
-                dataNormalizada = `${ano}-${mes}-${dia}`;
-            } else if (data.includes('T')) {
-                dataNormalizada = data.split('T')[0];
-            }
-            
-            const result = await pool.request()
-                .input('reg', sql.VarChar, reg)
-                .input('data', sql.Date, dataNormalizada)
-                .input('empresa_id', sql.Int, empresa_id || 0)
-                .query('SELECT id FROM ANEXOS WHERE reg = @reg AND data = @data AND empresa_id = @empresa_id');
-            
-            if (result.recordset.length > 0 && result.recordset[0].id) {
-                ids[`${reg}_${dataNormalizada}_${empresa_id}`] = result.recordset[0].id;
-            }
+
+        // Normaliza e descarta registros inválidos antes de ir ao banco
+        const alvos = registros
+            .map(({ reg, data, empresa_id }) => ({
+                reg,
+                data: normalizarData(data),
+                empresa_id: parseInt(empresa_id) || 0
+            }))
+            .filter(r => r.reg && r.data);
+
+        // Uma query por lote em vez de uma por registro.
+        // SQL Server aceita ~2100 parâmetros; 3 por registro → lotes de 500 com folga.
+        const TAMANHO_LOTE = 500;
+
+        for (let i = 0; i < alvos.length; i += TAMANHO_LOTE) {
+            const lote = alvos.slice(i, i + TAMANHO_LOTE);
+            const request = pool.request();
+
+            const condicoes = lote.map((alvo, idx) => {
+                request.input(`reg${idx}`, sql.VarChar, alvo.reg);
+                request.input(`data${idx}`, sql.Date, alvo.data);
+                request.input(`emp${idx}`, sql.Int, alvo.empresa_id);
+                return `(reg = @reg${idx} AND data = @data${idx} AND empresa_id = @emp${idx})`;
+            }).join(' OR ');
+
+            const result = await request.query(`
+                SELECT id, reg, data, empresa_id FROM ANEXOS
+                WHERE ${condicoes}
+            `);
+
+            result.recordset.forEach(row => {
+                const dataKey = row.data.toISOString().split('T')[0];
+                ids[`${row.reg}_${dataKey}_${row.empresa_id}`] = row.id;
+            });
         }
-        
+
         res.json({ ids });
-        
+
     } catch (err) {
         console.error('Erro ao buscar IDs:', err.message);
         res.status(500).json({ error: 'Erro ao buscar IDs' });
     }
 });
+
+// ==========================================
+// INICIALIZAÇÃO
+// Só depois de TODAS as rotas estarem registradas.
+// ==========================================
+async function initServer() {
+    await connectDB();
+    initBlobStorage();
+    await authenticateSecullum();
+
+    app.listen(PORT, () => {
+        console.log('\nServidor iniciado em http://localhost:' + PORT + '\n');
+    });
+}
+
+initServer();
 
 // Graceful shutdown
 process.on('SIGINT', async () => {

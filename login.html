@@ -3,6 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/assets/theme.css">
+    <script src="/assets/session.js"></script>
     <title>Login - Sistema de Justificativas LARSIL</title>
     <style>
         * {
@@ -326,6 +329,10 @@
         const btnLogin = document.getElementById('btnLogin');
         const btnText = document.getElementById('btnText');
 
+        const API_BASE_URL = window.location.hostname === 'localhost'
+            ? 'http://localhost:3000'
+            : window.location.origin;
+
         // Verificar se já está logado
         const token = localStorage.getItem('secullum_token');
         const expiry = localStorage.getItem('secullum_token_expiry');
@@ -378,56 +385,30 @@
             btnText.textContent = 'Autenticando...';
 
             try {
-                console.log('🔐 Tentando autenticar:', username);
-
-                // Autenticar na API Secullum
-                const response = await fetch('https://autenticador.secullum.com.br/Token', {
+                // Autenticar via backend: ele valida no Secullum e devolve
+                // o JWT da aplicação + o token Secullum do próprio usuário.
+                const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded'
-                    },
-                    body: new URLSearchParams({
-                        grant_type: 'password',
-                        username: username,
-                        password: password,
-                        client_id: '3'
-                    }).toString()
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
                 });
 
                 if (!response.ok) {
-                    const errorText = await response.text();
-                    console.error('❌ Erro na autenticação:', response.status, errorText);
-                    throw new Error('E-mail ou senha incorretos. Verifique suas credenciais.');
+                    const erro = await response.json().catch(() => ({}));
+                    throw new Error(erro.error || 'E-mail ou senha incorretos. Verifique suas credenciais.');
                 }
 
                 const data = await response.json();
-                console.log('✅ Token recebido:', data.access_token.substring(0, 20) + '...');
+                const userName = data.user?.name || username.split('@')[0];
 
-                // Buscar informações do usuário
-                const userInfoResponse = await fetch('https://autenticador.secullum.com.br/api/Account/UserInfo', {
-                    headers: {
-                        'Authorization': `Bearer ${data.access_token}`
-                    }
-                });
-
-                let userName = username.split('@')[0];
-                let userRole = 'user';
-
-                if (userInfoResponse.ok) {
-                    const userInfo = await userInfoResponse.json();
-                    userName = userInfo.Nome || userInfo.Email || userName;
-                    console.log('👤 Usuário:', userName);
-                }
-
-                // Salvar token e informações no localStorage
-                const expiryTime = Date.now() + (60 * 60 * 1000); // 1 hora
-                localStorage.setItem('secullum_token', data.access_token);
+                // Salvar tokens e informações no localStorage
+                const expiryTime = Date.now() + (data.secullumExpiresIn * 1000);
+                localStorage.setItem('token', data.token);                    // JWT da aplicação
+                localStorage.setItem('secullum_token', data.secullumToken);   // token da API Secullum
                 localStorage.setItem('secullum_token_expiry', expiryTime);
                 localStorage.setItem('secullum_username', username);
                 localStorage.setItem('user_name', userName);
-                localStorage.setItem('user_role', userRole);
-
-                console.log('💾 Dados salvos no localStorage');
+                localStorage.setItem('user_role', data.user?.role || 'user');
 
                 // Mostrar mensagem de sucesso
                 showSuccess(`✅ Bem-vindo, ${userName}! Redirecionando...`);

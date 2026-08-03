@@ -18,6 +18,8 @@ pdfseculum.txt
 *.backup.html
 *_backup.*
 server_broken_backup.js
+_backup_*/
+*.bak
 
 # Banco de dados local
 *.db

@@ -3,6 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/assets/theme.css">
+    <script src="/assets/session.js"></script>
     <title>Coletas - Status das Comunicações</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -19,7 +22,7 @@
         /* HEADER */
         .header {
             background: rgba(30, 41, 59, 0.8);
-            backdrop-filter: blur(20px);
+            backdrop-filter: blur(8px);
             border: 1px solid rgba(148, 163, 184, 0.1);
             border-radius: 16px;
             padding: 24px;
@@ -149,7 +152,7 @@
         /* TABLE CARD */
         .table-card {
             background: rgba(30, 41, 59, 0.8);
-            backdrop-filter: blur(20px);
+            backdrop-filter: blur(8px);
             border: 1px solid rgba(148, 163, 184, 0.1);
             border-radius: 16px;
             padding: 24px;
@@ -460,46 +463,17 @@
         // ==========================================
         // AUTH
         // ==========================================
+        // Usa o token obtido no login (assets/session.js) — sem credenciais aqui
         async function authenticate() {
-            try {
-                const resp = await fetch('https://autenticador.secullum.com.br/Token', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                    body: new URLSearchParams({
-                        grant_type: 'password',
-                        username: 'ferreira.eduardo@larsil.com.br',
-                        password: 'larsil123@',
-                        client_id: '3'
-                    })
-                });
-
-                if (!resp.ok) throw new Error(`Auth ${resp.status}`);
-                const data = await resp.json();
-                SECULLUM_TOKEN = data.access_token;
-                console.log('✅ Token obtido');
-                return true;
-            } catch (err) {
-                console.error('❌ Auth falhou:', err);
-                return false;
-            }
+            SECULLUM_TOKEN = SESSION.getSecullumToken();
+            return SECULLUM_TOKEN !== null;
         }
 
         // ==========================================
         // EMPRESAS
         // ==========================================
         async function loadEmpresas() {
-            try {
-                const resp = await fetch('https://autenticador.secullum.com.br/ContasSecullumExterno/ListarBancos', {
-                    headers: { 'Authorization': `Bearer ${SECULLUM_TOKEN}` }
-                });
-
-                if (!resp.ok) throw new Error(`Empresas ${resp.status}`);
-                EMPRESAS = await resp.json();
-                console.log(`✅ ${EMPRESAS.length} empresas`);
-            } catch (err) {
-                console.error('❌ Erro empresas:', err);
-                EMPRESAS = [];
-            }
+            EMPRESAS = await SESSION.loadCompanies();
         }
 
         // ==========================================
