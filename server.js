@@ -368,6 +368,143 @@ app.get('/api/secullum-config', (req, res) => {
     });
 });
 
+// ==========================================
+// PROXY DA API SECULLUM
+//
+// Por que existe: nem todo usuário do RH tem permissão de Integração Externa
+// na Secullum (a API responde 400 "Operação não permitida"). O backend usa a
+// conta de serviço do .env para ler/escrever, e o navegador nunca vê credencial
+// nenhuma — ele se identifica com o JWT da aplicação.
+//
+// Rastreabilidade: como a Secullum atribui a autoria ao dono do token, todas as
+// escritas sairiam com o nome da conta de serviço. Para não perder de vista quem
+// realmente mexeu, o e-mail do usuário logado é gravado no campo Motivo.
+// ==========================================
+
+// Campo Motivo da Secullum: mantido curto para não estourar o limite da coluna.
+const MOTIVO_MAX = 150;
+
+function carimbarUsuario(body, usuario) {
+    if (!body || typeof body !== 'object' || Array.isArray(body)) return body;
+    if (!('Motivo' in body) || !usuario) return body;
+
+    const base = String(body.Motivo || '').trim();
+    const marca = ` [${usuario}]`;
+    const espaco = MOTIVO_MAX - marca.length;
+
+    body.Motivo = (base.length > espaco ? base.slice(0, espaco).trim() : base) + marca;
+    return body;
+}
+
+async function chamarSecullum(caminho, { method = 'GET', bancoId, body }) {
+    const url = `${SECULLUM_API_URL}${caminho}`;
+    const headers = {
+        'Authorization': `Bearer ${SECULLUM_TOKEN}`,
+        'Content-Type': 'application/json'
+    };
+    if (bancoId) headers['secullumidbancoselecionado'] = String(bancoId);
+
+    return fetch(url, {
+        method,
+        headers,
+        body: body === undefined ? undefined : JSON.stringify(body)
+    });
+}
+
+// GET - Empresas (bancos) visíveis pela conta de serviço
+app.get('/api/secullum/bancos', async (req, res) => {
+    if (!SECULLUM_TOKEN) {
+        return res.status(503).json({ error: 'Token Secullum indisponível. Tente novamente em instantes.' });
+    }
+
+    try {
+        const response = await fetch(`${SECULLUM_AUTH_URL.replace('/Token', '')}/ContasSecullumExterno/ListarBancos`, {
+            headers: { 'Authorization': `Bearer ${SECULLUM_TOKEN}` }
+        });
+
+        if (response.status === 401) {
+            await authenticateSecullum();
+            return res.status(503).json({ error: 'Renovando sessão Secullum. Tente novamente.' });
+        }
+
+        if (!response.ok) {
+            return res.status(response.status).json({ error: `Secullum respondeu ${response.status}` });
+        }
+
+        res.json(await response.json());
+    } catch (err) {
+        console.error('❌ Erro ao listar bancos:', err.message);
+        res.status(502).json({ error: 'Falha ao consultar a Secullum' });
+    }
+});
+
+// Somente os endpoints que o sistema realmente usa.
+// A conta de serviço é administrativa: sem essa lista, qualquer usuário logado
+// poderia alcançar qualquer rota da Secullum através do proxy.
+const SECULLUM_PERMITIDOS = [
+    { metodo: 'GET',  caminho: '/IntegracaoExterna/Batidas' },
+    { metodo: 'GET',  caminho: '/IntegracaoExterna/Funcionarios' },
+    { metodo: 'GET',  caminho: '/IntegracaoExterna/Justificativas' },
+    { metodo: 'GET',  caminho: '/IntegracaoExterna/FonteDados' },
+    { metodo: 'GET',  caminho: '/IntegracaoExterna/Equipamentos' },
+    { metodo: 'GET',  caminho: '/IntegracaoExterna/Bancos' },
+    { metodo: 'POST', caminho: '/IntegracaoExterna/CartaoPonto/Manual' },
+    { metodo: 'POST', caminho: '/IntegracaoExterna/CartaoPonto/Troca' },
+    { metodo: 'POST', caminho: '/IntegracaoExterna/CartaoPonto/Justificativa' }
+];
+
+function rotaPermitida(metodo, caminho) {
+    return SECULLUM_PERMITIDOS.some(r => r.metodo === metodo && r.caminho === caminho);
+}
+
+// Proxy: tudo sob /api/secullum/ vira uma chamada à Secullum
+app.all(/^\/api\/secullum\/(.+)/, async (req, res) => {
+    if (!SECULLUM_TOKEN) {
+        return res.status(503).json({ error: 'Token Secullum indisponível. Tente novamente em instantes.' });
+    }
+
+    const caminho = req.path.replace('/api/secullum', '');
+
+    if (!rotaPermitida(req.method, caminho)) {
+        console.warn(`🚫 Rota Secullum não permitida: ${req.method} ${caminho} (usuário ${req.user?.username})`);
+        return res.status(403).json({ error: 'Endpoint não permitido' });
+    }
+
+    const query = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
+    const bancoId = req.headers['secullumidbancoselecionado'];
+    const escrita = req.method !== 'GET';
+
+    // Só o e-mail do login vale como identidade — o cliente não escolhe quem assina.
+    const usuario = req.user?.username;
+    const corpo = escrita ? carimbarUsuario(req.body, usuario) : undefined;
+
+    if (escrita) {
+        console.log(`📝 ${usuario} -> ${req.method} ${caminho} (banco ${bancoId})`);
+    }
+
+    try {
+        let response = await chamarSecullum(caminho + query, { method: req.method, bancoId, body: corpo });
+
+        // Token de serviço expirado: renova uma vez e repete
+        if (response.status === 401) {
+            await authenticateSecullum();
+            response = await chamarSecullum(caminho + query, { method: req.method, bancoId, body: corpo });
+        }
+
+        const texto = await response.text();
+        res.status(response.status);
+
+        try {
+            res.json(JSON.parse(texto));
+        } catch {
+            res.send(texto); // Secullum às vezes responde vazio ou texto puro
+        }
+    } catch (err) {
+        console.error(`❌ Erro no proxy Secullum (${caminho}):`, err.message);
+        res.status(502).json({ error: 'Falha ao comunicar com a Secullum' });
+    }
+});
+
 // GET - Obter configurações do Azure Vision (protegido)
 app.get('/api/azure-vision-config', (req, res) => {
     res.json({

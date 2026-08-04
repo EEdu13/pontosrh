@@ -530,6 +530,8 @@
     <script>
         let allMachines = [];
         let SECULLUM_TOKEN = null;
+        // Chamadas 'Secullum' passam pelo nosso backend (ver assets/session.js)
+        const SECULLUM_BASE = SESSION.API_BASE_URL + '/api/secullum';
         let EMPRESAS = [];
 
         // Configurar datas padrão (últimos 90 dias)
@@ -550,7 +552,8 @@
 
         // Usa o token obtido no login (assets/session.js) — sem credenciais aqui
         async function authenticateSecullum() {
-            SECULLUM_TOKEN = SESSION.getSecullumToken();
+            if (!SESSION.getSecullumToken()) return false;  // valida a sessao
+            SECULLUM_TOKEN = SESSION.getJwt();     // o proxy autentica por JWT
             return SECULLUM_TOKEN !== null;
         }
 
@@ -602,7 +605,7 @@
                 console.log(`🔍 Buscando equipamentos - Empresa: ${empresaNome} (${bancoid}) | Período: ${dataInicio} a ${dataFim}`);
 
                 // PASSO 1: Buscar lista de equipamentos
-                const equipResponse = await fetch('https://pontowebintegracaoexterna.secullum.com.br/IntegracaoExterna/Equipamentos', {
+                const equipResponse = await fetch(SECULLUM_BASE + '/IntegracaoExterna/Equipamentos', {
                     method: 'GET',
                     headers: {
                         'Content-Type': 'application/json',
@@ -634,7 +637,7 @@
                         const equipIP = equip.EnderecoIP || 'N/A';
 
                         // Buscar batidas no período selecionado
-                        const fontUrl = `https://pontowebintegracaoexterna.secullum.com.br/IntegracaoExterna/FonteDados?equipamentoId=${equipId}&dataInicio=${dataInicio}&dataFim=${dataFim}`;
+                        const fontUrl = `${SECULLUM_BASE}/IntegracaoExterna/FonteDados?equipamentoId=${equipId}&dataInicio=${dataInicio}&dataFim=${dataFim}`;
                         
                         const fontResponse = await fetch(fontUrl, {
                             method: 'GET',

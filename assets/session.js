@@ -8,9 +8,6 @@
 (function (global) {
     'use strict';
 
-    var SECULLUM_AUTH_BASE = 'https://autenticador.secullum.com.br';
-    var SECULLUM_API_BASE = 'https://pontowebintegracaoexterna.secullum.com.br';
-
     var API_BASE_URL = global.location.hostname === 'localhost'
         ? 'http://localhost:3000'
         : global.location.origin;
@@ -75,27 +72,42 @@
             });
     }
 
-    /** Fetch direto na API Secullum, com o token do usuário. */
+    /**
+     * Chamada à API Secullum através do NOSSO proxy (/api/secullum/*).
+     *
+     * Não vai direto para a Secullum de propósito: nem todo usuário do RH tem
+     * permissão de Integração Externa (a API devolve 400 "Operação não
+     * permitida"). O backend usa a conta de serviço e registra, no campo Motivo
+     * das escritas, o e-mail de quem de fato executou a ação.
+     */
     function secullumFetch(path, options) {
         options = options || {};
-        var token = getSecullumToken();
-        if (!token) return Promise.reject(new Error('Não autenticado'));
+        var jwt = getJwt();
+        if (!jwt) {
+            irParaLogin('Sem token de aplicação.');
+            return Promise.reject(new Error('Não autenticado'));
+        }
 
         var headers = Object.assign(
-            { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+            { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + jwt },
             options.headers || {}
         );
         if (options.bancoId) headers.secullumidbancoselecionado = String(options.bancoId);
 
-        var base = options.auth ? SECULLUM_AUTH_BASE : SECULLUM_API_BASE;
-        var url = path.indexOf('http') === 0 ? path : base + path;
+        var url = API_BASE_URL + '/api/secullum' + path;
 
-        return fetch(url, Object.assign({}, options, { headers: headers }));
+        return fetch(url, Object.assign({}, options, { headers: headers }))
+            .then(function (response) {
+                if (response.status === 401 || response.status === 403) {
+                    irParaLogin('Sessão inválida ou expirada.');
+                }
+                return response;
+            });
     }
 
-    /** Lista as empresas (bancos) que o usuário logado enxerga. */
+    /** Lista as empresas (bancos) disponíveis. */
     function loadCompanies() {
-        return secullumFetch('/ContasSecullumExterno/ListarBancos', { auth: true })
+        return apiFetch('/api/secullum/bancos')
             .then(function (response) {
                 if (!response.ok) throw new Error('Erro ao buscar empresas: ' + response.status);
                 return response.json();

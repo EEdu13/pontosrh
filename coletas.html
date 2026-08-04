@@ -426,6 +426,8 @@
         // CONFIG
         // ==========================================
         let SECULLUM_TOKEN = null;
+        // Chamadas 'Secullum' passam pelo nosso backend (ver assets/session.js)
+        const SECULLUM_BASE = SESSION.API_BASE_URL + '/api/secullum';
         let EMPRESAS = [];
         let allMachines = [];
         let autoRefreshTimer = null;
@@ -465,7 +467,8 @@
         // ==========================================
         // Usa o token obtido no login (assets/session.js) — sem credenciais aqui
         async function authenticate() {
-            SECULLUM_TOKEN = SESSION.getSecullumToken();
+            if (!SESSION.getSecullumToken()) return false;  // valida a sessao
+            SECULLUM_TOKEN = SESSION.getJwt();     // o proxy autentica por JWT
             return SECULLUM_TOKEN !== null;
         }
 
@@ -503,7 +506,7 @@
 
                     try {
                         // Get equipment list
-                        const equipResp = await fetch('https://pontowebintegracaoexterna.secullum.com.br/IntegracaoExterna/Equipamentos', {
+                        const equipResp = await fetch(SECULLUM_BASE + '/IntegracaoExterna/Equipamentos', {
                             headers: {
                                 'Content-Type': 'application/json',
                                 'Authorization': `Bearer ${SECULLUM_TOKEN}`,
@@ -529,7 +532,7 @@
                                 const equipNome = equip.Descricao || equip.Nome || equip.descricao || `Equipamento ${equipId}`;
                                 const equipIP = equip.EnderecoIP || equip.enderecoIP || 'N/A';
 
-                                const fontUrl = `https://pontowebintegracaoexterna.secullum.com.br/IntegracaoExterna/FonteDados?equipamentoId=${equipId}&dataInicio=${dataInicio}&dataFim=${dataFim}`;
+                                const fontUrl = `${SECULLUM_BASE}/IntegracaoExterna/FonteDados?equipamentoId=${equipId}&dataInicio=${dataInicio}&dataFim=${dataFim}`;
                                 const fontResp = await fetch(fontUrl, {
                                     headers: {
                                         'Content-Type': 'application/json',

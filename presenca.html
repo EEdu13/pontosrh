@@ -544,6 +544,8 @@
 
     <script>
         let SECULLUM_TOKEN = null;
+        // Chamadas 'Secullum' passam pelo nosso backend (ver assets/session.js)
+        const SECULLUM_BASE = SESSION.API_BASE_URL + '/api/secullum';
         let EMPRESAS = [];
         let presenceChart = null;
         let originChart = null;
@@ -568,7 +570,8 @@
 
         // Usa o token obtido no login (assets/session.js) — sem credenciais aqui
         async function authenticateSecullum() {
-            SECULLUM_TOKEN = SESSION.getSecullumToken();
+            if (!SESSION.getSecullumToken()) return false;  // valida a sessao
+            SECULLUM_TOKEN = SESSION.getJwt();     // o proxy autentica por JWT
             return SECULLUM_TOKEN !== null;
         }
 
@@ -607,7 +610,7 @@
                 console.log(`🔍 Buscando dados - ${empresaNome} | ${dataInicio} a ${dataFim}`);
 
                 // PASSO 1: Buscar funcionários ativos
-                const funcResponse = await fetch('https://pontowebintegracaoexterna.secullum.com.br/IntegracaoExterna/Funcionarios', {
+                const funcResponse = await fetch(SECULLUM_BASE + '/IntegracaoExterna/Funcionarios', {
                     headers: {
                         'Authorization': `Bearer ${SECULLUM_TOKEN}`,
                         'secullumidbancoselecionado': bancoid
@@ -642,7 +645,7 @@
                 console.log(`✅ ${funcionariosAtivos.length} funcionários ativos HOJE (${hoje.toLocaleDateString('pt-BR')})`);
 
                 // PASSO 2: Buscar FonteDados (batidas brutas com origem) do período
-                const fonteDadosResponse = await fetch(`https://pontowebintegracaoexterna.secullum.com.br/IntegracaoExterna/FonteDados?dataInicio=${dataInicio}&dataFim=${dataFim}`, {
+                const fonteDadosResponse = await fetch(`${SECULLUM_BASE}/IntegracaoExterna/FonteDados?dataInicio=${dataInicio}&dataFim=${dataFim}`, {
                     headers: {
                         'Authorization': `Bearer ${SECULLUM_TOKEN}`,
                         'secullumidbancoselecionado': bancoid
