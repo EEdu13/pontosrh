@@ -695,8 +695,14 @@ app.all(/^\/api\/secullum\/(.+)/, async (req, res) => {
 const Anthropic = require('@anthropic-ai/sdk');
 
 const CLAUDE_OCR_MODEL = process.env.CLAUDE_OCR_MODEL || 'claude-haiku-4-5';
+
+// O `fetch` vai explícito: o SDK procura `globalThis.fetch`, que só existe a
+// partir do Node 18. O `fetch` deste arquivo é o node-fetch do require lá em
+// cima — de escopo do módulo, invisível para o SDK. Sem isto o processo morre
+// na subida, antes de servir a primeira página (foi o que aconteceu no Railway,
+// que rodava Node 16).
 const anthropic = process.env.ANTHROPIC_API_KEY
-    ? new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+    ? new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY, fetch })
     : null;
 
 // O formulário tem campos fixos; pedir JSON com esquema evita ter de
