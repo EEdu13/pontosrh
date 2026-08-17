@@ -2250,92 +2250,151 @@ app.post('/api/justificativa/salvar', async (req, res) => {
 app.post('/api/justificativa/salvar-batch', async (req, res) => {
     try {
         const { registros } = req.body; // Array de { cpf, reg, data, empresa_id, nome, motivo }
-        
+
         if (!registros || !Array.isArray(registros) || registros.length === 0) {
             return res.status(400).json({ error: 'Array de registros é obrigatório' });
         }
-        
+
         console.log(`📦 Salvando batch de ${registros.length} justificativas...`);
-        
+
         const pool = await poolPromise;
         const resultados = [];
         const existentes = [];
         const novos = [];
-        
-        // Processar em uma única transação
+
+        // Normaliza tudo antes de falar com o banco
+        const normalizarData = (d) => {
+            if (d.includes('/')) {
+                const [dia, mes, ano] = d.split('/');
+                return `${ano}-${mes.padStart(2, '0')}-${dia.padStart(2, '0')}`;
+            }
+            return d.includes('T') ? d.split('T')[0] : d;
+        };
+
+        const validos = [];
+        for (const r of registros) {
+            if (!r.cpf || !r.reg || !r.data) {
+                resultados.push({ reg: r.reg, data: r.data, error: 'CPF, REG e DATA são obrigatórios' });
+                continue;
+            }
+            validos.push({
+                cpf: String(r.cpf).replace(/[^\d]/g, ''),
+                reg: String(r.reg),
+                data: normalizarData(String(r.data)),
+                empresa_id: parseInt(r.empresa_id) || 0,
+                nome: r.nome || '',
+                motivo: r.motivo || ''
+            });
+        }
+
+        if (!validos.length) {
+            return res.json({ success: true, total: registros.length, novos: 0, existentes: 0,
+                              resultados, nomesExistentes: [] });
+        }
+
+        const chave = v => `${v.reg}|${v.data}|${v.empresa_id}`;
+        const autor = req.user?.username || 'Sistema';
+
         const transaction = pool.transaction();
         await transaction.begin();
-        
-        try {
-            for (const registro of registros) {
-                const { cpf, reg, data, empresa_id, nome, motivo } = registro;
-                
-                if (!cpf || !reg || !data) {
-                    resultados.push({ reg, data, error: 'CPF, REG e DATA são obrigatórios' });
-                    continue;
-                }
-                
-                // Normalizar CPF
-                const cpfLimpo = cpf.replace(/[^\d]/g, '');
-                
-                // Normalizar data
-                let dataNormalizada;
-                if (data.includes('/')) {
-                    const [dia, mes, ano] = data.split('/');
-                    dataNormalizada = `${ano}-${mes.padStart(2, '0')}-${dia.padStart(2, '0')}`;
-                } else if (data.includes('T')) {
-                    dataNormalizada = data.split('T')[0];
-                } else {
-                    dataNormalizada = data;
-                }
-                
-                // Verificar se já existe
-                const checkResult = await transaction.request()
-                    .input('reg', sql.VarChar, reg)
-                    .input('data', sql.Date, dataNormalizada)
-                    .input('empresa_id', sql.Int, empresa_id || 0)
-                    .query(`SELECT id, created_by, created_at FROM ANEXOS
-                            WHERE reg = @reg AND data = @data AND empresa_id = @empresa_id`);
 
-                if (checkResult.recordset.length > 0) {
-                    // Já existe: é reimpressão. Devolvemos quem gerou da primeira
-                    // vez e quando — o RH precisa saber com quem falar antes de
-                    // reimprimir e reincomodar o colaborador.
-                    const linha = checkResult.recordset[0];
-                    resultados.push({
-                        reg, data: dataNormalizada, id: linha.id, novo: false, nome,
-                        criadoPor: linha.created_by || null,
-                        criadoEm: linha.created_at || null
-                    });
-                    existentes.push(nome);
-                } else {
-                    // Inserir novo
-                    const insertResult = await transaction.request()
-                        .input('cpf', sql.VarChar, cpfLimpo)
-                        .input('reg', sql.VarChar, reg)
-                        .input('data', sql.Date, dataNormalizada)
-                        .input('empresa_id', sql.Int, empresa_id || 0)
-                        .input('funcionario_nome', sql.NVarChar, nome || '')
-                        .input('blob_url', sql.NVarChar, '')
-                        .input('blob_filename', sql.NVarChar, '')
-                        .input('motivo_detectado', sql.NVarChar, motivo || '')
-                        // Era 'Sistema' fixo: ninguém conseguia saber quem gerou
-                        .input('created_by', sql.VarChar, req.user?.username || 'Sistema')
-                        .query(`
-                            INSERT INTO ANEXOS (cpf, reg, data, empresa_id, funcionario_nome, blob_url, blob_filename, motivo_detectado, created_by)
-                            OUTPUT INSERTED.id
-                            VALUES (@cpf, @reg, @data, @empresa_id, @funcionario_nome, @blob_url, @blob_filename, @motivo_detectado, @created_by)
-                        `);
-                    
-                    const novoId = insertResult.recordset[0].id;
-                    resultados.push({ reg, data: dataNormalizada, id: novoId, novo: true, nome });
-                    novos.push(nome);
+        try {
+            // ==================================================================
+            // 1) UMA consulta para saber quem já tem formulário gerado.
+            //
+            // Antes eram duas consultas POR COLABORADOR, em série. Medido contra
+            // o banco real: 60 colaboradores gastavam 17s só de ida-e-volta
+            // (~270ms cada), e o RH esperava isso olhando a tela. A mesma
+            // informação numa consulta leva ~1,2s.
+            // ==================================================================
+            const listaRegs = [...new Set(validos.map(v => v.reg))].join(',');
+            const datas = validos.map(v => v.data).sort();
+
+            const jaExiste = new Map();
+            const achados = await transaction.request()
+                .input('regs', sql.NVarChar, listaRegs)
+                .input('de', sql.Date, datas[0])
+                .input('ate', sql.Date, datas[datas.length - 1])
+                .query(`
+                    SELECT reg, data, empresa_id, id, created_by, created_at
+                    FROM ANEXOS
+                    WHERE data BETWEEN @de AND @ate
+                      AND reg IN (SELECT value FROM STRING_SPLIT(@regs, ','))
+                `);
+
+            for (const linha of achados.recordset) {
+                const dia = linha.data.toISOString().split('T')[0];
+                jaExiste.set(`${linha.reg}|${dia}|${linha.empresa_id}`, linha);
+            }
+
+            // ==================================================================
+            // 2) Os novos entram em blocos, com OUTPUT para recuperar os ids.
+            //
+            // O limite é do SQL Server: 2100 parâmetros por comando. Com 6
+            // parâmetros por linha, 100 linhas por bloco ficam bem abaixo disso.
+            // ==================================================================
+            const paraInserir = validos.filter(v => !jaExiste.has(chave(v)));
+            const idsNovos = new Map();
+            const BLOCO = 100;
+
+            for (let i = 0; i < paraInserir.length; i += BLOCO) {
+                const bloco = paraInserir.slice(i, i + BLOCO);
+                const pedido = transaction.request();
+                const linhasSQL = [];
+
+                bloco.forEach((v, k) => {
+                    pedido.input(`cpf${k}`, sql.VarChar, v.cpf);
+                    pedido.input(`reg${k}`, sql.VarChar, v.reg);
+                    pedido.input(`data${k}`, sql.Date, v.data);
+                    pedido.input(`emp${k}`, sql.Int, v.empresa_id);
+                    pedido.input(`nome${k}`, sql.NVarChar, v.nome);
+                    pedido.input(`motivo${k}`, sql.NVarChar, v.motivo);
+                    linhasSQL.push(`(@cpf${k}, @reg${k}, @data${k}, @emp${k}, @nome${k}, '', '', @motivo${k}, @autor)`);
+                });
+                pedido.input('autor', sql.VarChar, autor);
+
+                // O OUTPUT devolve a chave natural junto do id, então dá para
+                // ligar cada id ao registro certo sem depender da ordem
+                const inseridos = await pedido.query(`
+                    INSERT INTO ANEXOS
+                        (cpf, reg, data, empresa_id, funcionario_nome, blob_url, blob_filename, motivo_detectado, created_by)
+                    OUTPUT INSERTED.id, INSERTED.reg, INSERTED.data, INSERTED.empresa_id
+                    VALUES ${linhasSQL.join(', ')}
+                `);
+
+                for (const linha of inseridos.recordset) {
+                    const dia = linha.data.toISOString().split('T')[0];
+                    idsNovos.set(`${linha.reg}|${dia}|${linha.empresa_id}`, linha.id);
                 }
             }
-            
+
+            // 3) Monta a resposta na mesma forma de antes
+            for (const v of validos) {
+                const k = chave(v);
+                const antigo = jaExiste.get(k);
+
+                if (antigo) {
+                    // Reimpressão: quem gerou da primeira vez e quando — o RH
+                    // precisa saber com quem falar antes de reincomodar o colaborador
+                    resultados.push({
+                        reg: v.reg, data: v.data, id: antigo.id, novo: false, nome: v.nome,
+                        criadoPor: antigo.created_by || null,
+                        criadoEm: antigo.created_at || null
+                    });
+                    existentes.push(v.nome);
+                } else {
+                    resultados.push({
+                        reg: v.reg, data: v.data, id: idsNovos.get(k) || null,
+                        novo: true, nome: v.nome
+                    });
+                    novos.push(v.nome);
+                }
+            }
+
             await transaction.commit();
-            console.log(`✅ Batch concluído: ${novos.length} novos, ${existentes.length} existentes`);
-            
+            console.log(`✅ Batch concluído: ${novos.length} novos, ${existentes.length} existentes`
+                      + ` (${1 + Math.ceil(paraInserir.length / BLOCO)} idas ao banco)`);
+
             res.json({
                 success: true,
                 total: registros.length,
@@ -2344,12 +2403,12 @@ app.post('/api/justificativa/salvar-batch', async (req, res) => {
                 resultados,
                 nomesExistentes: existentes
             });
-            
+
         } catch (transactionError) {
             await transaction.rollback();
             throw transactionError;
         }
-        
+
     } catch (err) {
         console.error('❌ Erro ao salvar batch:', err.message);
         res.status(500).json({ error: 'Erro ao salvar batch de justificativas', details: err.message });
