@@ -5,449 +5,301 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/assets/theme.css">
+    <link rel="stylesheet" href="/assets/login.css">
     <script src="/assets/session.js"></script>
-    <title>Login - Sistema de Justificativas LARSIL</title>
+    <title>Entrar - Sistema de Gestão Larsil</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-        }
-
-        .login-container {
-            background: white;
-            border-radius: 20px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-            padding: 48px;
-            width: 100%;
-            max-width: 440px;
-            animation: slideUp 0.5s ease-out;
-        }
-
-        @keyframes slideUp {
-            from {
-                opacity: 0;
-                transform: translateY(30px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .logo {
-            text-align: center;
-            margin-bottom: 40px;
-        }
-
-        .logo-icon {
-            width: 80px;
-            height: 80px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border-radius: 20px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 0 auto 20px;
-            font-size: 40px;
-            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
-        }
-
-        .logo h1 {
-            font-size: 28px;
-            color: #1f2937;
-            margin-bottom: 8px;
-            font-weight: 700;
-        }
-
-        .logo p {
-            color: #6b7280;
-            font-size: 14px;
-            font-weight: 500;
-        }
-
-        .form-group {
-            margin-bottom: 24px;
-        }
-
-        .form-group label {
-            display: block;
-            color: #374151;
-            font-weight: 600;
-            margin-bottom: 8px;
-            font-size: 14px;
-        }
-
-        .input-wrapper {
-            position: relative;
-        }
-
-        .input-icon {
-            position: absolute;
-            left: 16px;
-            top: 50%;
-            transform: translateY(-50%);
-            font-size: 18px;
-            color: #9ca3af;
-            pointer-events: none;
-        }
-
-        .form-group input {
-            width: 100%;
-            padding: 14px 16px 14px 48px;
-            border: 2px solid #e5e7eb;
-            border-radius: 10px;
-            font-size: 15px;
-            transition: all 0.3s ease;
-            background: #f9fafb;
-        }
-
-        .form-group input:focus {
-            outline: none;
-            border-color: #667eea;
-            background: white;
-            box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
-        }
-
-        .form-group input::placeholder {
-            color: #9ca3af;
-        }
-
-        .btn-login {
-            width: 100%;
-            padding: 16px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
-            border-radius: 10px;
-            font-size: 16px;
-            font-weight: 700;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .btn-login:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
-        }
-
-        .btn-login:active {
-            transform: translateY(0);
-        }
-
-        .btn-login:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-            transform: none;
-        }
-
-        .btn-login .spinner {
-            display: none;
-            width: 16px;
-            height: 16px;
-            border: 2px solid #ffffff;
-            border-top-color: transparent;
-            border-radius: 50%;
-            animation: spin 0.6s linear infinite;
-            margin-right: 8px;
-            vertical-align: middle;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
-        .btn-login.loading .spinner {
-            display: inline-block;
-        }
-
-        .error-message {
-            background: #fee2e2;
-            border-left: 4px solid #dc2626;
-            color: #991b1b;
-            padding: 14px 16px;
-            border-radius: 8px;
-            margin-bottom: 24px;
-            font-size: 14px;
-            font-weight: 500;
-            display: none;
-            animation: shake 0.4s ease;
-        }
-
-        @keyframes shake {
-            0%, 100% { transform: translateX(0); }
-            25% { transform: translateX(-10px); }
-            75% { transform: translateX(10px); }
-        }
-
-        .success-message {
-            background: #d1fae5;
-            border-left: 4px solid #10b981;
-            color: #065f46;
-            padding: 14px 16px;
-            border-radius: 8px;
-            margin-bottom: 24px;
-            font-size: 14px;
-            font-weight: 500;
-            display: none;
-            animation: slideDown 0.4s ease;
-        }
-
-        @keyframes slideDown {
-            from {
-                opacity: 0;
-                transform: translateY(-10px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .footer {
-            text-align: center;
-            margin-top: 32px;
-            color: #6b7280;
-            font-size: 13px;
-        }
-
-        .footer a {
-            color: #667eea;
-            text-decoration: none;
-            font-weight: 600;
-        }
-
-        .footer a:hover {
-            text-decoration: underline;
-        }
-
-        .version-badge {
-            display: inline-block;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 11px;
-            font-weight: 700;
-            margin-top: 12px;
-            letter-spacing: 0.5px;
-            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
-        }
-
-        .password-toggle {
-            position: absolute;
-            right: 16px;
-            top: 50%;
-            transform: translateY(-50%);
-            cursor: pointer;
-            font-size: 18px;
-            color: #9ca3af;
-            user-select: none;
-        }
-
-        .password-toggle:hover {
-            color: #667eea;
-        }
-
-        .loading {
-            pointer-events: none;
-            opacity: 0.6;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
     </style>
 </head>
 <body>
-    <div class="login-container">
-        <div class="logo">
-            <div class="logo-icon">🔐</div>
-            <h1>LARSIL</h1>
-            <p>Sistema de Gestão de Ponto Eletrônico</p>
-        </div>
+    <div class="login-page">
+        <div class="login-card">
+            <img src="/assets/larsil-logo.png" alt="Larsil Serviços Florestais" class="login-logo">
+            <p class="login-eyebrow">SGL - Controle de Ponto</p>
 
-        <div id="errorMessage" class="error-message"></div>
-        <div id="successMessage" class="success-message"></div>
-
-        <form id="loginForm">
-            <div class="form-group">
-                <label for="username">📧 E-mail Corporativo</label>
-                <div class="input-wrapper">
-                    <span class="input-icon">👤</span>
-                    <input 
-                        type="email" 
-                        id="username" 
-                        name="username" 
-                        placeholder="seu.email@larsil.com.br"
-                        autocomplete="email"
-                        required>
+            <form id="loginForm" novalidate>
+                <div class="login-field">
+                    <label class="login-label" for="login">Usuário</label>
+                    <div class="login-input-row">
+                        <input
+                            id="login"
+                            class="login-input"
+                            placeholder="joao.silva"
+                            autocomplete="username"
+                            autocapitalize="none"
+                            autocorrect="off"
+                            spellcheck="false"
+                            autofocus>
+                        <!-- avatar entra aqui enquanto a pessoa digita -->
+                        <div id="avatarSlot"></div>
+                    </div>
                 </div>
-            </div>
 
-            <div class="form-group">
-                <label for="password">🔑 Senha</label>
-                <div class="input-wrapper">
-                    <span class="input-icon">🔒</span>
-                    <input 
-                        type="password" 
-                        id="password" 
-                        name="password" 
-                        placeholder="Digite sua senha"
-                        autocomplete="current-password"
-                        required>
-                    <span class="password-toggle" onclick="togglePassword()">👁️</span>
+                <div class="login-field">
+                    <label class="login-label" for="senha">Senha</label>
+                    <div class="login-input-row" style="position: relative;">
+                        <input
+                            id="senha"
+                            class="login-input"
+                            type="password"
+                            placeholder="••••••••"
+                            autocomplete="current-password"
+                            style="padding-right: 40px;">
+                        <button type="button" id="togglePwd" class="login-pwd-toggle" tabindex="-1" aria-label="Mostrar senha">👁</button>
+                    </div>
                 </div>
+
+                <div id="erroBox" class="login-error" style="display: none;"></div>
+
+                <button type="submit" id="btnEntrar" class="login-submit">
+                    <span id="btnIcone">→</span>
+                    <span id="btnTexto">Entrar</span>
+                </button>
+            </form>
+
+            <div class="login-footer">
+                Larsil Serviços Florestais<br>
+                Identidade única — <a href="https://painelgestor.up.railway.app" target="_blank" rel="noopener">IAM Larsil</a>
             </div>
-
-            <button type="submit" class="btn-login" id="btnLogin">
-                <span class="spinner"></span>
-                <span id="btnText">Entrar no Sistema</span>
-            </button>
-        </form>
-
-        <div class="footer">
-            <p>© 2025 LARSIL - Todos os direitos reservados</p>
-            <p style="margin-top: 8px;">Powered by <a href="https://secullum.com.br" target="_blank">Secullum</a></p>
-            <div class="version-badge">v2.1.1 - 17/12/2025</div>
         </div>
     </div>
 
     <script>
-        const loginForm = document.getElementById('loginForm');
-        const errorMessage = document.getElementById('errorMessage');
-        const successMessage = document.getElementById('successMessage');
-        const btnLogin = document.getElementById('btnLogin');
-        const btnText = document.getElementById('btnText');
+        // ==========================================
+        // Config pública (URL das fotos, servida pelo PCP)
+        // ==========================================
+        let FOTO_BASE = '';
+        fetch(`${SESSION.API_BASE_URL}/api/config`)
+            .then(r => r.ok ? r.json() : null)
+            .then(c => { if (c) FOTO_BASE = c.fotoBaseUrl; })
+            .catch(() => {});
 
-        const API_BASE_URL = window.location.hostname === 'localhost'
-            ? 'http://localhost:3000'
-            : window.location.origin;
-
-        // Verificar se já está logado
-        const token = localStorage.getItem('secullum_token');
-        const expiry = localStorage.getItem('secullum_token_expiry');
-        
-        if (token && expiry && Date.now() < parseInt(expiry)) {
-            console.log('✅ Usuário já autenticado, redirecionando...');
+        // Já logado? vai direto pro sistema
+        if (SESSION.getJwt() && SESSION.sessaoValida()) {
             window.location.href = '/index.html';
         }
 
-        // Toggle mostrar/esconder senha
-        function togglePassword() {
-            const passwordInput = document.getElementById('password');
-            const toggleIcon = document.querySelector('.password-toggle');
-            
-            if (passwordInput.type === 'password') {
-                passwordInput.type = 'text';
-                toggleIcon.textContent = '👁️‍🗨️';
+        const form = document.getElementById('loginForm');
+        const inputLogin = document.getElementById('login');
+        const inputSenha = document.getElementById('senha');
+        const erroBox = document.getElementById('erroBox');
+        const btn = document.getElementById('btnEntrar');
+        const btnIcone = document.getElementById('btnIcone');
+        const btnTexto = document.getElementById('btnTexto');
+        const avatarSlot = document.getElementById('avatarSlot');
+
+        // ==========================================
+        // AVATAR ENQUANTO DIGITA
+        //
+        // O login é "nome.sobrenome", mas a foto é resolvida por NOME COMPLETO.
+        // Guardamos login -> nome real após o 1º login bem-sucedido; a partir da
+        // 2ª vez a foto certa aparece instantânea. Sem cache, chutamos o nome a
+        // partir do login ("rodrigo.dlugosz" -> "Rodrigo Dlugosz") — o resolvedor
+        // do PCP normaliza e costuma acertar mesmo com o chute.
+        // ==========================================
+        const NOME_CACHE_KEY = 'larsil_nome_cache';
+
+        function lerNomeCache(login) {
+            try {
+                return JSON.parse(localStorage.getItem(NOME_CACHE_KEY) || '{}')[login.toLowerCase()] || null;
+            } catch { return null; }
+        }
+
+        function salvarNomeCache(login, nome) {
+            try {
+                const cache = JSON.parse(localStorage.getItem(NOME_CACHE_KEY) || '{}');
+                cache[login.toLowerCase()] = nome;
+                localStorage.setItem(NOME_CACHE_KEY, JSON.stringify(cache));
+            } catch { /* best-effort */ }
+        }
+
+        function nomeAdivinhado(login) {
+            return login.replace(/[._]+/g, ' ').trim().split(/\s+/).filter(Boolean)
+                .map(p => p[0].toUpperCase() + p.slice(1).toLowerCase()).join(' ');
+        }
+
+        function iniciais(nome) {
+            return nome.trim().split(/\s+/).map(s => s[0]).slice(0, 2).join('').toUpperCase();
+        }
+
+        let nomePreview = '';
+        function renderAvatar(nome) {
+            if (!nome || !FOTO_BASE) { avatarSlot.replaceChildren(); return; }
+            if (nome === nomePreview) return;   // não repinta (reinicia a animação à toa)
+            nomePreview = nome;
+
+            const box = document.createElement('div');
+            box.className = 'login-avatar-preview';
+
+            const img = document.createElement('img');
+            img.alt = '';
+            img.referrerPolicy = 'no-referrer';
+            img.src = `${FOTO_BASE}/${encodeURIComponent(nome)}`;
+            // Sem foto -> iniciais
+            img.onerror = () => {
+                box.replaceChildren();
+                const span = document.createElement('span');
+                span.textContent = iniciais(nome);
+                box.appendChild(span);
+            };
+
+            box.appendChild(img);
+            avatarSlot.replaceChildren(box);
+        }
+
+        let debounceAvatar;
+        inputLogin.addEventListener('input', () => {
+            esconderErro();
+            clearTimeout(debounceAvatar);
+            const l = inputLogin.value.trim();
+            if (l.length < 3) { avatarSlot.replaceChildren(); nomePreview = ''; return; }
+            debounceAvatar = setTimeout(() => renderAvatar(lerNomeCache(l) || nomeAdivinhado(l)), 300);
+        });
+
+        inputSenha.addEventListener('input', esconderErro);
+
+        // ==========================================
+        // MOSTRAR/ESCONDER SENHA
+        // ==========================================
+        document.getElementById('togglePwd').addEventListener('click', () => {
+            const mostrando = inputSenha.type === 'text';
+            inputSenha.type = mostrando ? 'password' : 'text';
+            document.getElementById('togglePwd').textContent = mostrando ? '👁' : '🙈';
+        });
+
+        function mostrarErro(msg) {
+            erroBox.textContent = msg;
+            erroBox.style.display = 'block';
+        }
+        function esconderErro() { erroBox.style.display = 'none'; }
+
+        function carregando(sim) {
+            btn.disabled = sim;
+            inputLogin.disabled = sim;
+            inputSenha.disabled = sim;
+            btnTexto.textContent = sim ? 'Entrando…' : 'Entrar';
+            if (sim) {
+                btnIcone.className = 'login-spinner';
+                btnIcone.textContent = '';
             } else {
-                passwordInput.type = 'password';
-                toggleIcon.textContent = '👁️';
+                btnIcone.className = '';
+                btnIcone.textContent = '→';
             }
         }
 
-        // Auto-foco no campo de usuário
-        document.getElementById('username').focus();
-
-        loginForm.addEventListener('submit', async (e) => {
+        // ==========================================
+        // LOGIN (via IAM, pelo nosso backend)
+        // ==========================================
+        form.addEventListener('submit', async (e) => {
             e.preventDefault();
 
-            const username = document.getElementById('username').value.trim();
-            const password = document.getElementById('password').value;
+            const login = inputLogin.value.trim();
+            const senha = inputSenha.value;
 
-            // Validação básica
-            if (!username || !password) {
-                showError('Por favor, preencha todos os campos');
-                return;
-            }
+            if (!login || !senha) { mostrarErro('Preencha usuário e senha.'); return; }
 
-            // Validação de e-mail
-            if (!username.includes('@')) {
-                showError('Digite um e-mail válido');
-                return;
-            }
-
-            errorMessage.style.display = 'none';
-            successMessage.style.display = 'none';
-            
-            btnLogin.disabled = true;
-            btnLogin.classList.add('loading');
-            btnText.textContent = 'Autenticando...';
+            esconderErro();
+            carregando(true);
 
             try {
-                // Autenticar via backend: ele valida no Secullum e devolve
-                // o JWT da aplicação + o token Secullum do próprio usuário.
-                const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
+                const response = await fetch(`${SESSION.API_BASE_URL}/api/auth/login`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username, password })
+                    body: JSON.stringify({ login, senha })
                 });
 
+                const dados = await response.json().catch(() => ({}));
+
                 if (!response.ok) {
-                    const erro = await response.json().catch(() => ({}));
-                    throw new Error(erro.error || 'E-mail ou senha incorretos. Verifique suas credenciais.');
+                    carregando(false);
+                    inputSenha.value = '';
+                    mostrarErro(dados.error || 'Usuário ou senha inválidos.');
+                    return;
                 }
 
-                const data = await response.json();
-                const userName = data.user?.name || username.split('@')[0];
+                SESSION.salvarSessao(dados);
+                if (dados.user?.nome) salvarNomeCache(login, dados.user.nome);
 
-                // Salvar tokens e informações no localStorage
-                const expiryTime = Date.now() + (data.secullumExpiresIn * 1000);
-                localStorage.setItem('token', data.token);                    // JWT da aplicação
-                localStorage.setItem('secullum_token', data.secullumToken);   // token da API Secullum
-                localStorage.setItem('secullum_token_expiry', expiryTime);
-                localStorage.setItem('secullum_username', username);
-                localStorage.setItem('user_name', userName);
-                localStorage.setItem('user_role', data.user?.role || 'user');
+                // 1º acesso: precisa trocar a senha provisória antes de entrar
+                if (dados.senha_provisoria) {
+                    window.location.href = '/primeiro-acesso.html';
+                    return;
+                }
 
-                // Mostrar mensagem de sucesso
-                showSuccess(`✅ Bem-vindo, ${userName}! Redirecionando...`);
+                // Overlay cobre a transição até o painel carregar
+                mostrarOverlayEntrada(() => { window.location.href = '/index.html'; });
 
-                // Redirecionar após 1.5 segundos
-                setTimeout(() => {
-                    window.location.href = '/index.html';
-                }, 1500);
-
-            } catch (error) {
-                console.error('❌ Erro no login:', error);
-                showError(error.message || 'Erro ao fazer login. Tente novamente.');
-                
-                btnLogin.disabled = false;
-                btnLogin.classList.remove('loading');
-                btnText.textContent = 'Entrar no Sistema';
+            } catch (err) {
+                carregando(false);
+                mostrarErro('Falha de conexão. Tente novamente.');
             }
         });
 
-        function showError(message) {
-            errorMessage.textContent = '❌ ' + message;
-            errorMessage.style.display = 'block';
-            errorMessage.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        // ==========================================
+        // OVERLAY DE ENTRADA — as mudas sendo regadas
+        // ==========================================
+        const MUDA_POSICOES = [8, 24, 40, 56, 72, 88];
+
+        function mudaSVG(delay) {
+            const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+            svg.setAttribute('viewBox', '0 0 16 18');
+            svg.setAttribute('class', 'entrada-muda');
+            svg.setAttribute('aria-hidden', 'true');
+            svg.style.animationDelay = `${delay}s`;
+            svg.innerHTML = `
+                <path d="M8 17 V6" stroke="#EAF1E8" stroke-width="1.4" stroke-linecap="round" fill="none" />
+                <ellipse cx="4.6" cy="6.5" rx="3.1" ry="2.1" fill="#8FD4C6" transform="rotate(-35 4.6 6.5)" />
+                <ellipse cx="11.4" cy="6.5" rx="3.1" ry="2.1" fill="#8FD4C6" transform="rotate(35 11.4 6.5)" />
+                <ellipse cx="5.6" cy="1.8" rx="2.6" ry="1.8" fill="#A8E0D2" transform="rotate(-20 5.6 1.8)" />
+                <ellipse cx="10.4" cy="1.8" rx="2.6" ry="1.8" fill="#A8E0D2" transform="rotate(20 10.4 1.8)" />`;
+            return svg;
         }
 
-        function showSuccess(message) {
-            successMessage.textContent = message;
-            successMessage.style.display = 'block';
-            successMessage.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        function mostrarOverlayEntrada(aoTerminar) {
+            const overlay = document.createElement('div');
+            overlay.className = 'entrada-overlay';
+
+            const cena = document.createElement('div');
+            cena.className = 'entrada-cena';
+
+            const solo = document.createElement('div');
+            solo.className = 'entrada-solo';
+            cena.appendChild(solo);
+
+            MUDA_POSICOES.forEach((pos, i) => {
+                const slot = document.createElement('div');
+                slot.className = 'entrada-muda-slot';
+                slot.style.left = `${pos}%`;
+                // cada muda brota quando a marca chega perto dela
+                slot.appendChild(mudaSVG(0.35 + i * 0.55));
+                cena.appendChild(slot);
+            });
+
+            const marca = document.createElement('div');
+            marca.className = 'entrada-marca';
+            marca.innerHTML = `
+                <img src="/assets/larsil-marca.png" alt="" class="entrada-marca-img">
+                <svg viewBox="0 0 40 30" class="entrada-pingos-svg" aria-hidden="true">
+                    <g class="entrada-pingos">
+                        <circle cx="10" cy="4" r="1.6" fill="#6FCF7B" />
+                        <circle cx="20" cy="8" r="1.4" fill="#6FCF7B" />
+                        <circle cx="30" cy="3" r="1.3" fill="#6FCF7B" />
+                    </g>
+                </svg>`;
+            cena.appendChild(marca);
+
+            const legenda = document.createElement('p');
+            legenda.className = 'entrada-legenda';
+            legenda.textContent = 'Preparando seu painel…';
+
+            overlay.append(cena, legenda);
+            document.body.appendChild(overlay);
+
+            // Segura até a marca completar a passagem regando as mudas (~3,4s).
+            setTimeout(aoTerminar, 3400);
         }
-
-        // Limpar mensagens ao digitar
-        document.getElementById('username').addEventListener('input', () => {
-            errorMessage.style.display = 'none';
-        });
-
-        document.getElementById('password').addEventListener('input', () => {
-            errorMessage.style.display = 'none';
-        });
     </script>
 </body>
 </html>

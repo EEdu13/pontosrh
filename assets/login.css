@@ -1,0 +1,254 @@
+/* ==========================================================================
+   login.css — Tela de entrada, no mesmo padrão visual do Painel PCP.
+   Portado de timbertrack-hq/src/components/login-screen.css e
+   entrada-overlay.css para HTML/CSS puro (este projeto não usa React).
+   ========================================================================== */
+
+.login-page {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    background: radial-gradient(1200px 800px at 15% -10%, #1E4636 0%, transparent 60%),
+                linear-gradient(160deg, #0F251D 0%, #143026 55%, #17392B 100%);
+    position: relative;
+    overflow: hidden;
+}
+
+/* Faixa de terra no rodapé — mesma assinatura visual do PCP */
+.login-page::after {
+    content: "";
+    position: absolute;
+    left: 0; right: 0; bottom: 0;
+    height: 96px;
+    background: linear-gradient(to top, rgba(91, 58, 34, 0.35), transparent);
+    pointer-events: none;
+}
+
+.login-card {
+    width: 100%;
+    max-width: 400px;
+    position: relative;
+    z-index: 1;
+    background: rgba(30, 70, 54, 0.55);
+    border: 1px solid rgba(234, 241, 232, 0.14);
+    border-radius: 20px;
+    padding: 2.25rem 2rem 1.75rem;
+    box-shadow: 0 30px 80px -20px rgba(0, 0, 0, 0.55);
+    backdrop-filter: blur(6px);
+    animation: cardIn .5s cubic-bezier(.2,.8,.2,1) both;
+}
+
+@keyframes cardIn {
+    from { opacity: 0; transform: translateY(10px) scale(.98); }
+    to   { opacity: 1; transform: none; }
+}
+
+.login-logo { display: block; margin: 0 auto 1.1rem; height: 64px; width: auto; }
+
+.login-eyebrow {
+    text-align: center;
+    color: #A9C1AC;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .14em;
+    margin-top: -.4rem;
+    margin-bottom: 1.6rem;
+}
+
+.login-field { margin-bottom: 1rem; }
+
+.login-label {
+    display: block;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    color: #A9C1AC;
+    margin-bottom: .4rem;
+}
+
+.login-input-row { display: flex; align-items: center; gap: 10px; }
+
+.login-input {
+    flex: 1;
+    min-width: 0;
+    height: 44px;
+    border-radius: 11px;
+    padding: 0 14px;
+    background: rgba(10, 26, 20, 0.45);
+    border: 1px solid rgba(234, 241, 232, 0.18);
+    color: #EAF1E8;
+    font-size: 14px;
+    font-family: inherit;
+    transition: border-color .15s, background .15s;
+}
+
+.login-input::placeholder { color: #7C9484; }
+.login-input:focus { outline: none; border-color: #6FCF7B; background: rgba(10, 26, 20, 0.65); }
+.login-input:disabled { opacity: .6; }
+
+/* Avatar que aparece enquanto a pessoa digita o usuário */
+.login-avatar-preview {
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(10, 26, 20, 0.5);
+    border: 1px solid rgba(234, 241, 232, 0.18);
+    color: #A9C1AC;
+    font-weight: 800;
+    font-size: 15px;
+    animation: avatarPop .25s cubic-bezier(.2,.9,.3,1) both;
+}
+
+.login-avatar-preview img { width: 100%; height: 100%; object-fit: cover; object-position: top; }
+
+@keyframes avatarPop {
+    from { opacity: 0; transform: scale(.5); }
+    to   { opacity: 1; transform: scale(1); }
+}
+
+.login-pwd-toggle {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #7C9484;
+    background: none;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    padding: 0;
+    font-size: 15px;
+    line-height: 1;
+}
+.login-pwd-toggle:hover { color: #EAF1E8; }
+
+.login-error {
+    background: rgba(220, 80, 70, 0.14);
+    border: 1px solid rgba(220, 80, 70, 0.3);
+    color: #F3B4AC;
+    font-size: 12.5px;
+    border-radius: 10px;
+    padding: 9px 12px;
+    margin-bottom: 1rem;
+}
+
+.login-submit {
+    position: relative;
+    width: 100%;
+    height: 46px;
+    border-radius: 12px;
+    border: none;
+    cursor: pointer;
+    overflow: hidden;
+    background: #6FCF7B;
+    color: #0F251D;
+    font-weight: 800;
+    font-size: 14px;
+    font-family: inherit;
+    letter-spacing: .01em;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: filter .15s, transform .1s;
+}
+
+.login-submit:hover:not(:disabled) { filter: brightness(1.06); }
+.login-submit:active:not(:disabled) { transform: scale(.99); }
+.login-submit:disabled { cursor: default; opacity: .75; }
+
+.login-spinner {
+    width: 16px; height: 16px;
+    border: 2px solid rgba(15, 37, 29, 0.35);
+    border-top-color: #0F251D;
+    border-radius: 50%;
+    animation: loginSpin .6s linear infinite;
+}
+@keyframes loginSpin { to { transform: rotate(360deg); } }
+
+.login-footer { text-align: center; font-size: 10px; color: #6E8577; margin-top: 1.4rem; line-height: 1.7; }
+.login-footer a { color: #6FCF7B; text-decoration: none; }
+
+/* ==========================================================================
+   Overlay de entrada — as mudas de eucalipto sendo regadas pela marca.
+   Cobre a transição login -> painel.
+   ========================================================================== */
+
+.entrada-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1.4rem;
+    background: radial-gradient(1200px 800px at 15% -10%, #1E4636 0%, transparent 60%),
+                linear-gradient(160deg, #0F251D 0%, #143026 55%, #17392B 100%);
+    animation: entradaFadeIn .45s ease-out both;
+}
+.entrada-overlay.is-saindo { animation: entradaFadeOut .55s ease-in both; }
+@keyframes entradaFadeIn  { from { opacity: 0; } to { opacity: 1; } }
+@keyframes entradaFadeOut { from { opacity: 1; } to { opacity: 0; } }
+
+.entrada-cena { position: relative; width: min(360px, 80vw); height: 104px; }
+.entrada-solo { position: absolute; left: 0; right: 0; bottom: 6px; height: 2px; background: rgba(234, 241, 232, 0.22); }
+.entrada-muda-slot { position: absolute; bottom: 4px; transform: translateX(-50%); }
+
+.entrada-muda {
+    width: 18px; height: 20px;
+    opacity: 0;
+    transform: scale(.2) translateY(4px);
+    animation: entradaMudaPop .45s ease-out forwards;
+}
+@keyframes entradaMudaPop { to { opacity: 1; transform: scale(1) translateY(0); } }
+
+/* UMA passagem completa esquerda -> direita, regando as mudas */
+.entrada-marca {
+    position: absolute;
+    top: 0;
+    width: 42px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    animation: entradaMarcaPassar 3.4s ease-in-out both;
+}
+.entrada-marca-img { width: 42px; height: 42px; object-fit: contain; filter: drop-shadow(0 2px 6px rgba(0,0,0,.35)); }
+.entrada-pingos-svg { width: 40px; height: 30px; margin-top: -2px; }
+
+@keyframes entradaMarcaPassar {
+    0%   { left: -8%; }
+    100% { left: 88%; }
+}
+
+.entrada-pingos circle { animation: entradaPingo 1.6s ease-in infinite; }
+.entrada-pingos circle:nth-child(2) { animation-delay: .3s; }
+.entrada-pingos circle:nth-child(3) { animation-delay: .6s; }
+
+@keyframes entradaPingo {
+    0%   { opacity: 0; transform: translateY(-2px); }
+    20%  { opacity: .9; }
+    100% { opacity: 0; transform: translateY(34px); }
+}
+
+.entrada-legenda {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: #A9C1AC;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .login-card, .login-avatar-preview, .entrada-overlay { animation: none; }
+    .entrada-marca { animation: none; left: 40%; }
+    .entrada-muda { animation: none; opacity: 1; transform: none; }
+}

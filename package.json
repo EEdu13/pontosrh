@@ -5,7 +5,8 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "nodemon server.js"
+    "dev": "nodemon server.js",
+    "iam:sync": "node scripts/iam-sync.js"
   },
   "engines": {
     "node": ">=16.0.0",
@@ -21,6 +22,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.117.1",
     "@azure/storage-blob": "^12.29.1",
     "bcryptjs": "^3.0.2",
     "compression": "^1.8.1",

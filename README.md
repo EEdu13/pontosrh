@@ -135,25 +135,48 @@ pontosrh/
 
 ## 🔑 Como funciona a autenticação
 
-O usuário faz login **uma vez**, com as credenciais dele:
+**A identidade não mora aqui.** Quem autentica é a **IAM Larsil** — este projeto
+não tem tabela de usuário nem compara senha (ver `INTEGRACAO.md`).
 
-1. `login.html` envia e-mail/senha para `POST /api/auth/login`.
-2. O backend valida essas credenciais na Secullum e devolve dois tokens:
-   - **JWT da aplicação** → usado em todas as rotas `/api/*`
-   - **token Secullum** → usado nas chamadas diretas à API de ponto
-3. Ambos ficam no `localStorage` e são lidos por `assets/session.js`.
-4. Quando expiram, o usuário é mandado de volta para o login.
+1. `login.html` envia `{ login, senha }` para o nosso `POST /api/auth/login`.
+2. O backend repassa para a IAM e devolve ao navegador o **token da IAM** com
+   papéis, permissões e escopos.
+3. O token acompanha toda chamada `/api/*`; o backend valida em
+   `GET {IAM_URL}/api/auth/resolve` (cache de 60s), então liberar ou negar uma
+   tela no console da IAM passa a valer no próximo F5.
+4. Se a senha for provisória, o usuário é levado a `primeiro-acesso.html`.
 
 Regras que valem para qualquer alteração no projeto:
 
-- **Nenhuma página carrega credenciais.** O HTML é público para o navegador —
-  qualquer senha ali é uma senha vazada. Use sempre o token da sessão.
-- **Toda rota `/api/*` exige JWT** por um middleware global no `server.js`.
-  Para abrir uma rota, adicione o caminho em `PUBLIC_API_PATHS` — é uma decisão
-  explícita, não um esquecimento.
-- `SECULLUM_USERNAME`/`SECULLUM_PASSWORD` no `.env` são de uma **conta de
-  serviço**, usada só pelo backend (monitor de equipamentos). Não é a conta dos
-  usuários.
+- **Não criar tabela de login/usuário.** Permissão nova = declarar no manifesto
+  de `scripts/iam-sync.js` e rodar `npm run iam:sync`.
+- **Nenhuma página carrega credenciais.** O HTML é público para o navegador.
+- **Toda rota `/api/*` exige token** por um middleware global no `server.js`.
+  Para abrir uma rota, adicione o caminho em `PUBLIC_API_PATHS`.
+- **A Secullum é falada só pelo backend**, em `/api/secullum/*`, com a conta de
+  serviço do `.env` (`SECULLUM_USERNAME`/`SECULLUM_PASSWORD`) — porque nem todo
+  usuário do RH tem permissão de Integração Externa lá. O e-mail de quem
+  executou fica gravado no campo `Motivo` de cada escrita.
+
+### Fotos de perfil
+
+A IAM **não** guarda foto. Quem resolve é o **Painel PCP**, por nome:
+
+```
+<img src="{PCP_URL}/api/foto/{nome}">
+```
+
+O front pega essa URL em `GET /api/config` e usa `SESSION.avatar(nome)` —
+que já trata fallback para iniciais, `loading="lazy"` e o clique que amplia.
+
+### Variáveis novas
+
+```env
+IAM_URL=https://painelgestor.up.railway.app
+PCP_URL=https://gestao.up.railway.app
+IAM_SISTEMA=PONTORH
+IAM_REGISTRY_KEY=<chave dada pela TI>
+```
 
 ## 📱 Páginas do Sistema
 

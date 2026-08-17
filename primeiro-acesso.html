@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/assets/theme.css">
+    <link rel="stylesheet" href="/assets/login.css">
+    <script src="/assets/session.js"></script>
+    <title>Primeiro acesso - Sistema de Gestão Larsil</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+        .login-intro { color: #A9C1AC; font-size: 12.5px; line-height: 1.6; margin-bottom: 1.4rem; text-align: center; }
+    </style>
+</head>
+<body>
+    <div class="login-page">
+        <div class="login-card">
+            <img src="/assets/larsil-logo.png" alt="Larsil Serviços Florestais" class="login-logo">
+            <p class="login-eyebrow">Primeiro acesso</p>
+
+            <p class="login-intro">
+                Sua senha atual é provisória. Defina uma senha própria e confirme
+                seus contatos para continuar.
+            </p>
+
+            <form id="formOnboarding" novalidate>
+                <div class="login-field">
+                    <label class="login-label" for="novaSenha">Nova senha</label>
+                    <div class="login-input-row">
+                        <input id="novaSenha" class="login-input" type="password" placeholder="mínimo 6 caracteres" autocomplete="new-password">
+                    </div>
+                </div>
+
+                <div class="login-field">
+                    <label class="login-label" for="confirmarSenha">Confirmar senha</label>
+                    <div class="login-input-row">
+                        <input id="confirmarSenha" class="login-input" type="password" placeholder="repita a senha" autocomplete="new-password">
+                    </div>
+                </div>
+
+                <div class="login-field">
+                    <label class="login-label" for="email">E-mail</label>
+                    <div class="login-input-row">
+                        <input id="email" class="login-input" type="email" placeholder="voce@larsil.com.br" autocomplete="email">
+                    </div>
+                </div>
+
+                <div class="login-field">
+                    <label class="login-label" for="telefone">Telefone</label>
+                    <div class="login-input-row">
+                        <input id="telefone" class="login-input" placeholder="(00) 00000-0000" autocomplete="tel">
+                    </div>
+                </div>
+
+                <div id="erroBox" class="login-error" style="display: none;"></div>
+
+                <button type="submit" id="btnSalvar" class="login-submit">
+                    <span id="btnIcone">✓</span>
+                    <span id="btnTexto">Concluir e entrar</span>
+                </button>
+            </form>
+
+            <div class="login-footer">Larsil Serviços Florestais</div>
+        </div>
+    </div>
+
+    <script>
+        // Sem sessão aqui não há o que concluir
+        if (!SESSION.getJwt()) window.location.href = '/login.html';
+
+        const form = document.getElementById('formOnboarding');
+        const erroBox = document.getElementById('erroBox');
+        const btn = document.getElementById('btnSalvar');
+        const btnIcone = document.getElementById('btnIcone');
+        const btnTexto = document.getElementById('btnTexto');
+
+        function mostrarErro(msg) { erroBox.textContent = msg; erroBox.style.display = 'block'; }
+        function esconderErro() { erroBox.style.display = 'none'; }
+
+        form.addEventListener('input', esconderErro);
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const novaSenha = document.getElementById('novaSenha').value;
+            const confirmar = document.getElementById('confirmarSenha').value;
+            const email = document.getElementById('email').value.trim();
+            const telefone = document.getElementById('telefone').value.trim();
+
+            if (novaSenha.length < 6) { mostrarErro('A senha precisa ter pelo menos 6 caracteres.'); return; }
+            if (novaSenha !== confirmar) { mostrarErro('As senhas não conferem.'); return; }
+
+            esconderErro();
+            btn.disabled = true;
+            btnIcone.className = 'login-spinner';
+            btnIcone.textContent = '';
+            btnTexto.textContent = 'Salvando…';
+
+            try {
+                const response = await SESSION.apiFetch('/api/auth/onboarding', {
+                    method: 'POST',
+                    body: JSON.stringify({ novaSenha, telefone, email })
+                });
+
+                const dados = await response.json().catch(() => ({}));
+
+                if (!response.ok) {
+                    btn.disabled = false;
+                    btnIcone.className = '';
+                    btnIcone.textContent = '✓';
+                    btnTexto.textContent = 'Concluir e entrar';
+                    mostrarErro(dados.error || 'Não foi possível concluir.');
+                    return;
+                }
+
+                window.location.href = '/index.html';
+
+            } catch (err) {
+                btn.disabled = false;
+                btnIcone.className = '';
+                btnIcone.textContent = '✓';
+                btnTexto.textContent = 'Concluir e entrar';
+                mostrarErro('Falha de conexão. Tente novamente.');
+            }
+        });
+    </script>
+</body>
+</html>

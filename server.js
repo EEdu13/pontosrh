@@ -8,7 +8,7 @@ if (typeof globalThis.crypto === 'undefined') {
 const express = require('express');
 const sql = require('mssql');
 const cors = require('cors');
-const { BlobServiceClient } = require('@azure/storage-blob');
+const { BlobServiceClient, ContainerClient } = require('@azure/storage-blob');
 const multer = require('multer');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
@@ -63,8 +63,89 @@ function normalizarData(data) {
     return /^\d{4}-\d{2}-\d{2}$/.test(semHora) ? semHora : null;
 }
 
+// ==========================================
+// IAM LARSIL — identidade única
+// A identidade NÃO mora aqui: quem autentica é a IAM. Este sistema só valida o
+// token dela e lê papéis/permissões/escopos. Ver INTEGRACAO.md.
+// ==========================================
+const IAM_URL = process.env.IAM_URL || 'https://painelgestor.up.railway.app';
+const IAM_SISTEMA = process.env.IAM_SISTEMA || 'PONTORH';
+const IAM_REGISTRY_KEY = process.env.IAM_REGISTRY_KEY || '';
+
+// Exigir a permissão "pontorh.acesso" para entrar.
+//
+// Fica DESLIGADO por padrão durante a transição: o sistema acabou de ser
+// registrado na IAM e, enquanto a TI não conceder a permissão aos papéis do RH,
+// ligar isto trancaria todo mundo para fora. Assim que a concessão estiver
+// feita, defina IAM_EXIGIR_ACESSO=true — sem isso, qualquer pessoa com conta na
+// IAM entra no sistema de ponto.
+const IAM_EXIGIR_ACESSO = process.env.IAM_EXIGIR_ACESSO === 'true';
+const PERMISSAO_ACESSO = 'pontorh.acesso';
+
+// URL do Painel PCP, que resolve a foto de perfil de qualquer pessoa por nome.
+// A IAM não guarda foto (INTEGRACAO.md §5.3).
+const PCP_URL = process.env.PCP_URL || 'https://gestao.up.railway.app';
+
+// Cache das validações de token. Sem ele, toda requisição viraria um round-trip
+// à IAM. TTL curto para que negar um acesso lá reflita aqui rapidamente.
+const TTL_RESOLVE = 60 * 1000;
+const cacheResolve = new Map(); // token -> { usuario, quando }
+
+setInterval(() => {
+    const agora = Date.now();
+    for (const [t, v] of cacheResolve) {
+        if (agora - v.quando > TTL_RESOLVE) cacheResolve.delete(t);
+    }
+}, TTL_RESOLVE).unref?.();
+
+/**
+ * Valida o token na IAM.
+ *
+ * Usa o modo remoto (INTEGRACAO.md §2-B): pergunta à IAM em vez de compartilhar
+ * o JWT_SECRET dela. Assim mudança de permissão vale sem esperar o token expirar,
+ * e não guardamos segredo de outro sistema aqui.
+ */
+async function resolverUsuario(token) {
+    const cached = cacheResolve.get(token);
+    if (cached && (Date.now() - cached.quando) < TTL_RESOLVE) return cached.usuario;
+
+    const response = await fetch(`${IAM_URL}/api/auth/resolve`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+    });
+
+    if (!response.ok) {
+        const corpo = await response.json().catch(() => ({}));
+        const erro = new Error(corpo.erro || 'Token inválido');
+        erro.status = response.status;
+        erro.motivo = corpo.motivo;
+        throw erro;
+    }
+
+    // O /resolve devolve acesso atualizado; o nome vem do próprio JWT.
+    const acesso = await response.json();
+    let identidade = {};
+    try {
+        identidade = jwt.decode(token) || {};
+    } catch { /* token malformado cai no catch de quem chamou */ }
+
+    const usuario = {
+        username: identidade.login || acesso.login || '',
+        login: identidade.login || '',
+        nome: identidade.nome || '',
+        cpf: identidade.cpf || null,
+        admin: !!identidade.admin,
+        papeis: acesso.papeis || identidade.papeis || [],
+        permissoes: acesso.permissoes || identidade.permissoes || [],
+        escopos: acesso.escopos || identidade.escopos || [],
+        global: acesso.global ?? identidade.global ?? false
+    };
+
+    cacheResolve.set(token, { usuario, quando: Date.now() });
+    return usuario;
+}
+
 // Middleware de autenticação
-function authenticateToken(req, res, next) {
+async function authenticateToken(req, res, next) {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
 
@@ -72,13 +153,24 @@ function authenticateToken(req, res, next) {
         return res.status(401).json({ error: 'Token não fornecido' });
     }
 
-    jwt.verify(token, JWT_SECRET, (err, user) => {
-        if (err) {
-            return res.status(403).json({ error: 'Token inválido ou expirado' });
+    try {
+        req.user = await resolverUsuario(token);
+        req.token = token;
+
+        if (IAM_EXIGIR_ACESSO && !(req.user.permissoes || []).includes(PERMISSAO_ACESSO)) {
+            return res.status(403).json({
+                error: 'Você não tem acesso ao sistema de ponto. Peça liberação à TI.'
+            });
         }
-        req.user = user;
+
         next();
-    });
+    } catch (err) {
+        // 403 + motivo INATIVO = conta desativada pela TI; o front mostra a mensagem.
+        if (err.motivo === 'INATIVO') {
+            return res.status(403).json({ error: err.message, motivo: 'INATIVO' });
+        }
+        return res.status(err.status === 403 ? 403 : 401).json({ error: 'Token inválido ou expirado' });
+    }
 }
 
 // Middleware
@@ -175,10 +267,27 @@ function initBlobStorage() {
         if (!AZURE_STORAGE_CONNECTION_STRING) {
             throw new Error('AZURE_STORAGE_CONNECTION_STRING não configurada');
         }
-        blobServiceClient = BlobServiceClient.fromConnectionString(AZURE_STORAGE_CONNECTION_STRING);
-        containerClient = blobServiceClient.getContainerClient(CONTAINER_NAME);
-        console.log('✅ Azure Blob Storage conectado');
+
+        // A variável aceita DOIS formatos, e o SDK só entende um deles:
+        //   1. connection string  -> DefaultEndpointsProtocol=https;AccountName=...;AccountKey=...
+        //   2. URL SAS do container -> https://conta.blob.core.windows.net/container?sp=...&sig=...
+        // O formato (2) fazia fromConnectionString() lançar "Invalid URL", o
+        // containerClient ficava undefined e todo upload quebrava com
+        // "Cannot read properties of undefined (reading 'getBlockBlobClient')".
+        if (/^https?:\/\//i.test(AZURE_STORAGE_CONNECTION_STRING.trim())) {
+            const sas = new URL(AZURE_STORAGE_CONNECTION_STRING.trim());
+            const container = sas.pathname.replace(/^\/+|\/+$/g, '') || CONTAINER_NAME;
+
+            // A URL já aponta para o container; o cliente é construído direto dela
+            containerClient = new ContainerClient(AZURE_STORAGE_CONNECTION_STRING.trim());
+            console.log(`✅ Azure Blob conectado por URL SAS (container: ${container})`);
+        } else {
+            blobServiceClient = BlobServiceClient.fromConnectionString(AZURE_STORAGE_CONNECTION_STRING);
+            containerClient = blobServiceClient.getContainerClient(CONTAINER_NAME);
+            console.log('✅ Azure Blob Storage conectado');
+        }
     } catch (err) {
+        containerClient = null;
         console.error('❌ Erro ao conectar Azure Blob:', err.message);
     }
 }
@@ -252,9 +361,36 @@ async function connectDB() {
         poolPromise = sql.connect(sqlConfig);
         await poolPromise;
         sqlConnected = true;
+        await garantirColunasAnexo();
     } catch (err) {
         sqlConnected = false;
         console.error('Erro ao conectar SQL Azure:', err.message);
+    }
+}
+
+/**
+ * Gerar e anexar são duas ações, de duas pessoas diferentes: uma imprime o
+ * formulário, outra recebe o papel assinado e anexa a foto. As duas gravavam
+ * em created_by, e o upload apagava quem tinha gerado.
+ *
+ * Estas colunas são novas e opcionais — nenhuma linha existente muda de valor,
+ * e as antigas ficam com anexado_por nulo (não dá para saber quem foi).
+ */
+async function garantirColunasAnexo() {
+    try {
+        const pool = await poolPromise;
+        await pool.request().query(`
+            IF COL_LENGTH('ANEXOS', 'anexado_por') IS NULL
+                ALTER TABLE ANEXOS ADD anexado_por VARCHAR(255) NULL;
+        `);
+        await pool.request().query(`
+            IF COL_LENGTH('ANEXOS', 'anexado_em') IS NULL
+                ALTER TABLE ANEXOS ADD anexado_em DATETIME NULL;
+        `);
+        console.log('✅ Colunas de autoria do anexo verificadas (anexado_por / anexado_em)');
+    } catch (err) {
+        // Sem permissão de ALTER a tela ainda funciona: a coluna some, o resto fica
+        console.warn('⚠️ Não foi possível garantir anexado_por/anexado_em:', err.message);
     }
 }
 
@@ -265,7 +401,8 @@ async function connectDB() {
 // ==========================================
 const PUBLIC_API_PATHS = new Set([
     '/auth/login',
-    '/auth/logout'
+    '/auth/logout',
+    '/config'      // só URLs públicas; a tela de login precisa antes de autenticar
 ]);
 
 app.use('/api', (req, res, next) => {
@@ -277,80 +414,121 @@ app.use('/api', (req, res, next) => {
 // ROTAS DE AUTENTICAÇÃO
 // ==========================================
 
-// POST - Login
+// GET - Configuração pública (sem segredo). A tela de login precisa da URL de
+// fotos antes de existir token, para mostrar o avatar enquanto a pessoa digita.
+app.get('/api/config', (req, res) => {
+    res.json({ fotoBaseUrl: `${PCP_URL}/api/foto`, sistema: IAM_SISTEMA });
+});
+
+// POST - Login (delegado à IAM Larsil)
+// Este sistema NÃO tem tabela de usuário nem compara senha. Ele repassa para a
+// IAM e devolve o token dela ao navegador. Ver INTEGRACAO.md §1.
 app.post('/api/auth/login', loginLimiter, async (req, res) => {
     try {
-        const { username, password } = req.body;
+        // Aceita { login, senha } (padrão IAM) e { username, password } (formato antigo)
+        const login = req.body.login || req.body.username;
+        const senha = req.body.senha || req.body.password;
 
-        if (!username || !password) {
-            return res.status(400).json({ error: 'Email e senha são obrigatórios' });
+        if (!login || !senha) {
+            return res.status(400).json({ error: 'Usuário e senha são obrigatórios' });
         }
 
-        // Autenticar na API Secullum
-        const authResponse = await fetch(SECULLUM_AUTH_URL, {
+        const authResponse = await fetch(`${IAM_URL}/api/auth/login`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded'
-            },
-            body: new URLSearchParams({
-                grant_type: 'password',
-                username,
-                password,
-                client_id: SECULLUM_CLIENT_ID
-            })
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ login: String(login).trim(), senha })
         });
+
+        const dados = await authResponse.json().catch(() => ({}));
 
         if (!authResponse.ok) {
-            return res.status(401).json({ error: 'Email ou senha incorretos' });
+            // 403 + INATIVO: a conta existe, a TI desativou. A mensagem é para o usuário ler.
+            if (authResponse.status === 403) {
+                return res.status(403).json({ error: dados.erro || 'Conta desativada.', motivo: dados.motivo });
+            }
+            return res.status(401).json({ error: dados.erro || 'Usuário ou senha inválidos.' });
         }
 
-        const secullumData = await authResponse.json();
+        const usuario = dados.usuario || {};
 
-        // Buscar dados do usuário autenticado
-        let userName = username.split('@')[0];
-        const userInfoResponse = await fetch('https://autenticador.secullum.com.br/api/Account/UserInfo', {
-            headers: { 'Authorization': `Bearer ${secullumData.access_token}` }
-        });
-
-        if (userInfoResponse.ok) {
-            const userInfo = await userInfoResponse.json();
-            userName = userInfo.Nome || userName;
+        if (IAM_EXIGIR_ACESSO && !(usuario.permissoes || []).includes(PERMISSAO_ACESSO)) {
+            return res.status(403).json({
+                error: 'Você não tem acesso ao sistema de ponto. Peça liberação à TI.'
+            });
         }
 
-        // Gerar token JWT interno do sistema
-        const token = jwt.sign(
-            {
-                username,
-                name: userName,
-                role: 'user'
-            },
-            JWT_SECRET,
-            { expiresIn: JWT_EXPIRES_IN }
-        );
-
-        // Validade do token Secullum (expires_in vem em segundos; fallback 1h)
-        const secullumExpiresIn = Number(secullumData.expires_in) || 3600;
+        // Registra no perfil da pessoa que ela entrou NESTE sistema.
+        // Fire-and-forget: se a IAM não responder, o login não pode falhar por isso.
+        fetch(`${IAM_URL}/api/auth/acesso`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${dados.token}` },
+            body: JSON.stringify({ sistema: IAM_SISTEMA })
+        }).catch(() => {});
 
         res.json({
             success: true,
-            token,
-            secullumToken: secullumData.access_token,
-            secullumExpiresIn,
-            user: { username, name: userName, role: 'user' }
+            token: dados.token,
+            senha_provisoria: !!dados.senha_provisoria,
+            user: {
+                login: usuario.login,
+                username: usuario.login,
+                nome: usuario.nome,
+                name: usuario.nome,
+                cpf: usuario.cpf || null,
+                email: usuario.email || null,
+                admin: !!usuario.admin,
+                papeis: usuario.papeis || [],
+                permissoes: usuario.permissoes || [],
+                escopos: usuario.escopos || [],
+                global: !!usuario.global
+            }
         });
 
     } catch (err) {
         console.error('Erro no login:', err.message);
-        res.status(500).json({ error: 'Erro ao conectar com servidor de autenticação' });
+        res.status(502).json({ error: 'Não foi possível falar com o servidor de identidade (IAM).' });
     }
 });
 
-// GET - Verificar token
+// GET - Verificar token / reconsultar acesso
+// Chamado a cada carregamento: assim, liberar ou negar uma tela no console da IAM
+// passa a valer no próximo F5, sem exigir novo login.
 app.get('/api/auth/verify', (req, res) => {
     res.json({
         success: true,
-        user: req.user
+        user: req.user,
+        fotoBaseUrl: `${PCP_URL}/api/foto`
     });
+});
+
+// POST - Primeiro acesso: troca a senha provisória (INTEGRACAO.md §4)
+app.post('/api/auth/onboarding', async (req, res) => {
+    try {
+        const { novaSenha, telefone, email } = req.body;
+
+        if (!novaSenha) {
+            return res.status(400).json({ error: 'Nova senha é obrigatória' });
+        }
+
+        const response = await fetch(`${IAM_URL}/api/auth/onboarding`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${req.token}` },
+            body: JSON.stringify({ novaSenha, telefone, email })
+        });
+
+        const dados = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            return res.status(response.status).json({ error: dados.erro || 'Não foi possível concluir.' });
+        }
+
+        // A senha mudou: o acesso em cache não vale mais
+        cacheResolve.delete(req.token);
+        res.json({ ok: true });
+
+    } catch (err) {
+        console.error('Erro no onboarding:', err.message);
+        res.status(502).json({ error: 'Falha ao falar com a IAM' });
+    }
 });
 
 // GET - Logout (limpar token no cliente)
@@ -505,13 +683,246 @@ app.all(/^\/api\/secullum\/(.+)/, async (req, res) => {
     }
 });
 
-// GET - Obter configurações do Azure Vision (protegido)
-app.get('/api/azure-vision-config', (req, res) => {
-    res.json({
-        apiKey: process.env.AZURE_VISION_KEY || '',
-        endpoint: process.env.AZURE_VISION_ENDPOINT || 'https://testedeocr123.cognitiveservices.azure.com/'
-    });
+// ==========================================
+// OCR DA JUSTIFICATIVA — Claude vision
+//
+// A leitura roda no BACKEND. A chave da Anthropic nunca vai para o navegador
+// (foi assim que a chave do Azure Vision acabou exposta num endpoint público).
+//
+// Modelo: Haiku por padrão — é o mais barato da linha e dá conta de um
+// formulário impresso com poucos campos manuscritos. Trocável por CLAUDE_OCR_MODEL.
+// ==========================================
+const Anthropic = require('@anthropic-ai/sdk');
+
+const CLAUDE_OCR_MODEL = process.env.CLAUDE_OCR_MODEL || 'claude-haiku-4-5';
+const anthropic = process.env.ANTHROPIC_API_KEY
+    ? new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+    : null;
+
+// O formulário tem campos fixos; pedir JSON com esquema evita ter de
+// interpretar texto livre no frontend (era o que o parser do Azure fazia,
+// com dezenas de regex).
+const ESQUEMA_OCR = {
+    type: 'object',
+    properties: {
+        // Primeira pergunta: isso é mesmo o formulário? Sem essa checagem qualquer
+        // foto (selfie, print de conversa, documento errado) virava anexo de ponto.
+        ehFormulario: {
+            type: 'boolean',
+            description: 'true SOMENTE se a imagem for o formulário "PONTO MANUAL COMPLEMENTAR AO PONTO ELETRÔNICO" da Larsil.'
+        },
+        oQueE: {
+            type: ['string', 'null'],
+            description: 'Se ehFormulario for false, descreva em poucas palavras o que a imagem realmente mostra. Caso contrário, null.'
+        },
+        id: { type: ['string', 'null'], description: 'Número após "ID IMP:" no cabeçalho. null se ilegível.' },
+        // enum não pode conviver com type união (['string','null']) — o schema
+        // é recusado com 400. A forma aceita é anyOf.
+        motivo: {
+            description: 'Justificativa marcada com X ou círculo. null se nenhuma.',
+            anyOf: [
+                {
+                    type: 'string',
+                    enum: [
+                        'Esqueceu de registrar o Ponto', 'Falha no App', 'Falta', 'Folga',
+                        'Hora Parada', 'Maquina Ponto com defeito',
+                        'Registro em duplicidade', 'Registro indevido'
+                    ]
+                },
+                { type: 'null' }
+            ]
+        },
+        ent1: { type: ['string', 'null'], description: 'Entrada 1 manuscrita, formato HH:MM. null se vazio ou já impresso como batido.' },
+        sai1: { type: ['string', 'null'], description: 'Saída 1 manuscrita, HH:MM.' },
+        ent2: { type: ['string', 'null'], description: 'Entrada 2 manuscrita, HH:MM.' },
+        sai2: { type: ['string', 'null'], description: 'Saída 2 manuscrita, HH:MM.' },
+        ent3: { type: ['string', 'null'], description: 'Entrada 3 manuscrita, HH:MM.' },
+        sai3: { type: ['string', 'null'], description: 'Saída 3 manuscrita, HH:MM.' },
+        // A ordem das propriedades importa: a evidência vem ANTES do booleano,
+        // então o modelo precisa descrever o que viu na linha antes de decidir.
+        // Foi o que acabou com o falso "assinado" causado pelo nome impresso.
+        assinaturas: {
+            type: 'object',
+            properties: {
+                // Evidência em 3-5 palavras: o suficiente para forçar a olhada
+                // antes de decidir, sem gastar tempo de geração. Descrições
+                // longas custavam ~40 tokens de saída por leitura.
+                funcionarioEvidencia: {
+                    type: 'string',
+                    description: 'Máximo 5 palavras: o que existe SOBRE a linha do FUNCIONÁRIO. Ex.: "linha limpa" ou "rabisco azul sobre a linha".'
+                },
+                funcionario: { type: 'boolean', description: 'true só se a evidência descreve tinta manuscrita sobre a linha.' },
+                liderEvidencia: {
+                    type: 'string',
+                    description: 'Máximo 5 palavras, idem para a linha do Líder.'
+                },
+                lider: { type: 'boolean', description: 'true só se a evidência descreve tinta manuscrita sobre a linha.' }
+            },
+            required: ['funcionarioEvidencia', 'funcionario', 'liderEvidencia', 'lider'],
+            additionalProperties: false
+        },
+        confianca: {
+            type: 'object',
+            description: 'Confiança de 0 a 100 por campo lido.',
+            properties: {
+                id: { type: 'number' }, motivo: { type: 'number' },
+                ent1: { type: 'number' }, sai1: { type: 'number' },
+                ent2: { type: 'number' }, sai2: { type: 'number' },
+                ent3: { type: 'number' }, sai3: { type: 'number' }
+            },
+            required: ['id', 'motivo', 'ent1', 'sai1', 'ent2', 'sai2', 'ent3', 'sai3'],
+            additionalProperties: false
+        }
+    },
+    required: [
+        'ehFormulario', 'oQueE',
+        'id', 'motivo', 'ent1', 'sai1', 'ent2', 'sai2', 'ent3', 'sai3',
+        'assinaturas', 'confianca'
+    ],
+    additionalProperties: false
+};
+
+const INSTRUCOES_OCR = `Você lê fotos de um formulário de ponto da Larsil, preenchido à mão pelo colaborador.
+
+O formulário tem, de cima para baixo:
+- Título "PONTO MANUAL COMPLEMENTAR AO PONTO ELETRÔNICO" com o logotipo LARSIL à esquerda
+- Cabeçalho com Nome, Empresa, Data, REG, Projeto e "ID IMP: <número>"
+- Uma faixa "Horários (preencher somente os que faltaram)" com pares Entrada/Saída.
+  Horários JÁ REGISTRADOS aparecem impressos com o selo "BATIDO" embaixo.
+  Horários A PREENCHER aparecem como campos vazios "__:__" que o colaborador escreve à mão.
+- Uma faixa "JUSTIFICATIVA (marque o motivo)" com opções e um círculo/quadrado ao lado de cada
+- Duas linhas de assinatura no rodapé: FUNCIONÁRIO à esquerda, Líder à direita
+
+PASSO 1 — é o formulário?
+Antes de qualquer leitura, confirme que a imagem é ESTE formulário: título, faixa de
+Horários e faixa de JUSTIFICATIVA precisam estar visíveis. Foto de pessoa, print de
+conversa, atestado, holerite, crachá, documento de outro tipo, foto desfocada demais
+para identificar o título ou pedaço solto do formulário sem o cabeçalho → ehFormulario
+= false, descreva em oQueE o que a imagem mostra e devolva todos os demais campos null
+ou false. Nesse caso NÃO tente adivinhar horário nenhum.
+
+PASSO 2 — leitura (só se ehFormulario for true):
+- Devolva APENAS o que foi escrito À MÃO nos campos vazios. Um horário impresso com selo
+  "BATIDO" já está no sistema — devolva null para ele, senão ele seria reenviado em duplicidade.
+- Horários sempre em HH:MM com 24 horas. "7h", "07 00" e "7:00" viram "07:00".
+- Motivo é o que está marcado com X, traço ou círculo. Nenhum marcado: null.
+- Se um campo estiver ilegível ou em dúvida, devolva null e uma confiança baixa.
+  Um campo em branco é melhor do que um horário errado no ponto de alguém.
+
+PASSO 3 — assinaturas (leia com atenção, é onde mais se erra):
+Abaixo de cada linha de assinatura o formulário JÁ VEM com texto impresso: o nome do
+colaborador em letra de fôrma e a legenda "Assinatura do FUNCIONÁRIO" / "Assinatura do
+Líder". Esse texto faz parte do formulário em branco e NÃO é assinatura.
+
+Para cada uma das duas linhas, primeiro descreva em "evidência" o que existe SOBRE a
+própria linha horizontal — e só então responda o booleano, coerente com o que descreveu.
+- Nada sobre a linha, apenas o nome e a legenda impressos abaixo dela → false.
+- Traço manuscrito, cursivo, irregular, frequentemente em cor de caneta diferente do
+  preto impresso, escrito sobre ou cruzando a linha → true.
+Na dúvida, false: dizer que alguém assinou quando não assinou é o pior erro possível aqui.`;
+
+// POST - Ler a justificativa anexada
+app.post('/api/ocr/justificativa', async (req, res) => {
+    if (!anthropic) {
+        return res.status(503).json({ error: 'OCR não configurado no servidor (ANTHROPIC_API_KEY ausente).' });
+    }
+
+    try {
+        const { imageBase64 } = req.body;
+        if (!imageBase64) {
+            return res.status(400).json({ error: 'imageBase64 é obrigatório' });
+        }
+
+        const m = String(imageBase64).match(/^data:(image\/(?:png|jpeg|jpg|webp|gif));base64,(.+)$/i);
+        if (!m) {
+            return res.status(400).json({ error: 'Formato de imagem inválido' });
+        }
+
+        const mediaType = m[1].toLowerCase() === 'image/jpg' ? 'image/jpeg' : m[1].toLowerCase();
+        const dados = m[2];
+
+        // ~5MB de imagem já é bastante para um A4; acima disso o custo sobe à toa
+        if ((dados.length * 3 / 4) > 5 * 1024 * 1024) {
+            return res.status(413).json({ error: 'Imagem muito grande. Reduza para até 5MB.' });
+        }
+
+        const inicio = Date.now();
+        const resposta = await anthropic.messages.create({
+            model: CLAUDE_OCR_MODEL,
+            // A resposta inteira cabe em ~200 tokens; 2048 era teto de sobra
+            max_tokens: 600,
+            system: INSTRUCOES_OCR,
+            output_config: { format: { type: 'json_schema', schema: ESQUEMA_OCR } },
+            messages: [{
+                role: 'user',
+                content: [
+                    { type: 'image', source: { type: 'base64', media_type: mediaType, data: dados } },
+                    { type: 'text', text: 'Leia este formulário e devolva os campos preenchidos à mão.' }
+                ]
+            }]
+        });
+
+        if (resposta.stop_reason === 'refusal') {
+            return res.status(422).json({ error: 'Não foi possível ler esta imagem.' });
+        }
+
+        const bloco = resposta.content.find(b => b.type === 'text');
+        if (!bloco) {
+            return res.status(502).json({ error: 'Resposta vazia do leitor' });
+        }
+
+        let dadosLidos;
+        try {
+            dadosLidos = JSON.parse(bloco.text);
+        } catch {
+            console.error('OCR devolveu JSON inválido:', bloco.text.slice(0, 300));
+            return res.status(502).json({ error: 'Leitura inválida' });
+        }
+
+        const ms = Date.now() - inicio;
+        console.log(`🔎 OCR ${CLAUDE_OCR_MODEL}: ${ms}ms | ${resposta.usage.input_tokens} in / ${resposta.usage.output_tokens} out | ${req.user?.username || ''}`);
+
+        // Não é o formulário: recusa antes de deixar virar anexo. O `recusado`
+        // diz ao frontend que isto é uma rejeição, não uma falha de leitura —
+        // são tratamentos diferentes na tela.
+        if (dadosLidos.ehFormulario === false) {
+            console.warn(`🚫 Imagem recusada pelo OCR: ${dadosLidos.oQueE || 'não é o formulário'}`);
+            return res.status(422).json({
+                recusado: true,
+                error: 'Esta imagem não é o formulário de ponto da Larsil.',
+                detalhe: dadosLidos.oQueE || null
+            });
+        }
+
+        const assin = dadosLidos.assinaturas || {};
+        if (assin.funcionario || assin.lider) {
+            console.log(`   assinaturas → funcionário: ${assin.funcionarioEvidencia} | líder: ${assin.liderEvidencia}`);
+        }
+
+        res.json({
+            ...dadosLidos,
+            // Achatado para o formato que a tela já consome
+            assinaturaFuncionario: !!assin.funcionario,
+            assinaturaLider: !!assin.lider,
+            _meta: {
+                modelo: CLAUDE_OCR_MODEL,
+                ms,
+                tokens: { entrada: resposta.usage.input_tokens, saida: resposta.usage.output_tokens },
+                assinaturas: assin
+            }
+        });
+
+    } catch (err) {
+        console.error('❌ Erro no OCR:', err.message);
+        if (err.status === 429) {
+            return res.status(429).json({ error: 'Limite de leituras atingido. Aguarde alguns instantes.' });
+        }
+        res.status(502).json({ error: 'Falha ao ler a imagem' });
+    }
 });
+
+// (removido) /api/azure-vision-config — entregava a chave do Azure Vision ao
+// navegador. O OCR agora roda no servidor, em /api/ocr/justificativa.
 
 // ==========================================
 // ENDPOINTS - COLABORADORES (PROTEGIDOS)
@@ -732,43 +1143,129 @@ app.delete('/api/colaboradores/:id', async (req, res) => {
 // ENDPOINTS - ANEXOS (Azure Blob + SQL)
 // ==========================================
 
+/**
+ * POST - Sobe só a imagem e devolve a URL.
+ *
+ * Existe para o navegador começar a subir a foto no mesmo instante em que a
+ * leitura da IA começa, em vez de esperar o RH conferir e clicar em Confirmar.
+ * Quando o clique chega, o arquivo já está no Blob e o Confirmar só grava a
+ * linha — o tempo de upload sai do caminho da pessoa.
+ */
+app.post('/api/anexos/blob', async (req, res) => {
+    try {
+        const { reg, data, imageBase64 } = req.body;
+        if (!imageBase64) return res.status(400).json({ error: 'imagem é obrigatória' });
+        if (!containerClient) {
+            return res.status(503).json({ error: 'Armazenamento de anexos indisponível.' });
+        }
+
+        const { blobUrl, filename } = await subirImagem(imageBase64, reg, data);
+        res.json({ success: true, blobUrl, filename });
+
+    } catch (err) {
+        console.error('❌ Erro ao subir imagem:', err.message);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+/** Grava a imagem no Blob e devolve URL e nome do arquivo. */
+async function subirImagem(imageBase64, reg, data) {
+    // O tipo vem da própria data URL: o navegador manda JPEG (a foto é
+    // reduzida antes de subir), e gravar tudo como .png deixava o arquivo
+    // com extensão e content-type que não batiam com o conteúdo.
+    const tipo = (String(imageBase64).match(/^data:image\/(png|jpeg|jpg|webp)/i) || [, 'jpeg'])[1]
+        .toLowerCase().replace('jpg', 'jpeg');
+
+    const filename = `${reg || 'sem-reg'}_${String(data || '').split('T')[0]}_${Date.now()}`
+        + `.${tipo === 'jpeg' ? 'jpg' : tipo}`;
+
+    const buffer = Buffer.from(imageBase64.replace(/^data:image\/\w+;base64,/, ''), 'base64');
+
+    const blockBlobClient = containerClient.getBlockBlobClient(filename);
+    await blockBlobClient.uploadData(buffer, {
+        blobHTTPHeaders: { blobContentType: `image/${tipo}` }
+    });
+
+    return { blobUrl: blockBlobClient.url.split('?')[0], filename };
+}
+
 // POST - Upload de anexo (imagem) - SEM AUTENTICAÇÃO JWT (usa apenas validação de dados)
 app.post('/api/anexos/upload', async (req, res) => {
     try {
-        let { reg, cpf, data, empresa_id, empresa_nome, funcionario_nome, imageBase64, motivo, ocr_texto, horarios, created_by, justificativa_secullum, justificativa_folha } = req.body;
-        
-        if (!cpf || !data || !imageBase64) {
+        let { reg, cpf, data, empresa_id, empresa_nome, funcionario_nome, imageBase64, motivo, ocr_texto, horarios, created_by, justificativa_secullum, justificativa_folha,
+              blobFilenamePronto } = req.body;
+
+        // A imagem pode já ter subido em paralelo com a leitura da IA
+        const jaSubiu = !!blobFilenamePronto;
+
+        if (!cpf || !data || (!imageBase64 && !jaSubiu)) {
             return res.status(400).json({ error: 'CPF, data e imagem são obrigatórios' });
         }
-        
+
         // Normalizar data: remover timestamp se existir (2025-10-23T00:00:00 → 2025-10-23)
         if (data.includes('T')) {
             data = data.split('T')[0];
         }
-        
-        // Gerar nome único para o arquivo
-        const timestamp = Date.now();
-        const filename = `${reg}_${data}_${timestamp}.png`;
-        
-        // Converter base64 para buffer
-        const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, '');
-        const buffer = Buffer.from(base64Data, 'base64');
-        
-        // Upload pro Azure Blob
-        const blockBlobClient = containerClient.getBlockBlobClient(filename);
-        await blockBlobClient.uploadData(buffer, {
-            blobHTTPHeaders: { blobContentType: 'image/png' }
-        });
-        
-        const blobUrl = blockBlobClient.url.split('?')[0]; // URL sem SAS token
-        
+
+        if (!containerClient) {
+            return res.status(503).json({
+                error: 'Armazenamento de anexos indisponível. Verifique AZURE_STORAGE_CONNECTION_STRING no servidor.'
+            });
+        }
+
+        // Se a imagem já subiu em paralelo com a leitura, reaproveita o arquivo:
+        // o upload é a parte demorada, e repetir aqui é fazer o RH esperar duas
+        // vezes.
+        //
+        // A URL NÃO vem do cliente — só o nome do arquivo, e ele é conferido
+        // antes de virar endereço. O anexo é a prova documental da justificativa:
+        // aceitar a URL como veio deixaria qualquer usuário logado apontar essa
+        // prova para uma imagem de fora, ou para o anexo de outra pessoa.
+        let blobUrl, filename;
+
+        if (jaSubiu) {
+            filename = String(blobFilenamePronto);
+
+            // Sem barra, sem "..", sem query: só o nome que este servidor gera
+            if (!/^[A-Za-z0-9_-]+\.(jpg|jpeg|png|webp)$/.test(filename)) {
+                return res.status(400).json({ error: 'Nome de arquivo inválido' });
+            }
+
+            // O nome é gerado como reg_data_timestamp: exigir esse prefixo amarra
+            // o arquivo à linha que está sendo gravada, então não dá para pendurar
+            // o anexo de um colaborador no dia de outro.
+            const prefixo = `${reg || 'sem-reg'}_${data}_`;
+            if (!filename.startsWith(prefixo)) {
+                console.warn(`🚫 Anexo recusado: "${filename}" não pertence a ${prefixo}`);
+                return res.status(400).json({ error: 'Arquivo não corresponde a este registro' });
+            }
+
+            // E tem de existir de verdade no nosso container
+            const cliente = containerClient.getBlockBlobClient(filename);
+            if (!(await cliente.exists())) {
+                return res.status(400).json({ error: 'Arquivo não encontrado no armazenamento' });
+            }
+
+            // A URL é derivada aqui, do nosso próprio container
+            blobUrl = cliente.url.split('?')[0];
+
+        } else {
+            ({ blobUrl, filename } = await subirImagem(imageBase64, reg, data));
+        }
+
         // Salvar no SQL (usando REG + DATA + EMPRESA_ID como chave única)
         if (sqlConnected) {
             const pool = await poolPromise;
             const userName = created_by || 'Sistema'; // Usar created_by do frontend
-            
+
+            // Sempre só dígitos. Este endpoint gravava o CPF como veio da tela
+            // (com pontos e traço) enquanto a geração gravava limpo — o mesmo
+            // colaborador acabava com duas grafias no banco, e qualquer junção
+            // por CPF em SQL puro só enxergava metade das linhas dele.
+            const cpfLimpo = String(cpf || '').replace(/[^\d]/g, '');
+
             await pool.request()
-                .input('cpf', sql.VarChar, cpf)
+                .input('cpf', sql.VarChar, cpfLimpo)
                 .input('reg', sql.VarChar, reg)
                 .input('data', sql.Date, data)
                 .input('empresa_id', sql.Int, empresa_id)
@@ -785,7 +1282,7 @@ app.post('/api/anexos/upload', async (req, res) => {
                 .input('justificativa_folha', sql.VarChar, justificativa_folha)
                 .query(`
                     IF EXISTS (SELECT 1 FROM ANEXOS WHERE reg = @reg AND data = @data AND empresa_id = @empresa_id)
-                        UPDATE ANEXOS SET 
+                        UPDATE ANEXOS SET
                             cpf = @cpf,
                             funcionario_nome = @funcionario_nome,
                             empresa_nome = @empresa_nome,
@@ -794,17 +1291,21 @@ app.post('/api/anexos/upload', async (req, res) => {
                             motivo_detectado = @motivo_detectado,
                             horarios_detectados = @horarios_detectados,
                             ocr_texto_completo = @ocr_texto_completo,
-                            created_by = @created_by,
+                            -- created_by fica: é quem GEROU o formulário.
+                            -- Anexar é outra ação, de outra pessoa.
+                            anexado_por = @created_by,
+                            anexado_em = GETDATE(),
                             justificativa_secullum = @justificativa_secullum,
                             justificativa_folha = @justificativa_folha,
-                            perguntas_rh = CASE 
-                                WHEN @perguntas_rh != '{}' THEN @perguntas_rh 
-                                ELSE COALESCE(perguntas_rh, '{}') 
+                            perguntas_rh = CASE
+                                WHEN @perguntas_rh != '{}' THEN @perguntas_rh
+                                ELSE COALESCE(perguntas_rh, '{}')
                             END
                         WHERE reg = @reg AND data = @data AND empresa_id = @empresa_id
                     ELSE
-                        INSERT INTO ANEXOS (cpf, reg, data, empresa_id, empresa_nome, funcionario_nome, blob_url, blob_filename, motivo_detectado, horarios_detectados, ocr_texto_completo, perguntas_rh, created_by, justificativa_secullum, justificativa_folha)
-                        VALUES (@cpf, @reg, @data, @empresa_id, @empresa_nome, @funcionario_nome, @blob_url, @blob_filename, @motivo_detectado, @horarios_detectados, @ocr_texto_completo, @perguntas_rh, @created_by, @justificativa_secullum, @justificativa_folha)
+                        -- Anexo sem geração prévia: a mesma pessoa fez as duas coisas
+                        INSERT INTO ANEXOS (cpf, reg, data, empresa_id, empresa_nome, funcionario_nome, blob_url, blob_filename, motivo_detectado, horarios_detectados, ocr_texto_completo, perguntas_rh, created_by, anexado_por, anexado_em, justificativa_secullum, justificativa_folha)
+                        VALUES (@cpf, @reg, @data, @empresa_id, @empresa_nome, @funcionario_nome, @blob_url, @blob_filename, @motivo_detectado, @horarios_detectados, @ocr_texto_completo, @perguntas_rh, @created_by, @created_by, GETDATE(), @justificativa_secullum, @justificativa_folha)
                 `);
         }
         
@@ -903,11 +1404,16 @@ app.put('/api/anexos/:cpf/:data/questions', async (req, res) => {
         
         let { cpf, data } = req.params;
         const { perguntas_rh, reg, empresa_id, empresa_nome, funcionario_nome } = req.body;
-        
+
         // Normalizar data
         if (data.includes('T')) {
             data = data.split('T')[0];
         }
+
+        // Só dígitos, igual ao que é gravado. Comparar o CPF como veio da URL
+        // ("123.456.789-00") contra o do banco ("12345678900") nunca casava,
+        // e o else abaixo criava uma linha nova em vez de atualizar a existente.
+        cpf = String(cpf || '').replace(/[^\d]/g, '');
         
         const pool = await poolPromise;
         const userName = req.body.created_by || 'Sistema'; // Usar created_by do frontend
@@ -926,9 +1432,8 @@ app.put('/api/anexos/:cpf/:data/questions', async (req, res) => {
                 .input('perguntas_rh', sql.NVarChar, perguntas_rh || '{}')
                 .input('created_by', sql.VarChar, userName)
                 .query(`
-                    UPDATE ANEXOS 
-                    SET perguntas_rh = @perguntas_rh,
-                        created_by = @created_by
+                    UPDATE ANEXOS
+                    SET perguntas_rh = @perguntas_rh
                     WHERE cpf = @cpf AND data = @data
                 `);
             
@@ -992,7 +1497,9 @@ app.post('/api/anexos/batch-period', async (req, res) => {
                 blob_url,
                 blob_filename,
                 created_by,
-                created_at
+                created_at,
+                anexado_por,
+                anexado_em
             FROM ANEXOS 
             WHERE data BETWEEN @dateStart AND @dateEnd
         `;
@@ -1036,7 +1543,9 @@ app.post('/api/anexos/batch-period', async (req, res) => {
                 blob_url: row.blob_url,
                 blob_filename: row.blob_filename,
                 created_by: row.created_by,
-                created_at: row.created_at
+                created_at: row.created_at,
+                anexado_por: row.anexado_por,
+                anexado_em: row.anexado_em
             });
 
             // Extrair perguntas se existirem
@@ -1355,6 +1864,308 @@ app.get('/api/relatorio/estatisticas', async (req, res) => {
     }
 });
 
+// ==========================================
+// RELATÓRIO ANALÍTICO
+//
+// Cruza ANEXOS com COLABORADORES pelo CPF para poder agrupar por projeto,
+// líder, supervisor, coordenador, setor e área — nada disso existe em ANEXOS.
+//
+// O cadastro cobre ~57% das linhas (tem 468 pessoas; ANEXOS inclui gente de
+// empresas que não estão nele). O que não casa vai para "sem cadastro" em vez
+// de sumir da conta: um total que não fecha com a tela principal geraria mais
+// dúvida do que a lacuna em si.
+// ==========================================
+/**
+ * CPFs de quem já foi desligado, segundo a Secullum.
+ *
+ * Boa parte do "Sem cadastro" do relatório é justamente isso: a pessoa saiu da
+ * empresa, sumiu do cadastro de colaboradores, mas as justificativas que ela
+ * deixou em aberto continuam no banco. Separar os dois casos muda a leitura —
+ * cobrar um pendente de quem já foi embora não faz sentido.
+ *
+ * A lista é grande e muda pouco, então fica em cache por 30 minutos.
+ */
+let cacheDemitidos = { quando: 0, cpfs: new Set(), erro: null };
+const DEMITIDOS_TTL = 30 * 60 * 1000;
+
+async function cpfsDemitidos() {
+    if (Date.now() - cacheDemitidos.quando < DEMITIDOS_TTL && cacheDemitidos.cpfs.size) {
+        return cacheDemitidos;
+    }
+    if (!SECULLUM_TOKEN) return cacheDemitidos;
+
+    try {
+        const bancos = await fetch(
+            `${SECULLUM_AUTH_URL.replace('/Token', '')}/ContasSecullumExterno/ListarBancos`,
+            { headers: { Authorization: `Bearer ${SECULLUM_TOKEN}` } }
+        ).then(r => r.ok ? r.json() : []);
+
+        const cpfs = new Set();
+
+        // Em paralelo: uma empresa por vez levava minutos
+        await Promise.all((bancos || []).map(async banco => {
+            try {
+                const r = await chamarSecullum('/IntegracaoExterna/Funcionarios', { bancoId: banco.id });
+                if (!r.ok) return;
+                for (const f of await r.json()) {
+                    const saida = f.Demissao;
+                    // A Secullum devolve 0001-01-01 para "sem demissão"
+                    if (!saida || String(saida).startsWith('0001-01-01')) continue;
+                    const cpf = String(f.Cpf || f.CPF || '').replace(/\D/g, '');
+                    if (cpf.length === 11) cpfs.add(cpf);
+                }
+            } catch { /* uma empresa fora não invalida as demais */ }
+        }));
+
+        if (cpfs.size) {
+            cacheDemitidos = { quando: Date.now(), cpfs, erro: null };
+            console.log(`👥 Demitidos em cache: ${cpfs.size} CPFs`);
+        }
+    } catch (err) {
+        cacheDemitidos.erro = err.message;
+        console.warn('⚠️ Não foi possível listar demitidos:', err.message);
+    }
+
+    return cacheDemitidos;
+}
+
+const CAMPOS_AGRUPAMENTO = {
+    projeto:     'c.PROJETO',
+    projeto_rh:  'c.PROJETO_RH',
+    lider:       'c.NOME_LIDER',
+    supervisor:  'c.SUPERVISOR',
+    coordenador: 'c.COORDENADOR',
+    setor:       'c.SETOR',
+    area:        'c.AREA',
+    funcao:      'c.FUNCAO',
+    empresa:     'a.empresa_nome',
+    motivo:      'a.motivo_detectado'
+};
+
+app.get('/api/relatorio/analitico', async (req, res) => {
+    try {
+        if (!sqlConnected || !poolPromise) {
+            return res.status(503).json({ error: 'SQL não conectado' });
+        }
+
+        const { dataInicio, dataFim } = req.query;
+        if (!dataInicio || !dataFim) {
+            return res.status(400).json({ error: 'dataInicio e dataFim são obrigatórios' });
+        }
+
+        const pool = await poolPromise;
+
+        // Filtros opcionais. Cada um vira um AND parametrizado — nada de
+        // concatenar valor do usuário dentro do SQL.
+        const filtros = [];
+        const parametros = {};
+        for (const [chave, coluna] of Object.entries(CAMPOS_AGRUPAMENTO)) {
+            const valor = req.query[chave];
+            if (valor && String(valor).trim()) {
+                filtros.push(`${coluna} = @f_${chave}`);
+                parametros[`f_${chave}`] = String(valor).trim();
+            }
+        }
+        if (req.query.situacao === 'ativos') filtros.push(`c.SITUACAO = '1'`);
+        if (req.query.pendentes === '1') filtros.push(`a.blob_url = ''`);
+
+        const onde = filtros.length ? ' AND ' + filtros.join(' AND ') : '';
+
+        const pedido = () => {
+            const r = pool.request()
+                .input('dataInicio', sql.Date, dataInicio)
+                .input('dataFim', sql.Date, dataFim);
+            for (const [nome, valor] of Object.entries(parametros)) {
+                r.input(nome, sql.NVarChar, valor);
+            }
+            return r;
+        };
+
+        // Base reaproveitada por todos os recortes
+        const BASE = `
+            FROM dbo.ANEXOS a
+            LEFT JOIN dbo.COLABORADORES c
+                   ON REPLACE(REPLACE(c.CPF, '.', ''), '-', '') = a.cpf
+            WHERE a.data BETWEEN @dataInicio AND @dataFim ${onde}`;
+
+        const DEVOLVIDA = `CASE WHEN a.blob_url <> '' THEN 1 ELSE 0 END`;
+
+        // Um recorte agrupado por qualquer coluna do cadastro.
+        // O CAST é necessário: sem ele o ISNULL herda o tamanho da coluna
+        // (PROJETO é varchar(10)) e 'Sem cadastro' chegava cortado como
+        // "Sem cadast" no gráfico.
+        const porCampo = (coluna, rotulo) => {
+            const expr = `ISNULL(NULLIF(LTRIM(RTRIM(CAST(${coluna} AS nvarchar(200)))), ''), 'Sem cadastro')`;
+            return pedido().query(`
+                SELECT TOP 40
+                    ${expr} AS rotulo,
+                    COUNT(*) AS geradas,
+                    SUM(${DEVOLVIDA}) AS devolvidas,
+                    COUNT(*) - SUM(${DEVOLVIDA}) AS pendentes,
+                    CAST(100.0 * SUM(${DEVOLVIDA}) / COUNT(*) AS decimal(5,1)) AS taxa
+                ${BASE}
+                GROUP BY ${expr}
+                ORDER BY COUNT(*) DESC
+            `).then(r => ({ [rotulo]: r.recordset }));
+        };
+
+        const [
+            totais, temporal, ranking, foraDoCadastro, opcoes,
+            ...recortes
+        ] = await Promise.all([
+            pedido().query(`
+                SELECT COUNT(*) geradas,
+                       SUM(${DEVOLVIDA}) devolvidas,
+                       COUNT(*) - SUM(${DEVOLVIDA}) pendentes,
+                       COUNT(DISTINCT a.cpf) pessoas,
+                       SUM(CASE WHEN c.CPF IS NULL THEN 1 ELSE 0 END) sem_cadastro
+                ${BASE}`).then(r => r.recordset[0]),
+
+            pedido().query(`
+                SELECT CONVERT(varchar(10), a.data, 120) dia,
+                       COUNT(*) geradas, SUM(${DEVOLVIDA}) devolvidas
+                ${BASE}
+                GROUP BY a.data ORDER BY a.data`).then(r => r.recordset),
+
+            // Ranking: quem mais recebeu formulário e menos devolveu
+            pedido().query(`
+                SELECT TOP 50
+                    a.cpf,
+                    MAX(a.funcionario_nome) nome,
+                    MAX(a.reg) reg,
+                    MAX(ISNULL(c.PROJETO, '')) projeto,
+                    MAX(ISNULL(c.NOME_LIDER, '')) lider,
+                    MAX(ISNULL(c.SUPERVISOR, '')) supervisor,
+                    MAX(ISNULL(a.empresa_nome, '')) empresa,
+                    COUNT(*) geradas,
+                    SUM(${DEVOLVIDA}) devolvidas,
+                    COUNT(*) - SUM(${DEVOLVIDA}) pendentes,
+                    CAST(100.0 * (COUNT(*) - SUM(${DEVOLVIDA})) / COUNT(*) AS decimal(5,1)) pct_pendente,
+                    CONVERT(varchar(10), MAX(a.data), 120) ultima
+                ${BASE}
+                GROUP BY a.cpf
+                HAVING COUNT(*) - SUM(${DEVOLVIDA}) > 0
+                ORDER BY COUNT(*) - SUM(${DEVOLVIDA}) DESC, COUNT(*) DESC`).then(r => r.recordset),
+
+            // Quem está fora do cadastro — para cruzar com a lista de demitidos
+            pedido().query(`
+                SELECT a.cpf,
+                       MAX(a.funcionario_nome) nome,
+                       MAX(a.reg) reg,
+                       COUNT(*) geradas,
+                       SUM(${DEVOLVIDA}) devolvidas
+                ${BASE} AND c.CPF IS NULL
+                GROUP BY a.cpf`).then(r => r.recordset),
+
+            // Valores possíveis para os seletores de filtro, dentro do período
+            pedido().query(`
+                SELECT DISTINCT 'projeto' campo, LTRIM(RTRIM(c.PROJETO)) valor ${BASE} AND NULLIF(LTRIM(RTRIM(c.PROJETO)),'') IS NOT NULL
+                UNION SELECT DISTINCT 'lider', LTRIM(RTRIM(c.NOME_LIDER)) ${BASE} AND NULLIF(LTRIM(RTRIM(c.NOME_LIDER)),'') IS NOT NULL
+                UNION SELECT DISTINCT 'supervisor', LTRIM(RTRIM(c.SUPERVISOR)) ${BASE} AND NULLIF(LTRIM(RTRIM(c.SUPERVISOR)),'') IS NOT NULL
+                UNION SELECT DISTINCT 'coordenador', LTRIM(RTRIM(c.COORDENADOR)) ${BASE} AND NULLIF(LTRIM(RTRIM(c.COORDENADOR)),'') IS NOT NULL
+                UNION SELECT DISTINCT 'setor', LTRIM(RTRIM(c.SETOR)) ${BASE} AND NULLIF(LTRIM(RTRIM(c.SETOR)),'') IS NOT NULL
+                UNION SELECT DISTINCT 'area', LTRIM(RTRIM(c.AREA)) ${BASE} AND NULLIF(LTRIM(RTRIM(c.AREA)),'') IS NOT NULL
+                UNION SELECT DISTINCT 'empresa', LTRIM(RTRIM(a.empresa_nome)) ${BASE} AND NULLIF(LTRIM(RTRIM(a.empresa_nome)),'') IS NOT NULL
+                UNION SELECT DISTINCT 'motivo', LTRIM(RTRIM(a.motivo_detectado)) ${BASE} AND NULLIF(LTRIM(RTRIM(a.motivo_detectado)),'') IS NOT NULL
+                ORDER BY campo, valor`).then(r => r.recordset),
+
+            porCampo('c.PROJETO', 'porProjeto'),
+            porCampo('c.NOME_LIDER', 'porLider'),
+            porCampo('c.SUPERVISOR', 'porSupervisor'),
+            porCampo('c.COORDENADOR', 'porCoordenador'),
+            porCampo('a.empresa_nome', 'porEmpresa'),
+            porCampo('c.SETOR', 'porSetor'),
+            porCampo('a.motivo_detectado', 'porMotivo'),
+            porCampo('a.anexado_por', 'porQuemAnexou')
+        ]);
+
+        const agrupado = Object.assign({}, ...recortes);
+        const taxa = totais.geradas > 0
+            ? Math.round((totais.devolvidas / totais.geradas) * 100) : 0;
+
+        // Opções de filtro organizadas por campo
+        const listas = {};
+        for (const linha of opcoes) {
+            (listas[linha.campo] = listas[linha.campo] || []).push(linha.valor);
+        }
+
+        // Quem está fora do cadastro se divide em dois: já foi desligado, ou
+        // simplesmente não está no cadastro (empresa que não é gerida por ele).
+        const { cpfs: demitidos } = await cpfsDemitidos();
+        const desligados = { pessoas: 0, geradas: 0, devolvidas: 0, lista: [] };
+        const semCadastro = { pessoas: 0, geradas: 0, devolvidas: 0 };
+
+        for (const p of foraDoCadastro) {
+            const alvo = demitidos.has(p.cpf) ? desligados : semCadastro;
+            alvo.pessoas++;
+            alvo.geradas += p.geradas;
+            alvo.devolvidas += p.devolvidas;
+            if (alvo === desligados) {
+                desligados.lista.push({
+                    cpf: p.cpf, nome: p.nome, reg: p.reg,
+                    geradas: p.geradas, devolvidas: p.devolvidas,
+                    pendentes: p.geradas - p.devolvidas
+                });
+            }
+        }
+        desligados.pendentes = desligados.geradas - desligados.devolvidas;
+        semCadastro.pendentes = semCadastro.geradas - semCadastro.devolvidas;
+        desligados.lista.sort((a, b) => b.pendentes - a.pendentes);
+
+        // Nos recortes, 'Sem cadastro' vira 'Demitidos' quando é o caso.
+        // A separação é feita aqui, e não no SQL, porque a lista de demitidos
+        // vem da Secullum — não existe no banco para entrar num JOIN.
+        const marcarDemitidos = linhas => {
+            const semCad = linhas.find(l => l.rotulo === 'Sem cadastro');
+            if (!semCad || !desligados.geradas) return linhas;
+
+            const restante = semCad.geradas - desligados.geradas;
+            const novas = linhas.filter(l => l !== semCad);
+
+            if (desligados.geradas > 0) {
+                novas.push({
+                    rotulo: 'Demitidos',
+                    geradas: desligados.geradas,
+                    devolvidas: desligados.devolvidas,
+                    pendentes: desligados.pendentes,
+                    taxa: desligados.geradas
+                        ? Number((desligados.devolvidas * 100 / desligados.geradas).toFixed(1)) : 0
+                });
+            }
+            if (restante > 0) {
+                const dev = semCad.devolvidas - desligados.devolvidas;
+                novas.push({
+                    rotulo: 'Sem cadastro',
+                    geradas: restante,
+                    devolvidas: dev,
+                    pendentes: restante - dev,
+                    taxa: Number((dev * 100 / restante).toFixed(1))
+                });
+            }
+            return novas.sort((a, b) => b.geradas - a.geradas);
+        };
+
+        for (const chave of ['porProjeto', 'porLider', 'porSupervisor', 'porCoordenador', 'porSetor']) {
+            if (agrupado[chave]) agrupado[chave] = marcarDemitidos(agrupado[chave]);
+        }
+
+        res.json({
+            periodo: { dataInicio, dataFim },
+            totais: { ...totais, taxaRetorno: taxa },
+            demitidos: desligados,
+            semCadastro,
+            evolucao: temporal,
+            ranking,
+            listas,
+            ...agrupado
+        });
+
+    } catch (err) {
+        console.error('❌ Erro no relatório analítico:', err.message);
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // 🆔 SALVAR JUSTIFICATIVA PARA IMPRESSÃO
 // Salva a justificativa no banco e retorna o ID auto-increment
 app.post('/api/justificativa/salvar', async (req, res) => {
@@ -1477,12 +2288,19 @@ app.post('/api/justificativa/salvar-batch', async (req, res) => {
                     .input('reg', sql.VarChar, reg)
                     .input('data', sql.Date, dataNormalizada)
                     .input('empresa_id', sql.Int, empresa_id || 0)
-                    .query('SELECT id FROM ANEXOS WHERE reg = @reg AND data = @data AND empresa_id = @empresa_id');
-                
+                    .query(`SELECT id, created_by, created_at FROM ANEXOS
+                            WHERE reg = @reg AND data = @data AND empresa_id = @empresa_id`);
+
                 if (checkResult.recordset.length > 0) {
-                    // Já existe
-                    const id = checkResult.recordset[0].id;
-                    resultados.push({ reg, data: dataNormalizada, id, novo: false, nome });
+                    // Já existe: é reimpressão. Devolvemos quem gerou da primeira
+                    // vez e quando — o RH precisa saber com quem falar antes de
+                    // reimprimir e reincomodar o colaborador.
+                    const linha = checkResult.recordset[0];
+                    resultados.push({
+                        reg, data: dataNormalizada, id: linha.id, novo: false, nome,
+                        criadoPor: linha.created_by || null,
+                        criadoEm: linha.created_at || null
+                    });
                     existentes.push(nome);
                 } else {
                     // Inserir novo
@@ -1495,9 +2313,10 @@ app.post('/api/justificativa/salvar-batch', async (req, res) => {
                         .input('blob_url', sql.NVarChar, '')
                         .input('blob_filename', sql.NVarChar, '')
                         .input('motivo_detectado', sql.NVarChar, motivo || '')
-                        .input('created_by', sql.VarChar, 'Sistema')
+                        // Era 'Sistema' fixo: ninguém conseguia saber quem gerou
+                        .input('created_by', sql.VarChar, req.user?.username || 'Sistema')
                         .query(`
-                            INSERT INTO ANEXOS (cpf, reg, data, empresa_id, funcionario_nome, blob_url, blob_filename, motivo_detectado, created_by) 
+                            INSERT INTO ANEXOS (cpf, reg, data, empresa_id, funcionario_nome, blob_url, blob_filename, motivo_detectado, created_by)
                             OUTPUT INSERTED.id
                             VALUES (@cpf, @reg, @data, @empresa_id, @funcionario_nome, @blob_url, @blob_filename, @motivo_detectado, @created_by)
                         `);

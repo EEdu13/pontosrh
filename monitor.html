@@ -552,8 +552,8 @@
 
         // Usa o token obtido no login (assets/session.js) — sem credenciais aqui
         async function authenticateSecullum() {
-            if (!SESSION.getSecullumToken()) return false;  // valida a sessao
-            SECULLUM_TOKEN = SESSION.getJwt();     // o proxy autentica por JWT
+            if (!SESSION.requireAuth()) return false;
+            SECULLUM_TOKEN = SESSION.getJwt();   // o proxy autentica pelo token da IAM
             return SECULLUM_TOKEN !== null;
         }
 

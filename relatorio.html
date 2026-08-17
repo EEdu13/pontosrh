@@ -9,26 +9,39 @@
     <title>Dashboard de Relatórios - Justificativas</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <style>
+        /* Paleta Larsil — a mesma do painel e do Painel PCP. Os nomes genéricos
+           foram mantidos para não reescrever as ~400 referências espalhadas
+           abaixo; o que mudou foram os valores. */
         :root {
-            --bg-0: #07090f;
-            --bg-1: #0b0f1a;
-            --bg-2: #111827;
-            --surface: rgba(255, 255, 255, 0.025);
-            --surface-hover: rgba(255, 255, 255, 0.045);
-            --border: rgba(255, 255, 255, 0.06);
-            --border-strong: rgba(255, 255, 255, 0.10);
-            --text: #e8ecf3;
-            --text-muted: #8a93a6;
-            --text-dim: #5a6377;
-            --accent: #818cf8;
-            --accent-2: #a78bfa;
-            --accent-glow: rgba(129, 140, 248, 0.35);
-            --success: #34d399;
-            --danger: #f87171;
-            --warn: #fbbf24;
-            --info: #60a5fa;
-            --radius: 14px;
-            --radius-sm: 10px;
+            --lar-bg-1: #0F251D;
+            --lar-bg-2: #143026;
+            --lar-bg-3: #17392B;
+            --lar-green: #6FCF7B;
+
+            --bg-0: #0F251D;
+            --bg-1: #143026;
+            --bg-2: #17392B;
+
+            --surface: rgba(30, 70, 54, 0.55);
+            --surface-hover: rgba(30, 70, 54, 0.75);
+            --border: rgba(234, 241, 232, 0.14);
+            --border-strong: rgba(234, 241, 232, 0.22);
+
+            --text: #EAF1E8;
+            --text-muted: #A9C1AC;
+            --text-dim: #7C9484;
+
+            --accent: #6FCF7B;
+            --accent-2: #4FB763;
+            --accent-glow: rgba(111, 207, 123, 0.35);
+
+            --success: #6FCF7B;
+            --danger: #E8776C;
+            --warn: #E8B93F;
+            --info: #7FC8A9;
+
+            --radius: 16px;
+            --radius-sm: 11px;
             --shadow-sm: 0 1px 2px rgba(0,0,0,.35);
             --shadow-md: 0 8px 24px -8px rgba(0,0,0,.5), 0 2px 6px rgba(0,0,0,.3);
             --shadow-lg: 0 24px 60px -20px rgba(0,0,0,.6);
@@ -46,6 +59,10 @@
         body {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
             min-height: 100vh;
+            /* O mesmo fundo do painel principal, para os dois parecerem um só */
+            background: radial-gradient(1200px 800px at 15% -10%, #1E4636 0%, transparent 60%),
+                        linear-gradient(160deg, var(--lar-bg-1) 0%, var(--lar-bg-2) 55%, var(--lar-bg-3) 100%);
+            background-attachment: fixed;
             color: var(--text);
             font-feature-settings: "cv11", "ss01", "ss03";
             -webkit-font-smoothing: antialiased;
@@ -66,12 +83,12 @@
         }
         body::before {
             width: 480px; height: 480px;
-            background: radial-gradient(circle, #4f46e5 0%, transparent 70%);
+            background: radial-gradient(circle, #2E6B4C 0%, transparent 70%);
             top: -120px; left: -120px;
         }
         body::after {
             width: 540px; height: 540px;
-            background: radial-gradient(circle, #7c3aed 0%, transparent 70%);
+            background: radial-gradient(circle, #1E4636 0%, transparent 70%);
             bottom: -160px; right: -160px;
         }
 
@@ -86,17 +103,18 @@
 
         /* Header */
         .header {
-            background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.015));
+            background: var(--surface);
             border: 1px solid var(--border);
             border-radius: var(--radius);
-            padding: 22px 26px;
-            margin-bottom: 24px;
+            padding: 18px 22px;
+            margin-bottom: 20px;
             display: flex;
             justify-content: space-between;
             align-items: center;
             gap: 20px;
-            box-shadow: var(--shadow-md);
-            backdrop-filter: blur(8px);
+            box-shadow: 0 24px 60px -24px rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
         }
 
         .header .title-block { display: flex; align-items: center; gap: 14px; }
@@ -169,8 +187,8 @@
         .btn svg { width: 15px; height: 15px; }
 
         .btn-primary {
-            background: linear-gradient(180deg, var(--accent), #6366f1);
-            color: white;
+            background: linear-gradient(135deg, #6FCF7B, #3FA35A);
+            color: #08170F;
             box-shadow: 0 6px 16px -6px var(--accent-glow), inset 0 1px 0 rgba(255,255,255,.2);
         }
         .btn-primary:hover {
@@ -195,7 +213,7 @@
             border-radius: var(--radius-sm);
             font-size: 13px;
             font-weight: 500;
-            background: rgba(0,0,0,0.25);
+            background: rgba(10, 26, 20, 0.45);
             color: var(--text);
             font-family: inherit;
             transition: border-color .2s, box-shadow .2s;
@@ -204,12 +222,12 @@
         .date-input:focus {
             outline: none;
             border-color: var(--accent);
-            box-shadow: 0 0 0 3px rgba(129, 140, 248, 0.18);
+            box-shadow: 0 0 0 3px rgba(111, 207, 123, 0.18);
         }
 
         /* Filtros */
         .filters-card {
-            background: linear-gradient(180deg, rgba(255,255,255,0.035), rgba(255,255,255,0.012));
+            background: var(--surface);
             border: 1px solid var(--border);
             border-radius: var(--radius);
             padding: 18px 22px;
@@ -218,9 +236,86 @@
             gap: 18px;
             align-items: flex-end;
             flex-wrap: wrap;
-            backdrop-filter: blur(8px);
-            box-shadow: var(--shadow-sm);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            box-shadow: 0 24px 60px -24px rgba(0, 0, 0, 0.5);
         }
+
+        /* ---------- Fechamentos (21 a 20) ---------- */
+        .fech-linha {
+            flex-basis: 100%;
+            display: flex; flex-wrap: wrap; gap: 5px;
+            padding-top: 14px; margin-top: 2px;
+            border-top: 1px solid var(--border);
+        }
+        .fech-chip {
+            padding: 5px 12px; border-radius: 8px;
+            background: rgba(255,255,255,.04);
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+            font-family: inherit; font-size: 11px; font-weight: 700; letter-spacing: .05em;
+            cursor: pointer; transition: all .15s var(--ease);
+        }
+        .fech-chip:hover { background: rgba(111,207,123,.16); border-color: var(--accent); color: var(--text); }
+        .fech-chip.atual { border-color: rgba(52,211,153,.5); color: var(--success); }
+        .fech-chip.escolhido { background: var(--accent); border-color: var(--accent); color: #0F251D; }
+
+        /* ---------- Filtros do cadastro ---------- */
+        .filtros-avancados {
+            flex-basis: 100%;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 12px; align-items: end;
+            padding-top: 14px; border-top: 1px solid var(--border);
+        }
+        .fa-campo { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+        .fa-campo > span {
+            font-size: 10px; font-weight: 700; letter-spacing: .08em;
+            text-transform: uppercase; color: var(--text-dim);
+        }
+        .fa-campo select {
+            width: 100%; padding: 9px 10px; border-radius: var(--radius-sm);
+            background: rgba(10, 26, 20, 0.45); border: 1px solid var(--border-strong);
+            color: var(--text); font-family: inherit; font-size: 12.5px; cursor: pointer;
+        }
+        .fa-campo select:focus { outline: none; border-color: var(--accent); }
+        .fa-campo select option { background: #0E211A; color: var(--text); }
+
+        .fa-chaves { display: flex; gap: 8px; align-items: end; grid-column: 1 / -1; }
+        .fa-chave {
+            padding: 9px 15px; border-radius: var(--radius-sm);
+            background: rgba(255,255,255,.04); border: 1px solid var(--border-strong);
+            color: var(--text-muted); font-family: inherit; font-size: 12px; font-weight: 600;
+            cursor: pointer; transition: all .15s var(--ease);
+        }
+        .fa-chave:hover { color: var(--text); border-color: var(--accent); }
+        .fa-chave.ligado { background: var(--accent); border-color: var(--accent); color: #0F251D; }
+        .fa-chave.limpar { margin-left: auto; }
+        .fa-chave.limpar:hover { border-color: var(--danger); color: var(--danger); }
+
+        /* ---------- Abas do detalhamento ---------- */
+        .h3-nota {
+            font-size: 10.5px; font-weight: 500; color: var(--text-dim);
+            letter-spacing: 0; text-transform: none; margin-left: 4px;
+        }
+        .detalhe-abas { display: flex; flex-wrap: wrap; gap: 5px; margin-left: auto; }
+        .aba {
+            padding: 5px 11px; border-radius: 7px;
+            background: rgba(255,255,255,.04); border: 1px solid var(--border);
+            color: var(--text-dim); font-family: inherit; font-size: 11px; font-weight: 600;
+            cursor: pointer; transition: all .15s var(--ease);
+        }
+        .aba:hover { color: var(--text); border-color: var(--border-strong); }
+        .aba.ativa { background: var(--accent); border-color: var(--accent); color: #0F251D; }
+
+        /* ---------- Ranking ---------- */
+        .posicao { color: var(--text-dim); font-variant-numeric: tabular-nums; font-weight: 700; }
+        .col-pessoa { display: flex; flex-direction: column; gap: 1px; }
+        .col-pessoa strong { font-size: 12.5px; font-weight: 600; color: var(--text); }
+        .col-pessoa span { font-size: 10px; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+        td.discreto { color: var(--text-dim); font-size: 11.5px; }
+        td.forte { font-weight: 600; }
+        .number-red.forte { font-weight: 800; }
 
         .filter-group label {
             display: flex;
@@ -250,9 +345,10 @@
             position: relative;
             border-radius: var(--radius);
             padding: 20px 22px;
-            background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.012));
+            background: var(--surface);
             border: 1px solid var(--border);
-            backdrop-filter: blur(8px);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
             box-shadow: var(--shadow-md);
             transition: transform .35s var(--ease), border-color .25s, box-shadow .25s;
             overflow: hidden;
@@ -293,10 +389,10 @@
             box-shadow: var(--shadow-lg);
         }
 
-        .stat-card.blue   { --accent-color: #60a5fa; }
-        .stat-card.green  { --accent-color: #34d399; }
-        .stat-card.red    { --accent-color: #f87171; }
-        .stat-card.purple { --accent-color: #a78bfa; }
+        .stat-card.blue   { --accent-color: #7FC8A9; }
+        .stat-card.green  { --accent-color: #6FCF7B; }
+        .stat-card.red    { --accent-color: #E8776C; }
+        .stat-card.purple { --accent-color: #E8B93F; }
 
         .stat-card .label {
             font-size: 11px;
@@ -344,11 +440,12 @@
         @media (max-width: 1000px) { .charts-grid { grid-template-columns: 1fr; } }
 
         .chart-card, .table-card {
-            background: linear-gradient(180deg, rgba(255,255,255,0.035), rgba(255,255,255,0.012));
+            background: var(--surface);
             border: 1px solid var(--border);
             border-radius: var(--radius);
             padding: 22px 24px;
-            backdrop-filter: blur(8px);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
             box-shadow: var(--shadow-md);
         }
 
@@ -441,7 +538,7 @@
 
         .loading-spinner {
             width: 40px; height: 40px;
-            border: 3px solid rgba(129, 140, 248, 0.18);
+            border: 3px solid rgba(111, 207, 123, 0.18);
             border-top-color: var(--accent);
             border-radius: 50%;
             animation: spin .9s linear infinite;
@@ -541,6 +638,47 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><polyline points="21 3 21 8 16 8"/></svg>
                 Atualizar Dados
             </button>
+
+            <div class="fech-linha" id="linhaFechamentos"></div>
+
+            <!-- Recortes do cadastro. Preenchidos com o que existe no período,
+                 para não oferecer filtro que não devolve nada. -->
+            <div class="filtros-avancados" id="filtrosAvancados">
+                <label class="fa-campo">
+                    <span>Projeto (BDO)</span>
+                    <select id="fProjeto"><option value="">Todos</option></select>
+                </label>
+                <label class="fa-campo">
+                    <span>Líder</span>
+                    <select id="fLider"><option value="">Todos</option></select>
+                </label>
+                <label class="fa-campo">
+                    <span>Supervisor</span>
+                    <select id="fSupervisor"><option value="">Todos</option></select>
+                </label>
+                <label class="fa-campo">
+                    <span>Coordenador</span>
+                    <select id="fCoordenador"><option value="">Todos</option></select>
+                </label>
+                <label class="fa-campo">
+                    <span>Setor</span>
+                    <select id="fSetor"><option value="">Todos</option></select>
+                </label>
+                <label class="fa-campo">
+                    <span>Empresa</span>
+                    <select id="fEmpresa"><option value="">Todas</option></select>
+                </label>
+                <label class="fa-campo">
+                    <span>Motivo</span>
+                    <select id="fMotivo"><option value="">Todos</option></select>
+                </label>
+
+                <div class="fa-chaves">
+                    <button class="fa-chave" id="fPendentes" aria-pressed="false">Só pendentes</button>
+                    <button class="fa-chave" id="fAtivos" aria-pressed="false">Só ativos</button>
+                    <button class="fa-chave limpar" id="fLimpar">Limpar filtros</button>
+                </div>
+            </div>
         </div>
 
         <!-- Cards de Estatísticas -->
@@ -565,46 +703,82 @@
                 <div class="value" id="taxaRetorno">0%</div>
                 <div class="sublabel">Eficiência geral</div>
             </div>
+
+
         </div>
+
+
 
         <!-- Gráficos -->
         <div class="charts-grid">
             <div class="chart-card">
-                <h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/></svg>Por Projeto/Empresa</h3>
-                <div class="chart-container">
-                    <canvas id="chartEmpresa"></canvas>
-                </div>
+                <h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/></svg>Por projeto (BDO)</h3>
+                <div class="chart-container"><canvas id="chartProjeto"></canvas></div>
             </div>
             <div class="chart-card">
-                <h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>Evolução Temporal</h3>
-                <div class="chart-container">
-                    <canvas id="chartTemporal"></canvas>
-                </div>
+                <h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>Evolução no período</h3>
+                <div class="chart-container"><canvas id="chartTemporal"></canvas></div>
+            </div>
+            <div class="chart-card">
+                <h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/></svg>Por líder</h3>
+                <div class="chart-container"><canvas id="chartLider"></canvas></div>
+            </div>
+            <div class="chart-card">
+                <h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7h-9"/><path d="M14 17H5"/><circle cx="17" cy="17" r="3"/><circle cx="7" cy="7" r="3"/></svg>Por supervisor</h3>
+                <div class="chart-container"><canvas id="chartSupervisor"></canvas></div>
             </div>
         </div>
 
-        <!-- Tabela Detalhada -->
+        <!-- Ranking: quem mais deve justificativa -->
         <div class="table-card">
-            <h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>Detalhamento por Projeto</h3>
+            <h3>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
+                Ranking — quem mais deve justificativa
+                <span class="h3-nota">ordenado pelo total de pendentes</span>
+            </h3>
             <div class="table-wrapper">
                 <table>
                     <thead>
                         <tr>
-                            <th>Empresa/Projeto</th>
-                            <th class="center">Enviadas</th>
-                            <th class="center">Retornadas</th>
+                            <th class="center">#</th>
+                            <th>Colaborador</th>
+                            <th>Projeto</th>
+                            <th>Líder</th>
+                            <th>Supervisor</th>
+                            <th class="center">Geradas</th>
+                            <th class="center">Devolvidas</th>
+                            <th class="center">Pendentes</th>
+                            <th class="center">% pendente</th>
+                        </tr>
+                    </thead>
+                    <tbody id="rankingBody">
+                        <tr><td colspan="9" class="empty-state">Clique em "Atualizar Dados"</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Detalhamento: o recorte escolhido -->
+        <div class="table-card">
+            <h3>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                Detalhamento
+                <span class="detalhe-abas" id="detalheAbas"></span>
+            </h3>
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th id="detalheRotulo">Projeto</th>
+                            <th class="center">Geradas</th>
+                            <th class="center">Devolvidas</th>
                             <th class="center">Pendentes</th>
                             <th class="center">Taxa</th>
-                            <th class="center">Status</th>
+                            <th class="center">Situação</th>
                         </tr>
                     </thead>
                     <tbody id="tableBody">
-                        <tr>
-                            <td colspan="6" class="empty-state">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 17V9"/><path d="M11 17v-5"/><path d="M15 17v-3"/><path d="M19 17V7"/></svg>
-                                Selecione um período e clique em "Atualizar Dados"
-                            </td>
-                        </tr>
+                        <tr><td colspan="6" class="empty-state">Clique em "Atualizar Dados"</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -631,7 +805,7 @@
         // Carregar lista de empresas da API Secullum
         async function carregarEmpresas() {
             try {
-                if (!SESSION.getSecullumToken()) return;
+                if (!SESSION.sessaoValida()) return;
 
                 const response = await SESSION.secullumFetch('/IntegracaoExterna/Bancos');
 
@@ -648,19 +822,20 @@
         }
 
         // Inicialização
-        document.addEventListener('DOMContentLoaded', async () => {
-            // Carregar empresas primeiro
-            await carregarEmpresas();
-            
-            // Definir datas padrão (últimos 30 dias)
-            const hoje = new Date();
-            const inicio = new Date();
-            inicio.setDate(hoje.getDate() - 30);
-            
-            document.getElementById('dateStart').value = inicio.toISOString().split('T')[0];
-            document.getElementById('dateEnd').value = hoje.toISOString().split('T')[0];
-            
-            // Carregar dados automaticamente
+        document.addEventListener('DOMContentLoaded', () => {
+            // Abre já no fechamento em aberto (21 do mês passado ao 20 deste),
+            // que é o recorte que o RH usa. "Últimos 30 dias" atravessava dois
+            // fechamentos e não batia com relatório nenhum.
+            const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+            const m = hoje.getDate() > 20 ? hoje.getMonth() + 1 : hoje.getMonth();
+            const inicio = new Date(hoje.getFullYear(), m - 1, 21);
+            const fim = new Date(hoje.getFullYear(), m, 20);
+
+            document.getElementById('dateStart').value = dataISO(inicio);
+            document.getElementById('dateEnd').value = dataISO(fim);
+
+            montarFechamentos();
+            ligarFiltros();
             carregarDados();
         });
 
@@ -673,6 +848,59 @@
             document.getElementById('loadingOverlay').classList.remove('active');
         }
 
+        // Filtros ativos. Vazio = sem filtro.
+        const filtros = {
+            projeto: '', lider: '', supervisor: '', coordenador: '',
+            setor: '', empresa: '', motivo: '',
+            pendentes: false, ativos: false
+        };
+
+        // Qual recorte a tabela de detalhamento mostra
+        let recorteAtual = 'porProjeto';
+        const RECORTES = [
+            ['porProjeto', 'Projeto'], ['porLider', 'Líder'],
+            ['porSupervisor', 'Supervisor'], ['porCoordenador', 'Coordenador'],
+            ['porEmpresa', 'Empresa'], ['porSetor', 'Setor'],
+            ['porMotivo', 'Motivo'], ['porQuemAnexou', 'Quem anexou']
+        ];
+
+        // ---------- Fechamentos (21 a 20), iguais aos da tela principal ----------
+        const MESES_CURTOS = ['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ'];
+
+        function dataISO(d) {
+            const m = String(d.getMonth() + 1).padStart(2, '0');
+            const dia = String(d.getDate()).padStart(2, '0');
+            return `${d.getFullYear()}-${m}-${dia}`;
+        }
+
+        function montarFechamentos() {
+            const linha = document.getElementById('linhaFechamentos');
+            const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+            const ano = hoje.getFullYear();
+            linha.replaceChildren();
+
+            MESES_CURTOS.forEach((nome, m) => {
+                const inicio = new Date(ano, m - 1, 21);
+                const fim = new Date(ano, m, 20);
+                if (inicio > hoje) return;                    // ainda não começou
+
+                const chip = document.createElement('button');
+                chip.className = 'fech-chip' + (hoje >= inicio && hoje <= fim ? ' atual' : '');
+                chip.textContent = nome;
+                chip.title = `${dataISO(inicio)} a ${dataISO(fim)}`;
+                chip.addEventListener('click', () => {
+                    document.getElementById('dateStart').value = dataISO(inicio);
+                    document.getElementById('dateEnd').value = dataISO(fim);
+                    document.querySelectorAll('.fech-chip.escolhido')
+                        .forEach(c => c.classList.remove('escolhido'));
+                    chip.classList.add('escolhido');
+                    carregarDados();
+                });
+                linha.append(chip);
+            });
+        }
+
+        // ---------- Carga ----------
         async function carregarDados() {
             const dataInicio = document.getElementById('dateStart').value;
             const dataFim = document.getElementById('dateEnd').value;
@@ -683,264 +911,364 @@
             }
 
             try {
-                showLoading('Carregando estatísticas...');
+                showLoading('Carregando análise…');
 
-                const response = await SESSION.apiFetch(`/api/relatorio/estatisticas?dataInicio=${dataInicio}&dataFim=${dataFim}`);
-
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}`);
+                const params = new URLSearchParams({ dataInicio, dataFim });
+                for (const [k, v] of Object.entries(filtros)) {
+                    if (v === true) params.set(k === 'ativos' ? 'situacao' : k, k === 'ativos' ? 'ativos' : '1');
+                    else if (v) params.set(k, v);
                 }
+
+                const response = await SESSION.apiFetch(`/api/relatorio/analitico?${params}`);
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
                 const data = await response.json();
                 dadosAtuais = data;
 
-                // Atualizar cards
-                document.getElementById('totalEnviadas').textContent = (data.totais.enviadas || 0).toLocaleString('pt-BR');
-                document.getElementById('totalRetornadas').textContent = (data.totais.retornadas || 0).toLocaleString('pt-BR');
-                document.getElementById('totalPendentes').textContent = (data.totais.pendentes || 0).toLocaleString('pt-BR');
-                document.getElementById('taxaRetorno').textContent = `${data.totais.taxaRetorno || 0}%`;
-
-                // Atualizar horário
+                const t = data.totais || {};
+                document.getElementById('totalEnviadas').textContent = (t.geradas || 0).toLocaleString('pt-BR');
+                document.getElementById('totalRetornadas').textContent = (t.devolvidas || 0).toLocaleString('pt-BR');
+                document.getElementById('totalPendentes').textContent = (t.pendentes || 0).toLocaleString('pt-BR');
+                document.getElementById('taxaRetorno').textContent = `${t.taxaRetorno || 0}%`;
                 document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString('pt-BR');
 
-                // Renderizar gráficos
-                renderizarGraficoEmpresa(data.porEmpresa || []);
-                renderizarGraficoTemporal(data.evolucaoTemporal || []);
-                
-                // Renderizar tabela
-                renderizarTabela(data.porEmpresa || []);
+                preencherSeletores(data.listas || {});
+                montarAbasDetalhe();
+
+                grafBarras('chartProjeto', data.porProjeto || []);
+                grafTemporal(data.evolucao || []);
+                grafBarras('chartLider', (data.porLider || []).slice(0, 10), true);
+                grafBarras('chartSupervisor', (data.porSupervisor || []).slice(0, 10), true);
+
+                renderRanking(data.ranking || []);
+                renderDetalhe();
 
                 hideLoading();
 
             } catch (err) {
-                console.error('Erro ao carregar estatísticas:', err);
+                console.error('Erro ao carregar análise:', err);
                 hideLoading();
-                alert('Erro ao carregar estatísticas: ' + err.message);
+                alert('Erro ao carregar: ' + err.message);
             }
         }
 
-        function renderizarGraficoEmpresa(dados) {
-            const ctx = document.getElementById('chartEmpresa').getContext('2d');
-            
-            if (chartEmpresa) {
-                chartEmpresa.destroy();
-                chartEmpresa = null;
+        // ---------- Filtros ----------
+        function preencherSeletores(listas) {
+            const mapa = {
+                fProjeto: 'projeto', fLider: 'lider', fSupervisor: 'supervisor',
+                fCoordenador: 'coordenador', fSetor: 'setor', fEmpresa: 'empresa', fMotivo: 'motivo'
+            };
+            for (const [id, campo] of Object.entries(mapa)) {
+                const sel = document.getElementById(id);
+                if (!sel) continue;
+                const escolhido = filtros[campo];
+                const primeiro = sel.options[0]?.textContent || 'Todos';
+
+                sel.replaceChildren();
+                const zero = document.createElement('option');
+                zero.value = ''; zero.textContent = primeiro;
+                sel.append(zero);
+
+                (listas[campo] || []).forEach(v => {
+                    const o = document.createElement('option');
+                    o.value = v; o.textContent = v;
+                    if (v === escolhido) o.selected = true;
+                    sel.append(o);
+                });
+
+                // O valor escolhido pode não existir no novo período
+                if (escolhido && !(listas[campo] || []).includes(escolhido)) {
+                    filtros[campo] = '';
+                }
+            }
+        }
+
+        function ligarFiltros() {
+            const mapa = {
+                fProjeto: 'projeto', fLider: 'lider', fSupervisor: 'supervisor',
+                fCoordenador: 'coordenador', fSetor: 'setor', fEmpresa: 'empresa', fMotivo: 'motivo'
+            };
+            for (const [id, campo] of Object.entries(mapa)) {
+                document.getElementById(id)?.addEventListener('change', e => {
+                    filtros[campo] = e.target.value;
+                    carregarDados();
+                });
             }
 
-            if (dados.length === 0) {
-                return;
-            }
+            const chave = (id, campo) => {
+                const b = document.getElementById(id);
+                b?.addEventListener('click', () => {
+                    filtros[campo] = !filtros[campo];
+                    b.classList.toggle('ligado', filtros[campo]);
+                    b.setAttribute('aria-pressed', String(filtros[campo]));
+                    carregarDados();
+                });
+            };
+            chave('fPendentes', 'pendentes');
+            chave('fAtivos', 'ativos');
 
-            const labels = dados.map(d => getEmpresaNome(d.empresaId));
-            const enviadas = dados.map(d => d.enviadas);
-            const retornadas = dados.map(d => d.retornadas);
+            document.getElementById('fLimpar')?.addEventListener('click', () => {
+                Object.keys(filtros).forEach(k => { filtros[k] = typeof filtros[k] === 'boolean' ? false : ''; });
+                document.querySelectorAll('.fa-chave.ligado').forEach(b => {
+                    b.classList.remove('ligado');
+                    b.setAttribute('aria-pressed', 'false');
+                });
+                carregarDados();
+            });
+        }
 
-            chartEmpresa = new Chart(ctx, {
+        // ---------- Gráficos ----------
+        const CORES = {
+            grade: 'rgba(255,255,255,0.05)',
+            texto: '#8a93a6',
+            azul: '#7FC8A9', azulFraco: 'rgba(127,200,169,.7)',
+            verde: '#6FCF7B', verdeFraco: 'rgba(111,207,123,.85)'
+        };
+        const graficos = {};
+
+        function grafBarras(id, dados, horizontal) {
+            const ctx = document.getElementById(id)?.getContext('2d');
+            if (!ctx) return;
+            graficos[id]?.destroy();
+            if (!dados.length) return;
+
+            const corta = s => String(s).length > 22 ? String(s).slice(0, 21) + '…' : s;
+
+            graficos[id] = new Chart(ctx, {
                 type: 'bar',
                 data: {
-                    labels: labels,
+                    labels: dados.map(d => corta(d.rotulo)),
                     datasets: [
-                        {
-                            label: 'Enviadas',
-                            data: enviadas,
-                            backgroundColor: 'rgba(96, 165, 250, 0.85)',
-                            borderColor: 'rgba(96, 165, 250, 1)',
-                            borderWidth: 0,
-                            borderRadius: 8,
-                            borderSkipped: false
-                        },
-                        {
-                            label: 'Retornadas',
-                            data: retornadas,
-                            backgroundColor: 'rgba(52, 211, 153, 0.85)',
-                            borderColor: 'rgba(52, 211, 153, 1)',
-                            borderWidth: 0,
-                            borderRadius: 8,
-                            borderSkipped: false
-                        }
+                        { label: 'Geradas', data: dados.map(d => d.geradas),
+                          backgroundColor: CORES.azulFraco, borderRadius: 5, maxBarThickness: 26 },
+                        { label: 'Devolvidas', data: dados.map(d => d.devolvidas),
+                          backgroundColor: CORES.verdeFraco, borderRadius: 5, maxBarThickness: 26 }
                     ]
                 },
                 options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    animation: { duration: 300 },
+                    indexAxis: horizontal ? 'y' : 'x',
+                    responsive: true, maintainAspectRatio: false,
                     plugins: {
-                        legend: {
-                            labels: {
-                                color: '#e2e8f0',
-                                font: { weight: '600' }
+                        legend: { labels: { color: CORES.texto, boxWidth: 12, font: { size: 11 } } },
+                        tooltip: {
+                            callbacks: {
+                                afterBody: itens => {
+                                    const d = dados[itens[0].dataIndex];
+                                    return `Pendentes: ${d.pendentes}  ·  Taxa: ${d.taxa ?? 0}%`;
+                                }
                             }
                         }
                     },
                     scales: {
-                        x: {
-                            ticks: { color: '#94a3b8' },
-                            grid: { color: 'rgba(148, 163, 184, 0.1)' }
-                        },
-                        y: {
-                            beginAtZero: true,
-                            ticks: { color: '#94a3b8' },
-                            grid: { color: 'rgba(148, 163, 184, 0.1)' }
-                        }
+                        x: { ticks: { color: CORES.texto, font: { size: 10 } }, grid: { color: CORES.grade } },
+                        y: { ticks: { color: CORES.texto, font: { size: 10 } }, grid: { color: CORES.grade } }
                     }
                 }
             });
         }
 
-        function renderizarGraficoTemporal(dados) {
-            const ctx = document.getElementById('chartTemporal').getContext('2d');
-            
-            if (chartTemporal) {
-                chartTemporal.destroy();
-                chartTemporal = null;
-            }
+        function grafTemporal(dados) {
+            const ctx = document.getElementById('chartTemporal')?.getContext('2d');
+            if (!ctx) return;
+            graficos.chartTemporal?.destroy();
+            if (!dados.length) return;
 
-            if (dados.length === 0) {
-                return;
-            }
+            const dia = s => s.slice(8, 10) + '/' + s.slice(5, 7);
 
-            const labels = dados.map(d => {
-                const [ano, mes, dia] = d.data.split('-');
-                return `${dia}/${mes}`;
-            });
-            const enviadas = dados.map(d => d.enviadas);
-            const retornadas = dados.map(d => d.retornadas);
-
-            chartTemporal = new Chart(ctx, {
+            graficos.chartTemporal = new Chart(ctx, {
                 type: 'line',
                 data: {
-                    labels: labels,
+                    labels: dados.map(d => dia(d.dia)),
                     datasets: [
-                        {
-                            label: 'Enviadas',
-                            data: enviadas,
-                            borderColor: 'rgba(96, 165, 250, 1)',
-                            backgroundColor: 'rgba(96, 165, 250, 0.12)',
-                            fill: true,
-                            tension: 0.4,
-                            pointRadius: 0,
-                            pointHoverRadius: 5,
-                            borderWidth: 2.5
-                        },
-                        {
-                            label: 'Retornadas',
-                            data: retornadas,
-                            borderColor: 'rgba(52, 211, 153, 1)',
-                            backgroundColor: 'rgba(52, 211, 153, 0.12)',
-                            fill: true,
-                            tension: 0.4,
-                            pointRadius: 0,
-                            pointHoverRadius: 5,
-                            borderWidth: 2.5
-                        }
+                        { label: 'Geradas', data: dados.map(d => d.geradas),
+                          borderColor: CORES.azul, backgroundColor: 'rgba(127,200,169,.14)',
+                          fill: true, tension: .35, pointRadius: 0, borderWidth: 2 },
+                        { label: 'Devolvidas', data: dados.map(d => d.devolvidas),
+                          borderColor: CORES.verde, backgroundColor: 'rgba(111,207,123,.14)',
+                          fill: true, tension: .35, pointRadius: 0, borderWidth: 2 }
                     ]
                 },
                 options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    animation: { duration: 300 },
-                    plugins: {
-                        legend: {
-                            labels: {
-                                color: '#e2e8f0',
-                                font: { weight: '600' }
-                            }
-                        }
-                    },
+                    responsive: true, maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: { legend: { labels: { color: CORES.texto, boxWidth: 12, font: { size: 11 } } } },
                     scales: {
-                        x: {
-                            ticks: { 
-                                color: '#94a3b8',
-                                maxTicksLimit: 15
-                            },
-                            grid: { color: 'rgba(148, 163, 184, 0.1)' }
-                        },
-                        y: {
-                            beginAtZero: true,
-                            ticks: { color: '#94a3b8' },
-                            grid: { color: 'rgba(148, 163, 184, 0.1)' }
-                        }
+                        x: { ticks: { color: CORES.texto, font: { size: 10 }, maxTicksLimit: 12 }, grid: { color: CORES.grade } },
+                        y: { ticks: { color: CORES.texto, font: { size: 10 } }, grid: { color: CORES.grade }, beginAtZero: true }
                     }
                 }
             });
         }
 
-        function renderizarTabela(dados) {
-            const tbody = document.getElementById('tableBody');
-            
-            if (dados.length === 0) {
-                tbody.innerHTML = `
-                    <tr>
-                        <td colspan="6" class="empty-state">
-                            <span>📭</span>
-                            Nenhum dado encontrado para o período selecionado
-                        </td>
-                    </tr>
-                `;
+        // ---------- Ranking ----------
+        function renderRanking(linhas) {
+            const tbody = document.getElementById('rankingBody');
+            tbody.replaceChildren();
+
+            if (!linhas.length) {
+                const tr = document.createElement('tr');
+                const td = document.createElement('td');
+                td.colSpan = 9; td.className = 'empty-state';
+                td.textContent = 'Ninguém com justificativa pendente neste recorte.';
+                tr.append(td); tbody.append(tr);
                 return;
             }
 
-            tbody.innerHTML = dados.map(row => {
-                const taxa = row.taxaRetorno || 0;
-                let statusClass, statusIcon, statusText;
-                
-                if (taxa >= 80) {
-                    statusClass = 'excellent';
-                    statusIcon = '✅';
-                    statusText = 'Excelente';
-                } else if (taxa >= 50) {
-                    statusClass = 'regular';
-                    statusIcon = '⚠️';
-                    statusText = 'Regular';
-                } else {
-                    statusClass = 'critical';
-                    statusIcon = '❌';
-                    statusText = 'Crítico';
-                }
+            linhas.forEach((r, i) => {
+                const tr = document.createElement('tr');
+                const cel = (texto, classe) => {
+                    const td = document.createElement('td');
+                    if (classe) td.className = classe;
+                    td.textContent = texto;
+                    return td;
+                };
 
-                return `
-                    <tr>
-                        <td style="font-weight: 600;">${getEmpresaNome(row.empresaId)}</td>
-                        <td class="center number-blue">${row.enviadas || 0}</td>
-                        <td class="center number-green">${row.retornadas || 0}</td>
-                        <td class="center number-red">${row.pendentes || 0}</td>
-                        <td class="center"><span class="badge rate">${taxa}%</span></td>
-                        <td class="center"><span class="badge ${statusClass}">${statusIcon} ${statusText}</span></td>
-                    </tr>
-                `;
-            }).join('');
+                tr.append(cel(String(i + 1), 'center posicao'));
+
+                const tdNome = document.createElement('td');
+                tdNome.className = 'col-pessoa';
+                const nome = document.createElement('strong');
+                nome.textContent = r.nome || '—';
+                const reg = document.createElement('span');
+                reg.textContent = `REG ${r.reg || '—'}`;
+                tdNome.append(nome, reg);
+                tr.append(tdNome);
+
+                tr.append(cel(r.projeto || '—'));
+                tr.append(cel(r.lider || '—', 'discreto'));
+                tr.append(cel(r.supervisor || '—', 'discreto'));
+                tr.append(cel(String(r.geradas), 'center number-blue'));
+                tr.append(cel(String(r.devolvidas), 'center number-green'));
+                tr.append(cel(String(r.pendentes), 'center number-red forte'));
+
+                const tdPct = document.createElement('td');
+                tdPct.className = 'center';
+                const badge = document.createElement('span');
+                const pct = Number(r.pct_pendente) || 0;
+                badge.className = 'badge ' + (pct >= 80 ? 'critical' : pct >= 50 ? 'regular' : 'excellent');
+                badge.textContent = pct + '%';
+                tdPct.append(badge);
+                tr.append(tdPct);
+
+                tbody.append(tr);
+            });
         }
 
-        function exportarCSV() {
-            if (!dadosAtuais || !dadosAtuais.porEmpresa || dadosAtuais.porEmpresa.length === 0) {
-                alert('Nenhum dado para exportar. Carregue os dados primeiro.');
+        // ---------- Detalhamento ----------
+        function montarAbasDetalhe() {
+            const caixa = document.getElementById('detalheAbas');
+            caixa.replaceChildren();
+            RECORTES.forEach(([chave, rotulo]) => {
+                if (!dadosAtuais?.[chave]?.length) return;
+                const b = document.createElement('button');
+                b.className = 'aba' + (chave === recorteAtual ? ' ativa' : '');
+                b.textContent = rotulo;
+                b.addEventListener('click', () => {
+                    recorteAtual = chave;
+                    montarAbasDetalhe();
+                    renderDetalhe();
+                });
+                caixa.append(b);
+            });
+        }
+
+        function renderDetalhe() {
+            const linhas = dadosAtuais?.[recorteAtual] || [];
+            const rotulo = RECORTES.find(r => r[0] === recorteAtual)?.[1] || 'Item';
+            document.getElementById('detalheRotulo').textContent = rotulo;
+
+            const tbody = document.getElementById('tableBody');
+            tbody.replaceChildren();
+
+            if (!linhas.length) {
+                const tr = document.createElement('tr');
+                const td = document.createElement('td');
+                td.colSpan = 6; td.className = 'empty-state';
+                td.textContent = 'Nenhum dado no período com estes filtros.';
+                tr.append(td); tbody.append(tr);
                 return;
             }
 
+            linhas.forEach(row => {
+                const taxa = Number(row.taxa) || 0;
+                const [classe, texto] = taxa >= 80 ? ['excellent', 'Boa']
+                                      : taxa >= 50 ? ['regular', 'Regular']
+                                      : ['critical', 'Baixa'];
+
+                const tr = document.createElement('tr');
+                const cel = (t, c) => { const td = document.createElement('td');
+                    if (c) td.className = c; td.textContent = t; return td; };
+
+                tr.append(cel(row.rotulo, 'forte'));
+                tr.append(cel(String(row.geradas), 'center number-blue'));
+                tr.append(cel(String(row.devolvidas), 'center number-green'));
+                tr.append(cel(String(row.pendentes), 'center number-red'));
+
+                const tdTaxa = document.createElement('td');
+                tdTaxa.className = 'center';
+                const b1 = document.createElement('span');
+                b1.className = 'badge rate'; b1.textContent = taxa + '%';
+                tdTaxa.append(b1); tr.append(tdTaxa);
+
+                const tdSit = document.createElement('td');
+                tdSit.className = 'center';
+                const b2 = document.createElement('span');
+                b2.className = 'badge ' + classe; b2.textContent = texto;
+                tdSit.append(b2); tr.append(tdSit);
+
+                tbody.append(tr);
+            });
+        }
+
+        // ---------- CSV ----------
+        function exportarCSV() {
+            if (!dadosAtuais) { alert('Carregue os dados primeiro.'); return; }
+
+            const aspas = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
             const dataInicio = document.getElementById('dateStart').value;
             const dataFim = document.getElementById('dateEnd').value;
-            
-            let csv = 'Empresa,Enviadas,Retornadas,Pendentes,Taxa de Retorno,Status\n';
-            
-            dadosAtuais.porEmpresa.forEach(row => {
-                const taxa = row.taxaRetorno || 0;
-                let status;
-                if (taxa >= 80) status = 'Excelente';
-                else if (taxa >= 50) status = 'Regular';
-                else status = 'Crítico';
-                
-                csv += `"${getEmpresaNome(row.empresaId)}",${row.enviadas || 0},${row.retornadas || 0},${row.pendentes || 0},"${taxa}%","${status}"\n`;
+
+            let csv = `Relatorio de justificativas;${dataInicio} a ${dataFim}\n\n`;
+
+            csv += 'RESUMO\nGeradas;Devolvidas;Pendentes;Taxa;Pessoas\n';
+            const t = dadosAtuais.totais || {};
+            csv += `${t.geradas};${t.devolvidas};${t.pendentes};${t.taxaRetorno}%;${t.pessoas}\n\n`;
+
+            // Demitidos em bloco próprio: é a parte da pendência que não se cobra
+            const dm = dadosAtuais.demitidos || {};
+            if (dm.geradas) {
+                csv += 'DEMITIDOS\nPessoas;Geradas;Devolvidas;Pendentes\n';
+                csv += `${dm.pessoas};${dm.geradas};${dm.devolvidas};${dm.pendentes}\n\n`;
+                csv += 'REG;Colaborador;Geradas;Devolvidas;Pendentes\n';
+                (dm.lista || []).forEach(r => {
+                    csv += `${aspas(r.reg)};${aspas(r.nome)};${r.geradas};${r.devolvidas};${r.pendentes}\n`;
+                });
+                csv += '\n';
+            }
+
+            RECORTES.forEach(([chave, rotulo]) => {
+                const linhas = dadosAtuais[chave] || [];
+                if (!linhas.length) return;
+                csv += `${rotulo.toUpperCase()}\n${rotulo};Geradas;Devolvidas;Pendentes;Taxa\n`;
+                linhas.forEach(r => {
+                    csv += `${aspas(r.rotulo)};${r.geradas};${r.devolvidas};${r.pendentes};${r.taxa}%\n`;
+                });
+                csv += '\n';
             });
-            
-            // Adicionar linha de totais
-            csv += `\n"TOTAL",${dadosAtuais.totais.enviadas},${dadosAtuais.totais.retornadas},${dadosAtuais.totais.pendentes},"${dadosAtuais.totais.taxaRetorno}%",""\n`;
-            
-            // Download
-            const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+
+            csv += 'RANKING DE PENDENTES\nPosicao;REG;Colaborador;Projeto;Lider;Supervisor;Geradas;Devolvidas;Pendentes;% pendente\n';
+            (dadosAtuais.ranking || []).forEach((r, i) => {
+                csv += `${i + 1};${aspas(r.reg)};${aspas(r.nome)};${aspas(r.projeto)};${aspas(r.lider)};`
+                     + `${aspas(r.supervisor)};${r.geradas};${r.devolvidas};${r.pendentes};${r.pct_pendente}%\n`;
+            });
+
+            // ; como separador e BOM: é o que o Excel em pt-BR abre sem pedir nada
+            const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
             const link = document.createElement('a');
             link.href = URL.createObjectURL(blob);
-            link.download = `relatorio_justificativas_${dataInicio}_${dataFim}.csv`;
+            link.download = `relatorio_justificativas_${dataInicio}_a_${dataFim}.csv`;
             link.click();
+            URL.revokeObjectURL(link.href);
         }
     </script>
 </body>
