@@ -1451,6 +1451,29 @@
             color: #08170F; box-shadow: 0 8px 22px rgba(111, 207, 123, .25);
         }
         .perg-btn.ok:hover { filter: brightness(1.08); }
+        .perg-btn.excluir {
+            margin-right: auto;                 /* longe do Salvar, para não errar o clique */
+            background: transparent; border-color: rgba(220, 74, 63, .4); color: #E8776C;
+        }
+        .perg-btn.excluir:hover { background: #DC4A3F; border-color: #DC4A3F; color: #fff; }
+        .perg-btn[hidden] { display: none; }
+
+        /* Respostas rápidas */
+        .perg-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 15px; }
+        .perg-tag {
+            padding: 6px 12px; border-radius: 999px;
+            background: rgba(255, 255, 255, .05);
+            border: 1px solid rgba(255, 255, 255, .14);
+            color: #C8DCCD; font-family: inherit; font-size: 11.5px; font-weight: 600;
+            cursor: pointer; transition: all .15s;
+        }
+        .perg-tag:hover {
+            background: rgba(111, 207, 123, .16);
+            border-color: rgba(111, 207, 123, .45); color: #EAF1E8;
+        }
+        .perg-tag.ativa {
+            background: #6FCF7B; border-color: #6FCF7B; color: #0F251D;
+        }
 
         /* Carregando: a marca gira enquanto os formulários são preparados */
         .carregando-marca {
@@ -1662,40 +1685,55 @@
             box-shadow: inset 0 0 0 1px rgba(62, 155, 88, 0.3);
         }
 
+        /* Mesmo canto do ✕: um substitui o outro, nunca aparecem juntos */
         .approved-badge {
             position: absolute;
-            bottom: 2px;
-            left: 2px;
-            width: 16px;
-            height: 16px;
-            background: #10b981;
+            top: 50%; left: 3px;
+            transform: translateY(-50%);
+            width: 17px;
+            height: 17px;
+            background: #1F7A3F;
             color: white;
+            border: 1.5px solid #1F7A3F;
             border-radius: 50%;
-            font-size: 11px;
-            line-height: 16px;
+            font-size: 10px;
+            line-height: 14px;
             text-align: center;
             font-weight: bold;
             z-index: 10;
         }
 
+        /* Um canto para cada coisa, e dois estados nunca no mesmo canto:
+             topo-esquerda  → aprovar (pendente) OU aprovado (feito), que são
+                              mutuamente exclusivos na renderização
+             baixo-esquerda → excluir pergunta
+             topo-direita   → adicionar pergunta (aparece no hover)
+             baixo-direita  → já tem pergunta (pontinho)
+           O aprovado estava em baixo-esquerda: com a linha mais compacta
+           (padding de 7px para 5px) ele passou a invadir o ✖ de cima. */
         .approve-icon {
             position: absolute;
-            top: 2px;
-            left: 2px;
+            top: 50%; left: 3px;
+            transform: translateY(-50%);
+            width: 17px; height: 17px;
+            display: flex; align-items: center; justify-content: center;
+            border-radius: 50%;
+            background: #fff;
+            border: 1.5px solid #E5534B;
+            color: #E5534B;
+            font-size: 11px; font-weight: 800; line-height: 1;
             cursor: pointer;
-            font-size: 16px;
-            opacity: 0.7;
-            transition: all 0.2s;
-            z-index: 10;
+            transition: all 0.18s;
+            z-index: 11;
         }
-        
+
         .approve-icon::before {
-            content: '✅';
+            content: '✕';
         }
 
         .approve-icon:hover {
-            opacity: 1;
-            transform: scale(1.2);
+            background: #1F7A3F; border-color: #1F7A3F; color: #fff;
+            transform: translateY(-50%) scale(1.12);
         }
 
         .swap-icon {
@@ -1720,7 +1758,8 @@
            Virou um botão discreto que só aparece com o mouse na célula. */
         .question-icon {
             position: absolute;
-            top: 3px; right: 3px;
+            top: 50%; right: 3px;
+            transform: translateY(-50%);
             width: 17px; height: 17px;
             display: flex; align-items: center; justify-content: center;
             border-radius: 50%;
@@ -1736,9 +1775,16 @@
 
         td:hover > .question-icon { opacity: 1; }
         .question-icon:hover {
-            opacity: 1; transform: scale(1.12);
+            opacity: 1; transform: translateY(-50%) scale(1.12);
             background: #1F7A3F; border-color: #1F7A3F; color: #fff;
         }
+        /* Já tem pergunta: fica visível sempre, em âmbar. Substitui o pontinho
+           separado — quatro marcas nos cantos de uma célula de 28px se cruzavam. */
+        .question-icon.tem {
+            opacity: 1;
+            background: #E8A33F; border-color: #E8A33F; color: #fff;
+        }
+        .question-icon.tem::before { content: '!'; }
         .question-icon:focus-visible { opacity: 1; outline: 2px solid #1F7A3F; }
 
         /* Já existe pergunta: fica visível sempre, em âmbar */
@@ -1752,17 +1798,20 @@
             cursor: help;
         }
 
+        /* Sai do topo-esquerda, que agora é do aprovar/aprovado */
         .delete-question-icon {
             position: absolute;
-            top: 2px;
+            bottom: 2px;
             left: 2px;
             cursor: pointer;
-            font-size: 14px;
-            opacity: 0.7;
-            transition: all 0.2s;
+            font-size: 12px;
+            opacity: 0;
+            transition: all 0.18s;
             z-index: 10;
-            color: #ef4444;
+            color: #E5534B;
         }
+        td:hover > .delete-question-icon { opacity: .85; }
+        .delete-question-icon:hover { opacity: 1; transform: scale(1.15); }
         
         .delete-question-icon::before {
             content: '❌';
@@ -3033,6 +3082,9 @@
             <div class="perg-corpo">
                 <div class="perg-batida" id="questionBatida"></div>
 
+                <label class="perg-rotulo">Respostas rápidas</label>
+                <div class="perg-tags" id="questionTags"></div>
+
                 <label class="perg-rotulo" for="questionInput">Sua pergunta</label>
                 <textarea id="questionInput" class="perg-input" rows="4" maxlength="500"
                           placeholder="Ex.: por que a saída ficou às 10:00 se o expediente ia até as 17:00?"></textarea>
@@ -3044,6 +3096,7 @@
             </div>
 
             <footer class="perg-acoes">
+                <button class="perg-btn excluir" id="questionDeleteBtn" hidden>Remover</button>
                 <button class="perg-btn sec" id="questionCancelBtn">Cancelar</button>
                 <button class="perg-btn ok" id="questionOkBtn">Salvar pergunta</button>
             </footer>
@@ -6153,85 +6206,65 @@
                         data-punch="ent1"
                         data-name="${emp.name}">
                         ${colunasErradas.has('ent1') && !emp.approved?.ent1 ? '<span class="approve-icon" onclick="approveSwappedTime(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'ent1\', \'' + emp.name + '\')" title="Aprovar Horário trocado"></span>' : ''}
-                        ${emp.questions?.ent1 ? '<span class="delete-question-icon" onclick="deleteQuestion(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'ent1\')" title="Excluir pergunta"></span>' : ''}
-                        ${'<span class="question-icon" onclick="askQuestion(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'ent1\', \'' + emp.name + '\')" title="Adicionar pergunta"></span>'}
+                        ${`<span class="question-icon${emp.questions?.ent1 ? ' tem' : ''}" onclick="askQuestion(event, '${emp.reg}', '${emp.date}', 'ent1', '${emp.name}')" title="${emp.questions?.ent1 ? String(emp.questions?.ent1).replace(/"/g, '&quot;') : 'Adicionar pergunta'}"></span>`}
                         <span class="punch-time ${emp.approved?.ent1 ? 'approved' : getTimeClass('ent1', emp.punches.ent1)}" style="font-size: 13px; font-family: 'Courier New', monospace;">
                             ${getMotivoOuHorario(emp.punches.ent1, emp.motivo)}
                         </span>
-                        ${emp.questions?.ent1 ? '<span class="has-question" title="' + emp.questions.ent1 + '">💬</span>' : ''}
                         ${emp.approved?.ent1 ? '<span class="approved-badge" title="Aprovado por RH: ' + emp.approved.ent1 + '">✅</span>' : ''}
                     </td>
                     <td class="center punch-cell" style="width: 100px; position: relative;" data-reg="${emp.reg}" data-date="${emp.date}" data-punch="sai1" data-name="${emp.name}">
                         ${colunasErradas.has('sai1') && !emp.approved?.sai1 ? '<span class="approve-icon" onclick="approveSwappedTime(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'sai1\', \'' + emp.name + '\')" title="Aprovar Horário trocado"></span>' : ''}
-                        ${emp.questions?.sai1 ? '<span class="delete-question-icon" onclick="deleteQuestion(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'sai1\')" title="Excluir pergunta"></span>' : ''}
-                        ${'<span class="question-icon" onclick="askQuestion(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'sai1\', \'' + emp.name + '\')" title="Adicionar pergunta"></span>'}
+                        ${`<span class="question-icon${emp.questions?.sai1 ? ' tem' : ''}" onclick="askQuestion(event, '${emp.reg}', '${emp.date}', 'sai1', '${emp.name}')" title="${emp.questions?.sai1 ? String(emp.questions?.sai1).replace(/"/g, '&quot;') : 'Adicionar pergunta'}"></span>`}
                         <span class="punch-time ${emp.approved?.sai1 ? 'approved' : getTimeClass('sai1', emp.punches.sai1)}">${getMotivoOuHorario(emp.punches.sai1, emp.motivo)}</span>
-                        ${emp.questions?.sai1 ? '<span class="has-question" title="' + emp.questions.sai1 + '">💬</span>' : ''}
                         ${emp.approved?.sai1 ? '<span class="approved-badge" title="Aprovado por RH: ' + emp.approved.sai1 + '">✅</span>' : ''}
                     </td>
                     <td class="center punch-cell" style="width: 100px; position: relative;" data-reg="${emp.reg}" data-date="${emp.date}" data-punch="ent2" data-name="${emp.name}">
                         ${colunasErradas.has('ent2') && !emp.approved?.ent2 ? '<span class="approve-icon" onclick="approveSwappedTime(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'ent2\', \'' + emp.name + '\')" title="Aprovar Horário trocado"></span>' : ''}
-                        ${emp.questions?.ent2 ? '<span class="delete-question-icon" onclick="deleteQuestion(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'ent2\')" title="Excluir pergunta"></span>' : ''}
-                        ${'<span class="question-icon" onclick="askQuestion(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'ent2\', \'' + emp.name + '\')" title="Adicionar pergunta"></span>'}
+                        ${`<span class="question-icon${emp.questions?.ent2 ? ' tem' : ''}" onclick="askQuestion(event, '${emp.reg}', '${emp.date}', 'ent2', '${emp.name}')" title="${emp.questions?.ent2 ? String(emp.questions?.ent2).replace(/"/g, '&quot;') : 'Adicionar pergunta'}"></span>`}
                         <span class="punch-time ${emp.approved?.ent2 ? 'approved' : getTimeClass('ent2', emp.punches.ent2)}">${getMotivoOuHorario(emp.punches.ent2, emp.motivo)}</span>
-                        ${emp.questions?.ent2 ? '<span class="has-question" title="' + emp.questions.ent2 + '">💬</span>' : ''}
                         ${emp.approved?.ent2 ? '<span class="approved-badge" title="Aprovado por RH: ' + emp.approved.ent2 + '">✅</span>' : ''}
                     </td>
                     <td class="center punch-cell" style="width: 100px; position: relative;" data-reg="${emp.reg}" data-date="${emp.date}" data-punch="sai2" data-name="${emp.name}">
                         ${colunasErradas.has('sai2') && !emp.approved?.sai2 ? '<span class="approve-icon" onclick="approveSwappedTime(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'sai2\', \'' + emp.name + '\')" title="Aprovar Horário trocado"></span>' : ''}
-                        ${emp.questions?.sai2 ? '<span class="delete-question-icon" onclick="deleteQuestion(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'sai2\')" title="Excluir pergunta"></span>' : ''}
-                        ${'<span class="question-icon" onclick="askQuestion(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'sai2\', \'' + emp.name + '\')" title="Adicionar pergunta"></span>'}
+                        ${`<span class="question-icon${emp.questions?.sai2 ? ' tem' : ''}" onclick="askQuestion(event, '${emp.reg}', '${emp.date}', 'sai2', '${emp.name}')" title="${emp.questions?.sai2 ? String(emp.questions?.sai2).replace(/"/g, '&quot;') : 'Adicionar pergunta'}"></span>`}
                         <span class="punch-time ${emp.approved?.sai2 ? 'approved' : getTimeClass('sai2', emp.punches.sai2)}">${getMotivoOuHorario(emp.punches.sai2, emp.motivo)}</span>
-                        ${emp.questions?.sai2 ? '<span class="has-question" title="' + emp.questions.sai2 + '">💬</span>' : ''}
                         ${emp.approved?.sai2 ? '<span class="approved-badge" title="Aprovado por RH: ' + emp.approved.sai2 + '">✅</span>' : ''}
                     </td>
                     <td style="width: 28px; min-width: 28px; max-width: 28px; padding: 0; border: none;"></td>
                     <td class="center punch-cell col-extra" style="width: 100px; position: relative;" data-reg="${emp.reg}" data-date="${emp.date}" data-punch="ent3" data-name="${emp.name}">
                         ${colunasErradas.has('ent3') && !emp.approved?.ent3 ? '<span class="approve-icon" onclick="approveSwappedTime(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'ent3\', \'' + emp.name + '\')" title="Aprovar Horário trocado"></span>' : ''}
-                        ${emp.questions?.ent3 ? '<span class="delete-question-icon" onclick="deleteQuestion(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'ent3\')" title="Excluir pergunta"></span>' : ''}
-                        ${'<span class="question-icon" onclick="askQuestion(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'ent3\', \'' + emp.name + '\')" title="Adicionar pergunta"></span>'}
+                        ${`<span class="question-icon${emp.questions?.ent3 ? ' tem' : ''}" onclick="askQuestion(event, '${emp.reg}', '${emp.date}', 'ent3', '${emp.name}')" title="${emp.questions?.ent3 ? String(emp.questions?.ent3).replace(/"/g, '&quot;') : 'Adicionar pergunta'}"></span>`}
                         <span class="punch-time ${emp.approved?.ent3 ? 'approved' : getTimeClass('ent3', emp.punches.ent3)}">${getMotivoOuHorario(emp.punches.ent3, emp.motivo)}</span>
-                        ${emp.questions?.ent3 ? '<span class="has-question" title="' + emp.questions.ent3 + '">💬</span>' : ''}
                         ${emp.approved?.ent3 ? '<span class="approved-badge" title="Aprovado por RH: ' + emp.approved.ent3 + '">✅</span>' : ''}
                     </td>
                     <td class="center punch-cell col-extra" style="width: 100px; position: relative;" data-reg="${emp.reg}" data-date="${emp.date}" data-punch="sai3" data-name="${emp.name}">
                         ${colunasErradas.has('sai3') && !emp.approved?.sai3 ? '<span class="approve-icon" onclick="approveSwappedTime(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'sai3\', \'' + emp.name + '\')" title="Aprovar Horário trocado"></span>' : ''}
-                        ${emp.questions?.sai3 ? '<span class="delete-question-icon" onclick="deleteQuestion(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'sai3\')" title="Excluir pergunta"></span>' : ''}
-                        ${'<span class="question-icon" onclick="askQuestion(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'sai3\', \'' + emp.name + '\')" title="Adicionar pergunta"></span>'}
+                        ${`<span class="question-icon${emp.questions?.sai3 ? ' tem' : ''}" onclick="askQuestion(event, '${emp.reg}', '${emp.date}', 'sai3', '${emp.name}')" title="${emp.questions?.sai3 ? String(emp.questions?.sai3).replace(/"/g, '&quot;') : 'Adicionar pergunta'}"></span>`}
                         <span class="punch-time ${emp.approved?.sai3 ? 'approved' : getTimeClass('sai3', emp.punches.sai3)}">${getMotivoOuHorario(emp.punches.sai3, emp.motivo)}</span>
-                        ${emp.questions?.sai3 ? '<span class="has-question" title="' + emp.questions.sai3 + '">💬</span>' : ''}
                         ${emp.approved?.sai3 ? '<span class="approved-badge" title="Aprovado por RH: ' + emp.approved.sai3 + '">✅</span>' : ''}
                     </td>
                     <td class="center punch-cell col-extra" style="width: 100px; position: relative;" data-reg="${emp.reg}" data-date="${emp.date}" data-punch="ent4" data-name="${emp.name}">
                         ${colunasErradas.has('ent4') && !emp.approved?.ent4 ? '<span class="approve-icon" onclick="approveSwappedTime(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'ent4\', \'' + emp.name + '\')" title="Aprovar Horário trocado"></span>' : ''}
-                        ${emp.questions?.ent4 ? '<span class="delete-question-icon" onclick="deleteQuestion(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'ent4\')" title="Excluir pergunta"></span>' : ''}
-                        ${'<span class="question-icon" onclick="askQuestion(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'ent4\', \'' + emp.name + '\')" title="Adicionar pergunta"></span>'}
+                        ${`<span class="question-icon${emp.questions?.ent4 ? ' tem' : ''}" onclick="askQuestion(event, '${emp.reg}', '${emp.date}', 'ent4', '${emp.name}')" title="${emp.questions?.ent4 ? String(emp.questions?.ent4).replace(/"/g, '&quot;') : 'Adicionar pergunta'}"></span>`}
                         <span class="punch-time ${emp.approved?.ent4 ? 'approved' : getTimeClass('ent4', emp.punches.ent4)}">${getMotivoOuHorario(emp.punches.ent4, emp.motivo)}</span>
-                        ${emp.questions?.ent4 ? '<span class="has-question" title="' + emp.questions.ent4 + '">💬</span>' : ''}
                         ${emp.approved?.ent4 ? '<span class="approved-badge" title="Aprovado por RH: ' + emp.approved.ent4 + '">✅</span>' : ''}
                     </td>
                     <td class="center punch-cell col-extra" style="width: 100px; position: relative;" data-reg="${emp.reg}" data-date="${emp.date}" data-punch="sai4" data-name="${emp.name}">
                         ${colunasErradas.has('sai4') && !emp.approved?.sai4 ? '<span class="approve-icon" onclick="approveSwappedTime(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'sai4\', \'' + emp.name + '\')" title="Aprovar Horário trocado"></span>' : ''}
-                        ${emp.questions?.sai4 ? '<span class="delete-question-icon" onclick="deleteQuestion(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'sai4\')" title="Excluir pergunta"></span>' : ''}
-                        ${'<span class="question-icon" onclick="askQuestion(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'sai4\', \'' + emp.name + '\')" title="Adicionar pergunta"></span>'}
+                        ${`<span class="question-icon${emp.questions?.sai4 ? ' tem' : ''}" onclick="askQuestion(event, '${emp.reg}', '${emp.date}', 'sai4', '${emp.name}')" title="${emp.questions?.sai4 ? String(emp.questions?.sai4).replace(/"/g, '&quot;') : 'Adicionar pergunta'}"></span>`}
                         <span class="punch-time ${emp.approved?.sai4 ? 'approved' : getTimeClass('sai4', emp.punches.sai4)}">${getMotivoOuHorario(emp.punches.sai4, emp.motivo)}</span>
-                        ${emp.questions?.sai4 ? '<span class="has-question" title="' + emp.questions.sai4 + '">💬</span>' : ''}
                         ${emp.approved?.sai4 ? '<span class="approved-badge" title="Aprovado por RH: ' + emp.approved.sai4 + '">✅</span>' : ''}
                     </td>
                     <td class="center punch-cell col-extra" style="width: 100px; position: relative;" data-reg="${emp.reg}" data-date="${emp.date}" data-punch="ent5" data-name="${emp.name}">
                         ${colunasErradas.has('ent5') && !emp.approved?.ent5 ? '<span class="approve-icon" onclick="approveSwappedTime(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'ent5\', \'' + emp.name + '\')" title="Aprovar Horário trocado"></span>' : ''}
-                        ${emp.questions?.ent5 ? '<span class="delete-question-icon" onclick="deleteQuestion(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'ent5\')" title="Excluir pergunta"></span>' : ''}
-                        ${'<span class="question-icon" onclick="askQuestion(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'ent5\', \'' + emp.name + '\')" title="Adicionar pergunta"></span>'}
+                        ${`<span class="question-icon${emp.questions?.ent5 ? ' tem' : ''}" onclick="askQuestion(event, '${emp.reg}', '${emp.date}', 'ent5', '${emp.name}')" title="${emp.questions?.ent5 ? String(emp.questions?.ent5).replace(/"/g, '&quot;') : 'Adicionar pergunta'}"></span>`}
                         <span class="punch-time ${emp.approved?.ent5 ? 'approved' : getTimeClass('ent5', emp.punches.ent5)}">${getMotivoOuHorario(emp.punches.ent5, emp.motivo)}</span>
-                        ${emp.questions?.ent5 ? '<span class="has-question" title="' + emp.questions.ent5 + '">💬</span>' : ''}
                         ${emp.approved?.ent5 ? '<span class="approved-badge" title="Aprovado por RH: ' + emp.approved.ent5 + '">✅</span>' : ''}
                     </td>
                     <td class="center punch-cell col-extra" style="width: 100px; position: relative;" data-reg="${emp.reg}" data-date="${emp.date}" data-punch="sai5" data-name="${emp.name}">
                         ${colunasErradas.has('sai5') && !emp.approved?.sai5 ? '<span class="approve-icon" onclick="approveSwappedTime(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'sai5\', \'' + emp.name + '\')" title="Aprovar Horário trocado"></span>' : ''}
-                        ${emp.questions?.sai5 ? '<span class="delete-question-icon" onclick="deleteQuestion(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'sai5\')" title="Excluir pergunta"></span>' : ''}
-                        ${'<span class="question-icon" onclick="askQuestion(event, \'' + emp.reg + '\', \'' + emp.date + '\', \'sai5\', \'' + emp.name + '\')" title="Adicionar pergunta"></span>'}
+                        ${`<span class="question-icon${emp.questions?.sai5 ? ' tem' : ''}" onclick="askQuestion(event, '${emp.reg}', '${emp.date}', 'sai5', '${emp.name}')" title="${emp.questions?.sai5 ? String(emp.questions?.sai5).replace(/"/g, '&quot;') : 'Adicionar pergunta'}"></span>`}
                         <span class="punch-time ${emp.approved?.sai5 ? 'approved' : getTimeClass('sai5', emp.punches.sai5)}">${getMotivoOuHorario(emp.punches.sai5, emp.motivo)}</span>
-                        ${emp.questions?.sai5 ? '<span class="has-question" title="' + emp.questions.sai5 + '">💬</span>' : ''}
                         ${emp.approved?.sai5 ? '<span class="approved-badge" title="Aprovado por RH: ' + emp.approved.sai5 + '">✅</span>' : ''}
                     </td>
                     <td class="cel-motivo">${emp.motivo || '—'}</td>
@@ -9236,6 +9269,17 @@
             document.getElementById('questionOkBtn').textContent =
                 existente ? 'Atualizar pergunta' : 'Salvar pergunta';
 
+            // Remover vive aqui: o ícone de excluir na célula disputava canto com
+            // o de aprovar, numa linha de 28px que não comporta quatro marcas.
+            const btnExcluir = document.getElementById('questionDeleteBtn');
+            btnExcluir.hidden = !existente;
+            btnExcluir.onclick = () => {
+                fecharModalPergunta();
+                deleteQuestion(new Event('click'), reg, date, punchType);
+            };
+
+            montarTagsPergunta();
+
             const contador = document.getElementById('questionCount');
             if (contador) contador.textContent = existente.length;
 
@@ -9304,6 +9348,55 @@
                 }
             }
         });
+
+        // Respostas que se repetem todo dia. Clicar preenche na hora; clicar de
+        // novo tira. É o que o RH digitaria de qualquer jeito, sem digitar.
+        const TAGS_PERGUNTA = [
+            'Jornada noturna',
+            'Autorizado pelo supervisor',
+            'Autorizado pelo coordenador',
+            'Hora extra autorizada',
+            'Esqueceu de bater',
+            'Falha no aplicativo'
+        ];
+
+        function montarTagsPergunta() {
+            const caixa = document.getElementById('questionTags');
+            const campo = document.getElementById('questionInput');
+            if (!caixa || !campo) return;
+
+            caixa.replaceChildren();
+
+            TAGS_PERGUNTA.forEach(texto => {
+                const tag = document.createElement('button');
+                tag.type = 'button';
+                tag.className = 'perg-tag';
+                tag.textContent = texto;
+
+                const jaTem = () => campo.value.includes(texto);
+                tag.classList.toggle('ativa', jaTem());
+
+                tag.addEventListener('click', () => {
+                    if (jaTem()) {
+                        // Tira a tag e limpa a pontuação que sobrou
+                        campo.value = campo.value
+                            .replace(texto, '')
+                            .replace(/\s*\.\s*\./g, '.')
+                            .replace(/^\s*\.\s*/, '')
+                            .trim();
+                    } else {
+                        const base = campo.value.trim();
+                        campo.value = base ? `${base.replace(/\.$/, '')}. ${texto}` : texto;
+                    }
+
+                    campo.dispatchEvent(new Event('input', { bubbles: true }));
+                    campo.focus();
+                    montarTagsPergunta();
+                });
+
+                caixa.append(tag);
+            });
+        }
 
         function fecharModalPergunta() {
             document.getElementById('questionModal').hidden = true;
