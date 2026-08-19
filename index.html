@@ -823,6 +823,181 @@
         .fech-chip.escolhido span { color: rgba(15, 37, 29, .7); }
 
         /* ==========================================================
+           LOGS DE ENVIO
+           O envio à Secullum roda atrás; esta é a janela onde o RH confere
+           o que foi, o que falta e o que falhou — e reenvia sem refazer nada.
+           ========================================================== */
+        .topbar-selo {
+            min-width: 17px; height: 17px; padding: 0 5px;
+            display: inline-flex; align-items: center; justify-content: center;
+            border-radius: 999px; margin-left: 2px;
+            background: rgba(234, 241, 232, .2); color: var(--lar-text);
+            font-size: 10px; font-weight: 800; font-variant-numeric: tabular-nums;
+        }
+        .topbar-selo.erro { background: #DC4A3F; color: #fff; }
+        .topbar-selo[hidden] { display: none; }
+
+        .logs-fundo {
+            position: fixed; inset: 0; z-index: 10250;
+            display: flex; align-items: center; justify-content: center;
+            padding: 3vh 3vw;
+            background: rgba(6, 16, 12, .78);
+            backdrop-filter: blur(14px);
+            animation: gerEntra .22s ease;
+        }
+        .logs-fundo[hidden] { display: none !important; }
+
+        .logs-caixa {
+            width: min(1120px, 96vw); max-height: 92vh;
+            display: flex; flex-direction: column;
+            background: linear-gradient(160deg, #143026 0%, #0D1E18 62%, #0B1A14 100%);
+            border: 1px solid rgba(111, 207, 123, .2);
+            border-radius: 20px;
+            box-shadow: 0 34px 90px rgba(0, 0, 0, .62);
+            overflow: hidden;
+            animation: anxEntra .28s cubic-bezier(.2, .9, .3, 1);
+        }
+
+        .logs-topo {
+            display: flex; align-items: center; gap: 14px;
+            padding: 15px 18px;
+            background: rgba(255, 255, 255, .035);
+            border-bottom: 1px solid rgba(111, 207, 123, .14);
+        }
+        .logs-topo h2 { margin: 0; font-size: 16px; font-weight: 700; color: #EAF1E8; }
+        .logs-topo p { margin: 3px 0 0; font-size: 11.5px; color: #9DB5A4; }
+
+        .logs-btn-limpar {
+            margin-left: auto; padding: 8px 14px; border-radius: 10px;
+            background: rgba(255, 255, 255, .05);
+            border: 1px solid rgba(255, 255, 255, .14);
+            color: #C8D8CC; font-family: inherit; font-size: 11.5px; font-weight: 600;
+            cursor: pointer; transition: .18s; white-space: nowrap;
+        }
+        .logs-btn-limpar:hover { background: rgba(255, 255, 255, .1); color: #EAF1E8; }
+
+        .logs-x {
+            width: 32px; height: 32px; border-radius: 10px; flex-shrink: 0;
+            border: 1px solid rgba(255, 255, 255, .12);
+            background: rgba(255, 255, 255, .04);
+            color: #C8D8CC; font-size: 20px; line-height: 1; cursor: pointer; transition: .18s;
+        }
+        .logs-x:hover { background: #DC4A3F; border-color: #DC4A3F; color: #fff; }
+
+        .logs-resumo {
+            display: flex; flex-wrap: wrap; gap: 7px;
+            padding: 13px 18px;
+            border-bottom: 1px solid rgba(111, 207, 123, .12);
+        }
+        .log-filtro {
+            display: inline-flex; align-items: center; gap: 7px;
+            padding: 6px 12px; border-radius: 999px;
+            background: rgba(255, 255, 255, .04);
+            border: 1px solid rgba(255, 255, 255, .12);
+            color: #A9C1AC; font-family: inherit; font-size: 11.5px; font-weight: 600;
+            cursor: pointer; transition: .15s;
+        }
+        .log-filtro b { font-variant-numeric: tabular-nums; color: #EAF1E8; }
+        .log-filtro:hover { border-color: rgba(111, 207, 123, .4); color: #EAF1E8; }
+        .log-filtro.ativa { background: #6FCF7B; border-color: #6FCF7B; color: #0F251D; }
+        .log-filtro.ativa b { color: #0F251D; }
+        .log-filtro.tem-erro b { color: #E8776C; }
+        .log-filtro.tem-erro.ativa b { color: #0F251D; }
+
+        .logs-tabela-wrap { flex: 1 1 auto; min-height: 0; overflow: auto; }
+        /* min-width: 0 anula o min-width: 1420px da tabela principal, que
+           tambem alcancava esta e empurrava a coluna de acoes para fora. */
+        .logs-tabela {
+            width: 100%; min-width: 0;
+            border-collapse: collapse; table-layout: fixed;
+        }
+
+        /* A tabela principal pinta tbody tr:nth-child(even) de branco e o hover
+           de verde claro. Sem anular aqui, os logs herdavam faixas brancas com
+           texto claro por cima — ilegivel. */
+        .logs-tabela tbody tr,
+        .logs-tabela tbody tr:nth-child(even) { background: transparent; }
+        .logs-tabela tbody tr:hover { background: rgba(255, 255, 255, .04); }
+
+        /* Larguras fixas: sem isso a mensagem de erro empurrava a coluna de
+           acoes para fora da janela */
+        .logs-tabela th:nth-child(1), .logs-tabela td:nth-child(1) { width: 26%; }
+        .logs-tabela th:nth-child(2), .logs-tabela td:nth-child(2) { width: 13%; }
+        .logs-tabela th:nth-child(3), .logs-tabela td:nth-child(3) { width: 10%; }
+        .logs-tabela th:nth-child(4), .logs-tabela td:nth-child(4) { width: 21%; }
+        .logs-tabela th:nth-child(5), .logs-tabela td:nth-child(5) { width: 16%; }
+        .logs-tabela th:nth-child(6), .logs-tabela td:nth-child(6) { width: 14%; }
+        .logs-tabela thead th {
+            position: sticky; top: 0; z-index: 2;
+            padding: 9px 14px; text-align: left;
+            background: #10261D;
+            border-bottom: 1px solid rgba(111, 207, 123, .16);
+            font-size: 9.5px; font-weight: 700; letter-spacing: .1em;
+            text-transform: uppercase; color: #7C9484; white-space: nowrap;
+        }
+        .logs-tabela td {
+            padding: 9px 14px;
+            border-bottom: 1px solid rgba(234, 241, 232, .07);
+            font-size: 12px; color: #C8DCCD; vertical-align: middle;
+        }
+        .logs-tabela tbody tr:hover { background: rgba(255, 255, 255, .03); }
+        .logs-tabela .center { text-align: center; }
+
+        /* Sem flex: estas classes ficam no proprio <td>, e display:flex numa
+           celula a remove do layout da tabela — a largura da coluna passa a ser
+           ignorada e o conteudo dita o tamanho. */
+        .log-pessoa strong, .log-pessoa span { display: block; }
+        .log-pessoa strong {
+            font-size: 12.5px; font-weight: 600; color: #EAF1E8;
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
+        .log-pessoa span { font-size: 10px; color: #7C9484; }
+        .log-cpf { color: #9DB5A4; font-size: 11px; }
+
+        .log-horas { white-space: normal; }
+        .log-hora {
+            display: inline-block; margin: 2px 4px 2px 0;
+            padding: 2px 8px; border-radius: 999px;
+            background: rgba(111, 207, 123, .12);
+            border: 1px solid rgba(111, 207, 123, .28);
+            color: #BFE7C6; font-size: 10.5px; font-weight: 600;
+            font-variant-numeric: tabular-nums; white-space: nowrap;
+        }
+
+        .log-selo {
+            display: inline-block; padding: 3px 10px; border-radius: 999px;
+            font-size: 10px; font-weight: 700; letter-spacing: .04em; white-space: nowrap;
+        }
+        .log-selo.ok         { background: rgba(111, 207, 123, .18); color: #8FE09A; }
+        .log-selo.erro       { background: rgba(220, 74, 63, .2);   color: #F0A79F; }
+        .log-selo.aguardando { background: rgba(232, 185, 63, .16); color: #E8C77A; }
+        .log-selo.enviando   { background: rgba(127, 200, 169, .18); color: #A8DCC6; }
+        .log-selo.neutro     { background: rgba(255, 255, 255, .07); color: #94A99B; }
+
+        .log-erro {
+            margin-top: 4px; max-width: 100%;
+            font-size: 10px; line-height: 1.4; color: #C98F88;
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
+
+        .log-acoes { white-space: nowrap; }
+        .log-btn {
+            display: inline-block; margin: 2px 2px;
+            padding: 5px 11px; border-radius: 8px;
+            background: rgba(255, 255, 255, .05);
+            border: 1px solid rgba(255, 255, 255, .14);
+            color: #C8D8CC; font-family: inherit; font-size: 11px; font-weight: 600;
+            cursor: pointer; transition: .15s; white-space: nowrap;
+        }
+        .log-btn:hover { background: rgba(255, 255, 255, .1); color: #EAF1E8; }
+        .log-btn.reenviar {
+            background: #6FCF7B; border-color: #6FCF7B; color: #0F251D;
+        }
+        .log-btn.reenviar:hover { filter: brightness(1.08); }
+
+        .log-vazio { text-align: center; padding: 34px; color: #6E8375; font-size: 12.5px; }
+
+        /* ==========================================================
            TELA CHEIA
            Some tudo que não é filtro nem tabela. O botão fica DENTRO da linha
            de filtros de propósito: é a única barra que sobrevive ao modo, então
@@ -3164,6 +3339,10 @@
 
                 <button class="topbar-btn so-icone" id="btnAtualizar" title="Atualizar os dados do período" aria-label="Atualizar">
                     <span id="iconeAtualizar">↻</span>
+                </button>
+                <button class="topbar-btn" onclick="abrirLogs()" title="Envios à Secullum: fila, falhas e reenvio">
+                    <span>🗂</span><span>Logs</span>
+                    <span class="topbar-selo" id="seloLogs" hidden>0</span>
                 </button>
                 <button class="topbar-btn" onclick="openReportDashboard()">
                     <span>📈</span><span>Relatório</span>
@@ -8218,37 +8397,49 @@
                         // FECHAR MODAL PRIMEIRO
                         fecharModalAnexo();
                         
-                        // 📝 ENVIAR AUTOMATICAMENTE PARA SECULLUM (SEM CHECKBOX)
-                        console.log('📤 Enviando automaticamente para Secullum...');
-                        showLoading('Enviando para a Secullum');
-                        
-                        try {
-                            await enviarParaSecullum(empRef, true); // true = autoEnvio sem popup
-                            
-                            hideLoading();
-                            
-                            // Montar string de Horários enviados (usar empRef.punches que ã garantido)
-                            const horariosStr = [
-                                empRef.punches?.ent1, 
-                                empRef.punches?.sai1, 
-                                empRef.punches?.ent2, 
-                                empRef.punches?.sai2, 
-                                empRef.punches?.ent3, 
-                                empRef.punches?.sai3
-                            ].filter(h => h).join(', ');
-                            
-                            // O nome do arquivo no blob nao diz nada a quem usa;
-                            // o que importa e que entrou e quais horarios foram.
-                            showToast(
-                                `Justificativa anexada — ${horariosStr || 'sem horários novos'}`,
-                                'success'
-                            );
-                            
-                        } catch (err) {
-                            hideLoading();
-                            console.error('? Erro ao enviar para Secullum:', err);
-                            showAlert('Erro', `Anexo salvo mas erro ao enviar para Secullum:\n${err.message}`, 'error');
+                        // ==================================================
+                        // ENVIO À SECULLUM: vai para a fila, não segura ninguém
+                        //
+                        // Cada horário custa ~2,3s na Secullum. Prender o RH por
+                        // isso a cada colaborador era o que travava o trabalho.
+                        // A fila envia atrás e avisa se falhar; o que foi, o que
+                        // falta e o que deu erro fica em Logs, com reenvio.
+                        // ==================================================
+                        const COLUNAS = {
+                            ent1: 'Entrada1', sai1: 'Saida1',
+                            ent2: 'Entrada2', sai2: 'Saida2',
+                            ent3: 'Entrada3', sai3: 'Saida3'
+                        };
+                        const ehHora = v => /^\d{1,2}:\d{2}$/.test(v);
+
+                        // Só o que mudou: o que já estava batido não se reenvia
+                        const paraEnviar = Object.entries(COLUNAS)
+                            .map(([slot, coluna]) => ({ slot, coluna, hora: empRef.punches?.[slot] }))
+                            .filter(x => ehHora(x.hora))
+                            .filter(x => empRef._punchesOriginais?.[x.slot] !== x.hora)
+                            .map(({ coluna, hora }) => ({ coluna, hora }));
+
+                        if (paraEnviar.length) {
+                            const temIds = (empRef.rawData?.FuncionarioId || empRef.dadosCompletos?.FuncionarioId)
+                                        && (empRef.rawData?.Funcionario?.NumeroFolha || empRef.NumeroFolha);
+
+                            if (temIds) {
+                                filaEnfileirar(empRef, paraEnviar);
+                                const horas = paraEnviar.map(h => h.hora).join(', ');
+                                showToast(`Justificativa anexada. Enviando ${horas} à Secullum…`, 'success');
+                            } else {
+                                // Sem os identificadores a Secullum recusaria de
+                                // qualquer forma; melhor dizer agora do que falhar depois
+                                showToast(
+                                    'Justificativa anexada, mas faltam dados do funcionário '
+                                    + 'para enviar à Secullum. Atualize o período e tente pelos Logs.',
+                                    'warning', 8000
+                                );
+                            }
+                        } else {
+                            showToast('Justificativa anexada — sem horários novos para a Secullum.', 'success');
                         }
+
                     } else {
                         // O anexo JÁ foi salvo no servidor. Fechar o modal para o usuário
                         // não clicar de novo achando que falhou.
@@ -8959,6 +9150,340 @@
 
             // A tabela mede a altura a partir de onde começa; a linha nova empurra
             window.dispatchEvent(new Event('resize'));
+        });
+
+
+        // ==========================================================
+        // FILA DE ENVIO À SECULLUM
+        //
+        // Cada chamada à Secullum leva ~2,3s e não há o que fazer sobre isso do
+        // nosso lado. Em vez de segurar o RH nesse tempo, o envio vai para uma
+        // fila que roda atrás: o modal fecha na hora e a pessoa segue para o
+        // próximo colaborador.
+        //
+        // A fila fica no localStorage porque a aba pode ser fechada no meio —
+        // o que estava pendente reaparece na próxima abertura, em vez de sumir
+        // sem ninguém saber que aquela batida nunca chegou lá.
+        // ==========================================================
+        const FILA_CHAVE = 'larsil_fila_secullum';
+        const FILA_MAX = 200;            // histórico visível; acima disso os mais velhos saem
+        let filaEnvio = [];
+        let filaRodando = false;
+
+        function filaCarregar() {
+            try {
+                filaEnvio = JSON.parse(localStorage.getItem(FILA_CHAVE) || '[]');
+            } catch { filaEnvio = []; }
+
+            // Envio interrompido pelo fechamento da aba volta como pendente
+            filaEnvio.forEach(j => { if (j.estado === 'enviando') j.estado = 'pendente'; });
+        }
+
+        function filaSalvar() {
+            if (filaEnvio.length > FILA_MAX) {
+                // Descarta os concluídos mais antigos, nunca os pendentes
+                const abertos = filaEnvio.filter(j => j.estado === 'pendente' || j.estado === 'falhou');
+                const fechados = filaEnvio.filter(j => j.estado !== 'pendente' && j.estado !== 'falhou');
+                filaEnvio = [...fechados.slice(-Math.max(0, FILA_MAX - abertos.length)), ...abertos];
+            }
+            try { localStorage.setItem(FILA_CHAVE, JSON.stringify(filaEnvio)); } catch {}
+            atualizarSeloLogs();
+            if (document.getElementById('modalLogs')?.hidden === false) renderLogs();
+        }
+
+        /** Coloca um envio na fila e devolve o job. */
+        function filaEnfileirar(empRef, horarios) {
+            const job = {
+                id: `${empRef.reg}_${empRef.date}_${Date.now()}`,
+                reg: empRef.reg,
+                cpf: empRef.cpf || '',
+                nome: empRef.name || '',
+                data: empRef.date,
+                empresaId: empRef.empresaId || empRef.companyId,
+                funcionarioId: empRef.rawData?.FuncionarioId || empRef.dadosCompletos?.FuncionarioId || null,
+                numeroFolha: empRef.rawData?.Funcionario?.NumeroFolha || empRef.NumeroFolha || null,
+                dataApi: empRef.rawData?.Data || empRef.date,
+                motivo: empRef.motivo || 'Justificativa anexada via OCR',
+                horarios,                      // [{ coluna, hora }]
+                estado: 'pendente',
+                tentativas: 0,
+                erro: null,
+                criadoEm: new Date().toISOString(),
+                concluidoEm: null
+            };
+            filaEnvio.push(job);
+            filaSalvar();
+            filaProcessar();
+            return job;
+        }
+
+        /** Envia um horário. Devolve { ok, erro, repetir }. */
+        async function enviarHorario(job, item) {
+            try {
+                const r = await fetch(`${API_CONFIG.baseURL}/IntegracaoExterna/CartaoPonto/Manual`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${API_CONFIG.token}`,
+                        'secullumidbancoselecionado': job.empresaId
+                    },
+                    body: JSON.stringify({
+                        FuncionarioId: job.funcionarioId,
+                        NumeroFolha: job.numeroFolha,
+                        Data: job.dataApi,
+                        Coluna: item.coluna,
+                        Hora: item.hora,
+                        Motivo: job.motivo,
+                        created_by: window.CURRENT_USER_EMAIL || (SESSION.getUsuario() || {}).login || 'Sistema'
+                    })
+                });
+
+                if (r.ok) return { ok: true };
+                if (r.status === 429) return { ok: false, erro: 'Limite de envios da Secullum', repetir: true };
+
+                const texto = await r.text();
+                return { ok: false, erro: (texto || `HTTP ${r.status}`).slice(0, 180) };
+
+            } catch (err) {
+                return { ok: false, erro: err.message, repetir: true };
+            }
+        }
+
+        /** Roda a fila, um trabalho por vez. Só uma execução simultânea. */
+        async function filaProcessar() {
+            if (filaRodando) return;
+            filaRodando = true;
+
+            try {
+                while (true) {
+                    const job = filaEnvio.find(j => j.estado === 'pendente');
+                    if (!job) break;
+
+                    job.estado = 'enviando';
+                    job.tentativas++;
+                    filaSalvar();
+
+                    const falhas = [];
+                    const pendentes = [...job.horarios];
+
+                    // Três de cada vez: acima disso a Secullum responde 429
+                    const trabalhar = async () => {
+                        while (pendentes.length) {
+                            const item = pendentes.shift();
+                            let r = await enviarHorario(job, item);
+                            if (!r.ok && r.repetir) {
+                                await new Promise(s => setTimeout(s, 1500));
+                                r = await enviarHorario(job, item);
+                            }
+                            if (!r.ok) falhas.push(`${item.coluna} ${item.hora}: ${r.erro}`);
+                        }
+                    };
+                    await Promise.all(Array.from(
+                        { length: Math.min(3, job.horarios.length) }, trabalhar));
+
+                    if (falhas.length) {
+                        job.estado = 'falhou';
+                        job.erro = falhas.join(' | ');
+                        // O aviso é o ponto do envio em segundo plano: ninguém
+                        // fica olhando a fila, então a falha tem de chegar sozinha
+                        showToast(
+                            `Não foi para a Secullum: ${job.nome}\n${falhas[0]}\nAbra Logs para reenviar.`,
+                            'error', 9000
+                        );
+                    } else {
+                        job.estado = 'enviado';
+                        job.erro = null;
+                    }
+                    job.concluidoEm = new Date().toISOString();
+                    filaSalvar();
+                }
+            } finally {
+                filaRodando = false;
+            }
+        }
+
+        function filaReenviar(id) {
+            const job = filaEnvio.find(j => j.id === id);
+            if (!job || job.estado === 'enviando') return;
+            job.estado = 'pendente';
+            job.erro = null;
+            filaSalvar();
+            filaProcessar();
+        }
+
+        function filaCancelar(id) {
+            const job = filaEnvio.find(j => j.id === id);
+            if (!job || job.estado === 'enviando' || job.estado === 'enviado') return;
+            job.estado = 'cancelado';
+            job.concluidoEm = new Date().toISOString();
+            filaSalvar();
+        }
+
+        function filaLimparConcluidos() {
+            filaEnvio = filaEnvio.filter(j => j.estado === 'pendente' || j.estado === 'falhou');
+            filaSalvar();
+            renderLogs();
+        }
+
+        /** Bolinha no botão Logs: quantos precisam de atenção. */
+        function atualizarSeloLogs() {
+            const selo = document.getElementById('seloLogs');
+            if (!selo) return;
+            const n = filaEnvio.filter(j => j.estado === 'pendente'
+                                         || j.estado === 'enviando'
+                                         || j.estado === 'falhou').length;
+            selo.textContent = n;
+            selo.hidden = n === 0;
+            selo.classList.toggle('erro', filaEnvio.some(j => j.estado === 'falhou'));
+        }
+
+        // ---------- Tela de Logs ----------
+        const ESTADOS_LOG = {
+            pendente:  { rotulo: 'Na fila',   classe: 'aguardando' },
+            enviando:  { rotulo: 'Enviando',  classe: 'enviando' },
+            enviado:   { rotulo: 'Enviado',   classe: 'ok' },
+            falhou:    { rotulo: 'Falhou',    classe: 'erro' },
+            cancelado: { rotulo: 'Cancelado', classe: 'neutro' }
+        };
+
+        function abrirLogs() {
+            document.getElementById('modalLogs').hidden = false;
+            renderLogs();
+        }
+
+        function fecharLogs() {
+            document.getElementById('modalLogs').hidden = true;
+        }
+
+        function renderLogs() {
+            const corpo = document.getElementById('logsCorpo');
+            const resumo = document.getElementById('logsResumo');
+            if (!corpo) return;
+
+            const filtro = document.querySelector('.log-filtro.ativo')?.dataset.estado || '';
+            const lista = [...filaEnvio].reverse()
+                .filter(j => !filtro || j.estado === filtro);
+
+            // Resumo por estado
+            const conta = e => filaEnvio.filter(j => j.estado === e).length;
+            resumo.replaceChildren();
+            [['', 'Todos', filaEnvio.length],
+             ['pendente', 'Na fila', conta('pendente') + conta('enviando')],
+             ['falhou', 'Falharam', conta('falhou')],
+             ['enviado', 'Enviados', conta('enviado')],
+             ['cancelado', 'Cancelados', conta('cancelado')]
+            ].forEach(([estado, rotulo, n]) => {
+                const b = document.createElement('button');
+                b.className = 'log-filtro' + (estado === filtro ? ' ativa ativo' : '')
+                            + (estado === 'falhou' && n ? ' tem-erro' : '');
+                b.dataset.estado = estado;
+                b.replaceChildren();
+                const t = document.createElement('span'); t.textContent = rotulo;
+                const c = document.createElement('b'); c.textContent = n;
+                b.append(t, c);
+                b.addEventListener('click', () => {
+                    document.querySelectorAll('.log-filtro').forEach(x => x.classList.remove('ativa', 'ativo'));
+                    b.classList.add('ativa', 'ativo');
+                    renderLogs();
+                });
+                resumo.append(b);
+            });
+
+            corpo.replaceChildren();
+
+            if (!lista.length) {
+                const tr = document.createElement('tr');
+                const td = document.createElement('td');
+                td.colSpan = 6;
+                td.className = 'log-vazio';
+                td.textContent = 'Nenhum envio neste filtro.';
+                tr.append(td); corpo.append(tr);
+                return;
+            }
+
+            lista.forEach(j => {
+                const tr = document.createElement('tr');
+                const info = ESTADOS_LOG[j.estado] || ESTADOS_LOG.pendente;
+
+                const cel = (txt, cls) => {
+                    const td = document.createElement('td');
+                    if (cls) td.className = cls;
+                    td.textContent = txt;
+                    return td;
+                };
+
+                // Colaborador: nome + REG
+                const tdNome = document.createElement('td');
+                tdNome.className = 'log-pessoa';
+                const nome = document.createElement('strong');
+                nome.textContent = j.nome || '—';
+                const reg = document.createElement('span');
+                reg.textContent = `REG ${j.reg}`;
+                tdNome.append(nome, reg);
+                tr.append(tdNome);
+
+                const cpf = String(j.cpf || '').replace(/\D/g, '');
+                tr.append(cel(cpf ? cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4') : '—', 'num log-cpf'));
+                tr.append(cel(j.data || '—', 'num'));
+
+                // Horários enviados
+                const tdHoras = document.createElement('td');
+                tdHoras.className = 'log-horas';
+                (j.horarios || []).forEach(h => {
+                    const p = document.createElement('span');
+                    p.className = 'log-hora';
+                    p.textContent = `${h.coluna.replace('Entrada', 'Ent ').replace('Saida', 'Saí ')} ${h.hora}`;
+                    tdHoras.append(p);
+                });
+                if (!(j.horarios || []).length) tdHoras.textContent = '—';
+                tr.append(tdHoras);
+
+                // Estado
+                const tdEstado = document.createElement('td');
+                tdEstado.className = 'center';
+                const selo = document.createElement('span');
+                selo.className = 'log-selo ' + info.classe;
+                selo.textContent = info.rotulo;
+                if (j.erro) selo.title = j.erro;
+                tdEstado.append(selo);
+                if (j.erro) {
+                    const err = document.createElement('div');
+                    err.className = 'log-erro';
+                    err.textContent = j.erro;
+                    tdEstado.append(err);
+                }
+                tr.append(tdEstado);
+
+                // Ações
+                const tdAcoes = document.createElement('td');
+                tdAcoes.className = 'center log-acoes';
+
+                if (j.estado === 'falhou' || j.estado === 'cancelado') {
+                    const b = document.createElement('button');
+                    b.className = 'log-btn reenviar';
+                    b.textContent = 'Reenviar';
+                    b.addEventListener('click', () => filaReenviar(j.id));
+                    tdAcoes.append(b);
+                }
+                if (j.estado === 'pendente' || j.estado === 'falhou') {
+                    const b = document.createElement('button');
+                    b.className = 'log-btn';
+                    b.textContent = 'Cancelar';
+                    b.addEventListener('click', () => filaCancelar(j.id));
+                    tdAcoes.append(b);
+                }
+                if (!tdAcoes.children.length) tdAcoes.textContent = '—';
+                tr.append(tdAcoes);
+
+                corpo.append(tr);
+            });
+        }
+
+        // Sobe com a página: retoma o que ficou pendente de uma sessão anterior
+        filaCarregar();
+        document.addEventListener('DOMContentLoaded', () => {
+            atualizarSeloLogs();
+            if (filaEnvio.some(j => j.estado === 'pendente')) filaProcessar();
         });
 
         // ==========================================
@@ -11927,6 +12452,39 @@
         })();
     </script>
     
+    <!-- Logs de envio à Secullum -->
+    <div class="logs-fundo" id="modalLogs" hidden>
+        <div class="logs-caixa" role="dialog" aria-modal="true" aria-labelledby="logsTitulo">
+            <header class="logs-topo">
+                <div>
+                    <h2 id="logsTitulo">Envios à Secullum</h2>
+                    <p>O envio acontece em segundo plano. Aqui dá para acompanhar e reenviar.</p>
+                </div>
+                <button class="logs-btn-limpar" onclick="filaLimparConcluidos()"
+                        title="Remove da lista os enviados e cancelados">Limpar concluídos</button>
+                <button class="logs-x" onclick="fecharLogs()" aria-label="Fechar">&times;</button>
+            </header>
+
+            <div class="logs-resumo" id="logsResumo"></div>
+
+            <div class="logs-tabela-wrap">
+                <table class="logs-tabela">
+                    <thead>
+                        <tr>
+                            <th>Colaborador</th>
+                            <th>CPF</th>
+                            <th>Data</th>
+                            <th>Horários</th>
+                            <th class="center">Situação</th>
+                            <th class="center">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="logsCorpo"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
     <!-- Modal de Upload de Anexo -->
     <div id="modalAnexo" class="anx-fundo">
         <div class="anx-modal" role="dialog" aria-modal="true" aria-labelledby="anxTitulo">
