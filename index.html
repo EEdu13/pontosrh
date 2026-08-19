@@ -771,6 +771,27 @@
             clip: rect(0 0 0 0); white-space: nowrap; border: 0;
         }
 
+
+        /* Horário enviado à Secullum mas ainda sem confirmação dela.
+           Existe porque o envio corre em segundo plano: entre o clique e a
+           resposta, este horário NÃO está na Secullum. Se ela recusar, ele é
+           retirado da tabela. */
+        .punch-time.aguardando {
+            color: #8A6A12;
+            background: #FFF6DF;
+            border: 1px dashed #E8B93F;
+            border-radius: 6px;
+            padding: 1px 6px;
+            animation: pulsaAguardando 1.6s ease-in-out infinite;
+        }
+        @keyframes pulsaAguardando {
+            0%, 100% { border-color: #E8B93F; }
+            50%      { border-color: #C79412; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .punch-time.aguardando { animation: none; }
+        }
+
         /* ---------- Períodos de fechamento ----------
            Linha que abre sob os filtros. Doze atalhos: um por mês, do 21 ao 20. */
         .fechamentos {
@@ -6345,6 +6366,11 @@
                 
                 // função para retornar classe correta
                 const getTimeClass = (punchType, value) => {
+                    // Ainda nao confirmado pela Secullum: precisa se distinguir do
+                    // que ja esta la, senao a tela promete o que nao cumpriu
+                    if (emp.pendentesSecullum?.[punchType] === value && value) {
+                        return 'aguardando';
+                    }
                     if (colunasErradas.has(punchType)) {
                         return 'error-time'; // VERMELHO ESCURO
                     } else if (value) {
@@ -8453,6 +8479,11 @@
                         // isso a cada colaborador era o que travava o trabalho.
                         // A fila envia atrás e avisa se falhar; o que foi, o que
                         // falta e o que deu erro fica em Logs, com reenvio.
+                        //
+                        // REGRA DE OURO: enquanto a Secullum não confirmar, o
+                        // horário aparece MARCADO como pendente, e se o envio
+                        // falhar ele é DESFEITO da tabela. A tabela mostra o que
+                        // está na Secullum — nunca o que tentamos mandar.
                         // ==================================================
                         const COLUNAS = {
                             ent1: 'Entrada1', sai1: 'Saida1',
@@ -8465,24 +8496,32 @@
                         const paraEnviar = Object.entries(COLUNAS)
                             .map(([slot, coluna]) => ({ slot, coluna, hora: empRef.punches?.[slot] }))
                             .filter(x => ehHora(x.hora))
-                            .filter(x => empRef._punchesOriginais?.[x.slot] !== x.hora)
-                            .map(({ coluna, hora }) => ({ coluna, hora }));
+                            .filter(x => empRef._punchesOriginais?.[x.slot] !== x.hora);
 
                         if (paraEnviar.length) {
                             const temIds = (empRef.rawData?.FuncionarioId || empRef.dadosCompletos?.FuncionarioId)
                                         && (empRef.rawData?.Funcionario?.NumeroFolha || empRef.NumeroFolha);
 
                             if (temIds) {
+                                // Marcados como pendentes ATÉ a Secullum confirmar
+                                empRef.pendentesSecullum = {};
+                                paraEnviar.forEach(x => { empRef.pendentesSecullum[x.slot] = x.hora; });
+
                                 filaEnfileirar(empRef, paraEnviar);
+                                renderTable();
+
                                 const horas = paraEnviar.map(h => h.hora).join(', ');
                                 showToast(`Justificativa anexada. Enviando ${horas} à Secullum…`, 'success');
                             } else {
-                                // Sem os identificadores a Secullum recusaria de
-                                // qualquer forma; melhor dizer agora do que falhar depois
+                                // Sem FuncionarioId/NumeroFolha a Secullum recusaria.
+                                // Desfaz o que foi pintado: deixar na tela daria a
+                                // entender que o horário entrou lá, e não entrou.
+                                desfazerHorarios(empRef, paraEnviar.map(x => x.slot));
+                                renderTable();
                                 showToast(
-                                    'Justificativa anexada, mas faltam dados do funcionário '
-                                    + 'para enviar à Secullum. Atualize o período e tente pelos Logs.',
-                                    'warning', 8000
+                                    'Justificativa anexada, mas faltam dados do funcionário para '
+                                    + 'enviar à Secullum. Clique em Atualizar e anexe de novo.',
+                                    'warning', 9000
                                 );
                             }
                         } else {
@@ -9202,6 +9241,73 @@
         });
 
 
+
+        // ==========================================================
+        // A TABELA MOSTRA O QUE ESTÁ NA SECULLUM
+        //
+        // O envio corre em segundo plano, então entre o clique e a confirmação
+        // existe uma janela em que o horário aparece na tela sem estar lá.
+        // Se nada desfizesse a pintura quando o envio falha, a tela mentiria —
+        // e foi o que aconteceu: 12:00 e 16:10 na tabela, nada na Secullum,
+        // em pleno fechamento.
+        //
+        // Regra: pintado e marcado enquanto pendente; confirmado quando a
+        // Secullum aceita; desfeito quando ela recusa.
+        // ==========================================================
+
+        /** Acha a linha da tabela correspondente a um trabalho da fila. */
+        function linhaDoJob(job) {
+            return allEmployees.find(e =>
+                String(e.reg) === String(job.reg) &&
+                e.date === job.data &&
+                String(e.empresaId || e.companyId) === String(job.empresaId));
+        }
+
+        /** Devolve os horários ao que eram antes da tentativa. */
+        function desfazerHorarios(empRef, slots) {
+            if (!empRef) return;
+            slots.forEach(slot => {
+                const antes = empRef._punchesOriginais?.[slot] || '';
+                empRef.punches[slot] = antes;
+                if (empRef.pendentesSecullum) delete empRef.pendentesSecullum[slot];
+            });
+            if (empRef.pendentesSecullum && !Object.keys(empRef.pendentesSecullum).length) {
+                delete empRef.pendentesSecullum;
+            }
+        }
+
+        /**
+         * A Secullum confirmou: grava o horário e tira a marca de pendente.
+         *
+         * Grava mesmo — não basta desmarcar. No reenvio pelos Logs o horário já
+         * tinha sido desfeito da tabela na falha anterior, então sem escrever
+         * aqui ele passaria na Secullum e continuaria sumido da tela.
+         */
+        function confirmarHorarios(empRef, aceitos) {
+            if (!empRef) return;
+            aceitos.forEach(({ slot, hora }) => {
+                empRef.punches[slot] = hora;
+                if (empRef.pendentesSecullum) delete empRef.pendentesSecullum[slot];
+            });
+            if (empRef.pendentesSecullum && !Object.keys(empRef.pendentesSecullum).length) {
+                delete empRef.pendentesSecullum;
+            }
+        }
+
+        /**
+         * Chamado pela fila quando um trabalho termina.
+         * `aceitos` e `recusados` são listas de slot (ent1, sai2, …).
+         */
+        function reconciliarTabela(job, aceitos, recusados) {
+            const empRef = linhaDoJob(job);
+            if (!empRef) return;
+
+            if (aceitos.length) confirmarHorarios(empRef, aceitos);
+            if (recusados.length) desfazerHorarios(empRef, recusados.map(x => x.slot));
+
+            renderTable();
+        }
+
         // ==========================================================
         // FILA DE ENVIO À SECULLUM
         //
@@ -9253,7 +9359,7 @@
                 numeroFolha: empRef.rawData?.Funcionario?.NumeroFolha || empRef.NumeroFolha || null,
                 dataApi: empRef.rawData?.Data || empRef.date,
                 motivo: empRef.motivo || 'Justificativa anexada via OCR',
-                horarios,                      // [{ coluna, hora }]
+                horarios,                      // [{ slot, coluna, hora }]
                 estado: 'pendente',
                 tentativas: 0,
                 erro: null,
@@ -9313,6 +9419,8 @@
                     filaSalvar();
 
                     const falhas = [];
+                    const aceitos = [];       // slots que a Secullum aceitou
+                    const recusados = [];     // slots que ela recusou
                     const pendentes = [...job.horarios];
 
                     // Três de cada vez: acima disso a Secullum responde 429
@@ -9324,11 +9432,21 @@
                                 await new Promise(s => setTimeout(s, 1500));
                                 r = await enviarHorario(job, item);
                             }
-                            if (!r.ok) falhas.push(`${item.coluna} ${item.hora}: ${r.erro}`);
+                            if (r.ok) {
+                                if (item.slot) aceitos.push(item);
+                            } else {
+                                if (item.slot) recusados.push(item);
+                                falhas.push(`${item.coluna} ${item.hora}: ${r.erro}`);
+                            }
                         }
                     };
                     await Promise.all(Array.from(
                         { length: Math.min(3, job.horarios.length) }, trabalhar));
+
+                    // A tabela acompanha o que a Secullum respondeu, horario a
+                    // horario: o que passou fica, o que nao passou e desfeito.
+                    try { reconciliarTabela(job, aceitos, recusados); }
+                    catch (e) { console.warn('Falha ao reconciliar a tabela:', e.message); }
 
                     if (falhas.length) {
                         job.estado = 'falhou';
@@ -9336,8 +9454,8 @@
                         // O aviso é o ponto do envio em segundo plano: ninguém
                         // fica olhando a fila, então a falha tem de chegar sozinha
                         showToast(
-                            `Não foi para a Secullum: ${job.nome}\n${falhas[0]}\nAbra Logs para reenviar.`,
-                            'error', 9000
+                            `NAO foi para a Secullum: ${job.nome}` + "\n" + falhas[0] + "\n" + "O horario foi retirado da tabela. Abra Logs para reenviar.",
+                            'error', 12000
                         );
                     } else {
                         job.estado = 'enviado';
