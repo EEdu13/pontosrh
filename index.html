@@ -6459,7 +6459,17 @@
             img.src = anexo.blob_url;
             area.style.display = 'block';
 
-            // Faixa explicando que aquilo já está salvo e como trocar
+            avisarAnexoExistente(anexo);
+
+            // Sem imagem nova ainda: nao ha o que confirmar
+            document.getElementById('btnConfirmarAnexo').style.display = 'none';
+        }
+
+        /** So a faixa de aviso, sem tocar na imagem nem no botao. */
+        function avisarAnexoExistente(anexo) {
+            const area = document.getElementById('previewArea');
+            if (!area) return;
+
             let aviso = document.getElementById('anexoExistenteAviso');
             if (!aviso) {
                 aviso = document.createElement('div');
@@ -6481,9 +6491,6 @@
             const acao = document.createElement('span');
             acao.textContent = 'Cole (Ctrl+V) ou escolha outro arquivo para substituir.';
             aviso.append(titulo, detalhe, acao);
-
-            // Se o RH quiser só conferir e sair, o botão de confirmar não faz sentido ainda
-            document.getElementById('btnConfirmarAnexo').style.display = 'none';
         }
 
         // 📄 PAGINAÇÃO: Atualizar controles de navegação
@@ -6658,8 +6665,14 @@
                     // Já existe anexo: mostra o que está lá e deixa substituir.
                     // Antes o modal fechava e a imagem abria em outra aba, o que
                     // obrigava a reabrir tudo só para trocar o arquivo.
-                    if (anexo && anexo.blob_url) {
+                    // Se a pessoa ja colou a foto nova enquanto esta consulta
+                    // voltava, nao mexer: mostrar o anexo antigo agora trocaria a
+                    // imagem na tela pela velha e esconderia o Confirmar — era o
+                    // "nao deixa substituir" que o RH relatou.
+                    if (anexo && anexo.blob_url && !currentAnexoImage && !ocrEmAndamento) {
                         mostrarAnexoExistente(anexo);
+                    } else if (anexo && anexo.blob_url) {
+                        avisarAnexoExistente(anexo);   // so a faixa, sem tocar na imagem
                     }
                 } else if (response.status !== 404) {
                     console.warn(`ℹ Erro ao verificar anexo existente: ${response.status}`);
@@ -7791,20 +7804,23 @@
                 // O arquivo começa a subir AGORA, junto com a leitura. Quando a
                 // pessoa clicar em Confirmar, ele já está no Blob e só falta
                 // gravar a linha — o upload sai do tempo de espera dela.
-                anexoSubindo = subirImagemAntecipada(base64Image, currentAnexoEmployee, geracao);
-
                 // Formulário aberto de imediato, em branco e já editável: quem
                 // reconhece a letra digita na hora, sem assistir a IA pensar.
                 // Ao chegar, a leitura só preenche o que ninguém tocou.
                 mostrarResultadoOCR({ confidence: {} });
                 marcarCamposEmLeitura(true);
 
-                // ======================================
-                // ETAPA 1: VALIDAR ID (mantém légica existente)
-                // ======================================
                 document.getElementById('ocrStatusText').textContent = 'Conferindo o ID do formulário…';
 
+                // A leitura vai sozinha primeiro. Subir as duas imagens ao mesmo
+                // tempo dividia a banda de saída do escritório entre elas, e a
+                // leitura — que é quem a pessoa está esperando — ficava atrás dos
+                // 739KB do arquivo que vai ser guardado.
                 const dadosExtraidos = await extrairDadosComGoogleVision(paraLeitura);
+
+                // Terminou de ler: agora o arquivo sobe, enquanto o RH confere.
+                // Quando ele clicar em Confirmar, ja estara no Blob.
+                anexoSubindo = subirImagemAntecipada(base64Image, currentAnexoEmployee, geracao);
 
                 if (obsoleto()) {
                     console.log('⏭️ Resultado de OCR obsoleto descartado');
@@ -7885,6 +7901,10 @@
 
                 // Se a imagem chegou a ser lida, dá para confirmar o anexo mesmo sem OCR.
                 if (currentAnexoImage) {
+                    // A leitura falhou, mas o anexo ainda vai ser salvo: comeca a subir
+                    if (!anexoSubindo) {
+                        anexoSubindo = subirImagemAntecipada(currentAnexoImage, currentAnexoEmployee, ocrGeneration);
+                    }
                     document.getElementById('ocrStatusText').textContent = 'Não consegui ler o formulário — preencha à mão abaixo.';
                     // Abre o formulário em branco: sem isso a mensagem mandava
                     // preencher campos que não estavam na tela.
@@ -8458,21 +8478,22 @@
                         }
                     }
                     
-                    // ⚡ ENVIO SEQUENCIAL DE HORÁRIOS NORMAIS (HH:mm) - Endpoint /Manual
+                    // ==========================================================
+                    // ENVIO DOS HORARIOS
+                    //
+                    // Era um por vez, com 500ms de pausa entre eles. Quatro
+                    // batidas custavam 1,5s so de espera artificial, alem das
+                    // quatro idas a Secullum em fila. Agora vao em paralelo,
+                    // com no maximo 3 ao mesmo tempo para nao levar 429 —
+                    // e quando leva, o backoff que ja existia cuida.
+                    // ==========================================================
                     const results = [];
-                    let tentativasRestantes = 3; // Retry até 3 vezes em caso de erro
-                    
-                    for (let i = 0; i < horariosNormais.length; i++) {
-                        const item = horariosNormais[i];
-                        let enviado = false;
-                        let tentativa = 0;
-                        
-                        // 📊 Atualizar progresso visual
-                        showLoading('Enviando para a Secullum', `${i + 1} de ${horariosNormais.length} — ${item.coluna} às ${item.hora}`);
-                        
-                        while (!enviado && tentativa < tentativasRestantes) {
-                            tentativa++;
-                            
+                    const TENTATIVAS = 3;
+                    const SIMULTANEOS = 3;
+                    let concluidos = 0;
+
+                    const enviarUm = async (item) => {
+                        for (let tentativa = 1; tentativa <= TENTATIVAS; tentativa++) {
                             try {
                                 const payload = {
                                     FuncionarioId: funcionarioId,
@@ -8483,77 +8504,82 @@
                                     Motivo: empRef.motivo || 'Justificativa anexada via OCR',
                                     created_by: window.CURRENT_USER_EMAIL || (SESSION.getUsuario() || {}).login || 'Sistema'
                                 };
-                                
+
                                 const apiResponse = await fetch(`${API_CONFIG.baseURL}/IntegracaoExterna/CartaoPonto/Manual`, {
                                     method: 'POST',
-                                    headers: { 
+                                    headers: {
                                         'Content-Type': 'application/json',
                                         'Authorization': `Bearer ${API_CONFIG.token}`,
                                         'secullumidbancoselecionado': empRef.empresaId || empRef.companyId
                                     },
                                     body: JSON.stringify(payload)
                                 });
-                                
+
                                 if (apiResponse.ok) {
                                     console.log(`✅ ${item.coluna} enviada: ${item.hora}`);
-                                    results.push({ success: true, coluna: item.coluna });
-                                    enviado = true;
-                                } else if (apiResponse.status === 429) {
-                                    // 🚨 RATE LIMIT - Aguardar mais tempo
-                                    const waitTime = tentativa * 2000; // 2s, 4s, 6s...
-                                    console.warn(`⏳ Rate limit detectado (429). Aguardando ${waitTime/1000}s antes de tentar novamente...`);
-                                    await new Promise(resolve => setTimeout(resolve, waitTime));
-                                    // Não marca como enviado, vai tentar novamente
-                                } else {
-                                    const errorText = await apiResponse.text();
-                                    console.warn(`⚠️ Erro ao enviar ${item.coluna}: ${apiResponse.status} - ${errorText}`);
-                                    results.push({ 
-                                        success: false, 
-                                        coluna: item.coluna, 
-                                        error: errorText,
-                                        periodoEncerrado: errorText.includes('Período encerrado') || errorText.includes('Período fechado')
-                                    });
-                                    enviado = true; // Não retenta em outros erros (não é rate limit)
+                                    return { success: true, coluna: item.coluna };
                                 }
-                                
+
+                                if (apiResponse.status === 429) {
+                                    // Rate limit: espera crescente e tenta de novo
+                                    await new Promise(r => setTimeout(r, tentativa * 1500));
+                                    continue;
+                                }
+
+                                const errorText = await apiResponse.text();
+                                console.warn(`⚠️ Erro ao enviar ${item.coluna}: ${apiResponse.status} - ${errorText}`);
+                                return {
+                                    success: false, coluna: item.coluna, error: errorText,
+                                    periodoEncerrado: errorText.includes('Período encerrado') || errorText.includes('Período fechado')
+                                };
+
                             } catch (err) {
-                                console.error(`❌ Erro ao enviar ${item.coluna} (tentativa ${tentativa}/${tentativasRestantes}):`, err);
-                                
-                                if (tentativa >= tentativasRestantes) {
-                                    results.push({ success: false, coluna: item.coluna, error: err.message });
-                                    enviado = true;
-                                } else {
-                                    // Aguardar antes de retry
-                                    await new Promise(resolve => setTimeout(resolve, 1000 * tentativa));
+                                console.error(`❌ Erro ao enviar ${item.coluna} (tentativa ${tentativa}):`, err);
+                                if (tentativa === TENTATIVAS) {
+                                    return { success: false, coluna: item.coluna, error: err.message };
                                 }
+                                await new Promise(r => setTimeout(r, 600 * tentativa));
                             }
                         }
-                        
-                        // ⏱️ Delay entre requisições (aumentado para evitar sobrecarga)
-                        if (i < horariosNormais.length - 1) {
-                            await new Promise(resolve => setTimeout(resolve, 500)); // 500ms
+                        return { success: false, coluna: item.coluna, error: 'Sem resposta após as tentativas' };
+                    };
+
+                    // Fila com limite de simultaneos
+                    const fila = [...horariosNormais];
+                    const trabalhar = async () => {
+                        while (fila.length) {
+                            const item = fila.shift();
+                            const r = await enviarUm(item);
+                            results.push(r);
+                            concluidos++;
+                            showLoading('Enviando para a Secullum',
+                                        `${concluidos} de ${horariosNormais.length}`);
                         }
-                    }
-                    
+                    };
+                    await Promise.all(
+                        Array.from({ length: Math.min(SIMULTANEOS, horariosNormais.length) }, trabalhar)
+                    );
+
                     sucessos = results.filter(r => r.success).length;
                     erros = results.filter(r => !r.success).length;
                     periodoEncerrado = results.some(r => r.periodoEncerrado);
                     
-                    // ✅ INVALIDAÇÃO CIRÚRGICA: Se teve sucesso, recarregar funcionário
-                    if (sucessos > 0) {
-                        console.log('⚡ Invalidando cache após envio...');
-                        await invalidateSingleEmployee(empRef.reg, empRef.date, empRef.empresaId || empRef.companyId);
-                    }
+                    // A tabela ja tem os horarios: confirmarAnexo escreveu em
+                    // empRef.punches antes de enviar, e o que foi enviado e
+                    // exatamente isso. Entao basta repintar.
+                    //
+                    // Antes vinham duas idas a rede so para confirmar o que ja
+                    // sabiamos: invalidateSingleEmployee (uma consulta de Batidas,
+                    // ~2,3s) e searchPeriod (o periodo inteiro, varios segundos).
+                    // O proximo Atualizar confere contra a Secullum.
+                    if (sucessos > 0) renderTable();
                     
                     // Remover flag pendingOCR
                     empRef.pendingOCR = false;
                 }
                 
                 hideLoading();
-                
-                // Recarregar dados
-                await searchPeriod();
-                
+
                 // Uma linha so. Antes saiam duas ("0 enviados / 0 erros"),
                 // inclusive quando nao havia nada a enviar.
                 let tipo = erros > 0 ? 'warning' : sucessos > 0 ? 'success' : 'info';
