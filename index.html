@@ -6592,6 +6592,78 @@
          * A área de envio continua ativa: colar ou escolher outro arquivo
          * substitui o anexo atual.
          */
+
+        /**
+         * Confere se o formulário fotografado é mesmo daquela linha.
+         *
+         * O papel traz Nome, REG e Data impressos no cabeçalho. Antes só se
+         * comparava o "ID IMP", que existe apenas depois de gerar pelo sistema —
+         * quem anexasse a folha de outra pessoa numa linha ainda sem ID não
+         * recebia aviso nenhum. E anexar a justificativa de um colaborador no
+         * dia de outro estraga a prova documental dos dois.
+         *
+         * Não bloqueia: há casos legítimos de formulário reimpresso ou rasurado.
+         * Mas deixa impossível não ver.
+         */
+        function conferirCabecalho(lido, employee) {
+            const soDigitos = v => String(v || '').replace(/\D/g, '');
+            const problemas = [];
+
+            const regPapel = soDigitos(lido.reg);
+            const regLinha = soDigitos(employee?.reg);
+            if (regPapel && regLinha && regPapel !== regLinha) {
+                problemas.push(`REG ${regPapel} no papel, mas a linha é do REG ${regLinha}`);
+            }
+
+            const dataPapel = soDigitos(lido.dataFormulario);
+            const dataLinha = soDigitos(employee?.date);
+            if (dataPapel && dataLinha && dataPapel !== dataLinha) {
+                problemas.push(`Data ${lido.dataFormulario} no papel, mas a linha é de ${employee.date}`);
+            }
+
+            // O ID de impressão só existe depois de gerar pelo sistema
+            const idPapel = soDigitos(lido.id);
+            const idLinha = soDigitos(employee?.id);
+            if (idPapel && idLinha && idPapel !== idLinha) {
+                problemas.push(`ID de impressão ${idPapel}, mas esta linha gerou o ${idLinha}`);
+            }
+
+            const caixa = document.getElementById('avisoCabecalho');
+            if (!caixa) return true;
+
+            if (!problemas.length) {
+                caixa.hidden = true;
+                document.getElementById('btnConfirmarAnexo').textContent = 'Confirmar anexo';
+                return true;
+            }
+
+            caixa.replaceChildren();
+
+            const titulo = document.createElement('strong');
+            titulo.textContent = lido.nome
+                ? `Este formulário é de ${lido.nome}`
+                : 'Este formulário não confere com a linha';
+            caixa.append(titulo);
+
+            problemas.forEach(t => {
+                const li = document.createElement('span');
+                li.textContent = t;
+                caixa.append(li);
+            });
+
+            const nota = document.createElement('em');
+            nota.textContent = 'Confira antes de confirmar. Se estiver certo, pode seguir.';
+            caixa.append(nota);
+
+            caixa.hidden = false;
+
+            // O botão muda de texto: obriga a ler, sem obrigar a um clique a mais
+            document.getElementById('btnConfirmarAnexo').textContent = 'Confirmar mesmo assim';
+
+            console.warn('⚠️ Cabeçalho não confere:', problemas.join(' | '));
+            return false;
+        }
+
         /**
          * O painel da direita mostra o estado vazio só enquanto não há nada nele.
          * Chamado sempre que o status ou o resultado do OCR aparece/some.
@@ -6818,6 +6890,7 @@
             document.getElementById('ocrResult').style.display = 'none';
             document.getElementById('btnConfirmarAnexo').style.display = 'none';
             document.getElementById('ocrResultContent').innerHTML = '';
+            document.getElementById('avisoCabecalho').hidden = true;
             atualizarVazioAnexo();
 
             // A foto de quem está sendo justificado, como em todo o resto do sistema
@@ -7145,6 +7218,9 @@
             // O restante da tela espera `confidence`; o backend devolve `confianca`
             return {
                 id: lido.id,
+                reg: lido.reg,
+                nome: lido.nome,
+                dataFormulario: lido.dataFormulario,
                 motivo: lido.motivo,
                 ent1: lido.ent1 || '',
                 sai1: lido.sai1 || '',
@@ -8006,35 +8082,8 @@
                     return;
                 }
 
-                const idEncontrado = dadosExtraidos.id;
-                const idEsperado = currentAnexoEmployee?.id;
-                
-                console.log('');
-                
-                console.log('');
-                
-                // 📝 CASO 1: IDs diferentes OU não detectado = AVISAR MAS CONTINUAR
-                if (idEsperado && idEncontrado && parseInt(idEncontrado) !== parseInt(idEsperado)) {
-                    console.warn(`⚠️ ID DIFERENTE! Esperado: #${idEsperado}, Detectado: #${idEncontrado}`);
-                    showAlert('Atenção', `ID diferente! Esperado: #${idEsperado}, Detectado: #${idEncontrado}`, 'warning');
-                }
-                
-                // 📝 CASO 2: não leu ID = AVISAR MAS CONTINUAR
-                if (idEsperado && !idEncontrado) {
-                    console.warn(`⚠️ ID não detectado. Esperado: #${idEsperado}`);
-                    showAlert('Aviso', `ID não detectado. Esperado: #${idEsperado}`, 'info');
-                }
-                
-                // ✅ CASO 3: IDs batem
-                if (idEncontrado && idEsperado && parseInt(idEncontrado) === parseInt(idEsperado)) {
-                    console.log(`✅ ID VALIDADO COM SUCESSO! ✅`);
-                }
-                
-                // 📝 CASO 4: Primeiro formulário
-                if (!idEsperado) {
-                    console.log(`FUNCIONÁRIO ainda não possui ID no sistema`);
-                }
-                
+                conferirCabecalho(dadosExtraidos, currentAnexoEmployee);
+
                 // ======================================
                 // ETAPA 2: USAR DADOS DO GOOGLE VISION
                 // ======================================
@@ -12525,6 +12574,9 @@
                         <span id="ocrStatusText">Processando…</span>
                     </div>
 
+                    <!-- Formulário de outra pessoa ou de outro dia -->
+                    <div class="anx-alerta" id="avisoCabecalho" hidden></div>
+
                     <div id="ocrResult">
                         <div id="ocrResultContent"></div>
                     </div>
@@ -12718,6 +12770,21 @@
         }
 
         #ocrResult { display: none; }      /* JS controla */
+
+        /* Aviso de formulário trocado: vermelho, no topo da coluna de dados.
+           Não bloqueia — há reimpressão e rasura legítimas — mas não dá para
+           não ver. */
+        .anx-alerta {
+            display: flex; flex-direction: column; gap: 3px;
+            padding: 12px 14px; border-radius: 14px;
+            background: rgba(220, 74, 63, .14);
+            border: 1px solid rgba(220, 74, 63, .5);
+            color: #F0B7B0; font-size: 11.5px; line-height: 1.5;
+        }
+        .anx-alerta[hidden] { display: none; }
+        .anx-alerta strong { font-size: 13px; color: #FFD5CF; }
+        .anx-alerta em { font-style: normal; font-size: 10.5px; color: #C99A94; margin-top: 3px; }
+
 
         /* Leitura em andamento: o formulário já está aberto e editável, e só o
            que ainda não foi preenchido pulsa de leve. Sem bloquear nada — quem

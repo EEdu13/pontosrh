@@ -722,6 +722,14 @@ const ESQUEMA_OCR = {
             description: 'Se ehFormulario for false, descreva em poucas palavras o que a imagem realmente mostra. Caso contrário, null.'
         },
         id: { type: ['string', 'null'], description: 'Número após "ID IMP:" no cabeçalho. null se ilegível.' },
+
+        // O cabeçalho impresso identifica de quem e de que dia é o formulário.
+        // Serve para conferir se a foto foi anexada na linha certa — anexar a
+        // justificativa de um colaborador no dia de outro estraga a prova
+        // documental dos dois.
+        reg: { type: ['string', 'null'], description: 'Número após "REG:" no cabeçalho. Só os dígitos.' },
+        nome: { type: ['string', 'null'], description: 'Nome após "Nome:" no cabeçalho, como está escrito.' },
+        dataFormulario: { type: ['string', 'null'], description: 'Data após "Data:" no cabeçalho, em DD/MM/AAAA.' },
         // enum não pode conviver com type união (['string','null']) — o schema
         // é recusado com 400. A forma aceita é anyOf.
         motivo: {
@@ -782,7 +790,8 @@ const ESQUEMA_OCR = {
     },
     required: [
         'ehFormulario', 'oQueE',
-        'id', 'motivo', 'ent1', 'sai1', 'ent2', 'sai2', 'ent3', 'sai3',
+        'id', 'reg', 'nome', 'dataFormulario',
+        'motivo', 'ent1', 'sai1', 'ent2', 'sai2', 'ent3', 'sai3',
         'assinaturas', 'confianca'
     ],
     additionalProperties: false
@@ -792,7 +801,9 @@ const INSTRUCOES_OCR = `Você lê fotos de um formulário de ponto da Larsil, pr
 
 O formulário tem, de cima para baixo:
 - Título "PONTO MANUAL COMPLEMENTAR AO PONTO ELETRÔNICO" com o logotipo LARSIL à esquerda
-- Cabeçalho com Nome, Empresa, Data, REG, Projeto e "ID IMP: <número>"
+- Cabeçalho com Nome, Empresa, Data, REG, Projeto e "ID IMP: <número>".
+  Leia Nome, REG e Data sempre: é por eles que o sistema confere se a foto foi
+  anexada na linha certa.
 - Uma faixa "Horários (preencher somente os que faltaram)" com pares Entrada/Saída.
   Horários JÁ REGISTRADOS aparecem impressos com o selo "BATIDO" embaixo.
   Horários A PREENCHER aparecem como campos vazios "__:__" que o colaborador escreve à mão.
