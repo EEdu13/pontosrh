@@ -9397,7 +9397,24 @@
                 if (r.status === 429) return { ok: false, erro: 'Limite de envios da Secullum', repetir: true };
 
                 const texto = await r.text();
-                return { ok: false, erro: (texto || `HTTP ${r.status}`).slice(0, 180) };
+
+                // Conflito de concorrência: o cartão foi alterado entre a leitura
+                // e a gravação do lado da Secullum. Não é dado inválido — é hora
+                // de tentar de novo.
+                if (texto.includes('DbUpdateConcurrencyException')
+                    || texto.includes('affected 0 row')) {
+                    return { ok: false, erro: 'Cartão alterado durante o envio', repetir: true };
+                }
+
+                // Mensagem da Secullum vem embrulhada em JSON; mostrar o texto
+                // limpo em vez de despejar a estrutura inteira na tela
+                let limpo = texto;
+                try {
+                    const j = JSON.parse(texto);
+                    limpo = j.mensagem || j.Mensagem || j.message || texto;
+                } catch { /* não era JSON */ }
+
+                return { ok: false, erro: (limpo || `HTTP ${r.status}`).slice(0, 160) };
 
             } catch (err) {
                 return { ok: false, erro: err.message, repetir: true };
@@ -9423,25 +9440,37 @@
                     const recusados = [];     // slots que ela recusou
                     const pendentes = [...job.horarios];
 
-                    // Três de cada vez: acima disso a Secullum responde 429
-                    const trabalhar = async () => {
-                        while (pendentes.length) {
-                            const item = pendentes.shift();
-                            let r = await enviarHorario(job, item);
-                            if (!r.ok && r.repetir) {
-                                await new Promise(s => setTimeout(s, 1500));
-                                r = await enviarHorario(job, item);
-                            }
-                            if (r.ok) {
-                                if (item.slot) aceitos.push(item);
-                            } else {
-                                if (item.slot) recusados.push(item);
-                                falhas.push(`${item.coluna} ${item.hora}: ${r.erro}`);
-                            }
+                    // UM DE CADA VEZ, sempre.
+                    //
+                    // Todos os horários de um trabalho são do MESMO cartão —
+                    // mesma pessoa, mesmo dia. A Secullum carrega o cartão,
+                    // altera uma coluna e grava com concorrência otimista: dois
+                    // envios simultâneos fazem o segundo encontrar a versão já
+                    // mudada e devolver
+                    //   DbUpdateConcurrencyException: expected to affect 1 row(s)
+                    //   but actually affected 0 row(s)
+                    //
+                    // Foi exatamente o que aconteceu quando paralelizei isto:
+                    // TODO envio com 2+ horários falhou, todo envio com 1 passou.
+                    // Aqui a corretude vale mais que o tempo — e como a fila roda
+                    // em segundo plano, ninguém está esperando.
+                    for (const item of pendentes) {
+                        let r = await enviarHorario(job, item);
+
+                        // Conflito de concorrência é transitório: o cartão mudou
+                        // entre a leitura e a gravação. Tentar de novo resolve.
+                        for (let t = 1; t <= 2 && !r.ok && r.repetir; t++) {
+                            await new Promise(s => setTimeout(s, 700 * t));
+                            r = await enviarHorario(job, item);
                         }
-                    };
-                    await Promise.all(Array.from(
-                        { length: Math.min(3, job.horarios.length) }, trabalhar));
+
+                        if (r.ok) {
+                            if (item.slot) aceitos.push(item);
+                        } else {
+                            if (item.slot) recusados.push(item);
+                            falhas.push(`${item.coluna} ${item.hora}: ${r.erro}`);
+                        }
+                    }
 
                     // A tabela acompanha o que a Secullum respondeu, horario a
                     // horario: o que passou fica, o que nao passou e desfeito.
