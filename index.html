@@ -4254,22 +4254,51 @@
         async function fetchJustificativas() {
             try {
                 console.log('📋 Buscando justificativas...');
-                
-                // Buscar justificativas Secullum
-                const response = await fetch(`${API_CONFIG.baseURL}/IntegracaoExterna/Justificativas`, {
-                    method: 'GET',
-                    headers: {
-                        'Authorization': `Bearer ${API_CONFIG.token}`,
-                        'secullumidbancoselecionado': API_CONFIG.companies[0]?.id || '3',
-                        'Content-Type': 'application/json'
-                    }
-                });
 
-                if (response.ok) {
-                    justificativasSecullum = await response.json();
-                    console.log(`✅ ${justificativasSecullum.length} justificativas Secullum carregadas`);
+                // O catálogo de justificativas (HP, Falta, Folga...) pode ser
+                // configurado por empresa na Secullum. Buscar só de
+                // companies[0] fazia sumir opções de quem trabalha com outra
+                // empresa quando o cadastro dela não coincidia com a primeira
+                // da lista — era o "não puxa HP, Falta" relatado.
+                //
+                // Busca em todas as empresas conectadas e junta, sem repetir
+                // (mesmo código abreviado pode existir em mais de uma).
+                const vistos = new Set();
+                justificativasSecullum = [];
+                let algumaRespondeu = false;
+
+                await Promise.all((API_CONFIG.companies || []).map(async (empresa) => {
+                    try {
+                        const r = await fetch(`${API_CONFIG.baseURL}/IntegracaoExterna/Justificativas`, {
+                            method: 'GET',
+                            headers: {
+                                'Authorization': `Bearer ${API_CONFIG.token}`,
+                                'secullumidbancoselecionado': empresa.id,
+                                'Content-Type': 'application/json'
+                            }
+                        });
+                        if (!r.ok) {
+                            console.warn(`⚠️ Justificativas: empresa ${empresa.name} respondeu ${r.status}`);
+                            return;
+                        }
+                        algumaRespondeu = true;
+                        const lista = await r.json();
+                        for (const item of lista) {
+                            const chave = (item.NomeAbreviado || item.NomeCompleto || '').toUpperCase();
+                            if (chave && !vistos.has(chave)) {
+                                vistos.add(chave);
+                                justificativasSecullum.push(item);
+                            }
+                        }
+                    } catch (err) {
+                        console.warn(`⚠️ Justificativas: falha na empresa ${empresa.name}:`, err.message);
+                    }
+                }));
+
+                if (algumaRespondeu) {
+                    console.log(`✅ ${justificativasSecullum.length} justificativas Secullum carregadas (todas as empresas)`);
                 } else {
-                    console.warn('⚠️ Erro ao buscar justificativas Secullum:', response.status);
+                    console.warn('⚠️ Erro ao buscar justificativas Secullum: nenhuma empresa respondeu');
                 }
 
                 // Justificativas Folha (hardcoded por enquanto)
@@ -8490,13 +8519,42 @@
                             ent2: 'Entrada2', sai2: 'Saida2',
                             ent3: 'Entrada3', sai3: 'Saida3'
                         };
+                        // Par Entrada/Saída de cada grupo — usado só pelas
+                        // justificativas de texto, que a Secullum grava por
+                        // grupo inteiro, não por coluna
+                        const GRUPOS = { ent1: 1, sai1: 1, ent2: 2, sai2: 2, ent3: 3, sai3: 3 };
                         const ehHora = v => /^\d{1,2}:\d{2}$/.test(v);
 
                         // Só o que mudou: o que já estava batido não se reenvia
-                        const paraEnviar = Object.entries(COLUNAS)
-                            .map(([slot, coluna]) => ({ slot, coluna, hora: empRef.punches?.[slot] }))
-                            .filter(x => ehHora(x.hora))
-                            .filter(x => empRef._punchesOriginais?.[x.slot] !== x.hora);
+                        const mudou = Object.entries(COLUNAS)
+                            .map(([slot, coluna]) => ({ slot, coluna, valor: empRef.punches?.[slot] }))
+                            .filter(x => x.valor)
+                            .filter(x => empRef._punchesOriginais?.[x.slot] !== x.valor);
+
+                        // Horário (07:30 etc): um envio por coluna, como sempre
+                        const horariosParaEnviar = mudou
+                            .filter(x => ehHora(x.valor))
+                            .map(x => ({ tipo: 'horario', slot: x.slot, coluna: x.coluna, hora: x.valor }));
+
+                        // Justificativa de texto (FOLGA, HP, FALTA...): a Secullum
+                        // cobre a dupla Entrada+Saída do grupo numa chamada só.
+                        // Sem separar isto do horário, o filtro de HH:MM acima
+                        // descartava a justificativa em silêncio — o RH via
+                        // "Justificativa anexada" e nada chegava à Secullum.
+                        const gruposComTexto = new Map();
+                        mudou.filter(x => !ehHora(x.valor)).forEach(x => {
+                            const grupo = GRUPOS[x.slot];
+                            if (!gruposComTexto.has(grupo)) {
+                                gruposComTexto.set(grupo, { grupo, slots: [], hora: x.valor });
+                            }
+                            gruposComTexto.get(grupo).slots.push(x.slot);
+                        });
+                        const justificativasParaEnviar = [...gruposComTexto.values()].map(g => ({
+                            tipo: 'justificativa', grupo: g.grupo, slots: g.slots,
+                            coluna: `Grupo ${g.grupo}`, hora: g.hora
+                        }));
+
+                        const paraEnviar = [...horariosParaEnviar, ...justificativasParaEnviar];
 
                         if (paraEnviar.length) {
                             const temIds = (empRef.rawData?.FuncionarioId || empRef.dadosCompletos?.FuncionarioId)
@@ -8505,7 +8563,11 @@
                             if (temIds) {
                                 // Marcados como pendentes ATÉ a Secullum confirmar
                                 empRef.pendentesSecullum = {};
-                                paraEnviar.forEach(x => { empRef.pendentesSecullum[x.slot] = x.hora; });
+                                paraEnviar.forEach(x => {
+                                    (x.slots || [x.slot]).forEach(slot => {
+                                        empRef.pendentesSecullum[slot] = x.hora;
+                                    });
+                                });
 
                                 filaEnfileirar(empRef, paraEnviar);
                                 renderTable();
@@ -8516,7 +8578,7 @@
                                 // Sem FuncionarioId/NumeroFolha a Secullum recusaria.
                                 // Desfaz o que foi pintado: deixar na tela daria a
                                 // entender que o horário entrou lá, e não entrou.
-                                desfazerHorarios(empRef, paraEnviar.map(x => x.slot));
+                                desfazerHorarios(empRef, paraEnviar.flatMap(x => x.slots || [x.slot]));
                                 renderTable();
                                 showToast(
                                     'Justificativa anexada, mas faltam dados do funcionário para '
@@ -9282,12 +9344,18 @@
          * Grava mesmo — não basta desmarcar. No reenvio pelos Logs o horário já
          * tinha sido desfeito da tabela na falha anterior, então sem escrever
          * aqui ele passaria na Secullum e continuaria sumido da tela.
+         *
+         * Aceita item de horário (`slot` único) ou de justificativa de texto
+         * (`slots` no plural — uma chamada de Justificativa cobre a dupla
+         * Entrada+Saída inteira, então o mesmo texto vale para os dois).
          */
         function confirmarHorarios(empRef, aceitos) {
             if (!empRef) return;
-            aceitos.forEach(({ slot, hora }) => {
-                empRef.punches[slot] = hora;
-                if (empRef.pendentesSecullum) delete empRef.pendentesSecullum[slot];
+            aceitos.forEach(item => {
+                (item.slots || [item.slot]).forEach(slot => {
+                    empRef.punches[slot] = item.hora;
+                    if (empRef.pendentesSecullum) delete empRef.pendentesSecullum[slot];
+                });
             });
             if (empRef.pendentesSecullum && !Object.keys(empRef.pendentesSecullum).length) {
                 delete empRef.pendentesSecullum;
@@ -9296,14 +9364,17 @@
 
         /**
          * Chamado pela fila quando um trabalho termina.
-         * `aceitos` e `recusados` são listas de slot (ent1, sai2, …).
+         * `aceitos` e `recusados` são listas de itens — cada um com `slot`
+         * (horário) ou `slots` (justificativa, um por Entrada e Saída do grupo).
          */
         function reconciliarTabela(job, aceitos, recusados) {
             const empRef = linhaDoJob(job);
             if (!empRef) return;
 
             if (aceitos.length) confirmarHorarios(empRef, aceitos);
-            if (recusados.length) desfazerHorarios(empRef, recusados.map(x => x.slot));
+            if (recusados.length) {
+                desfazerHorarios(empRef, recusados.flatMap(x => x.slots || [x.slot]));
+            }
 
             renderTable();
         }
@@ -9372,25 +9443,49 @@
             return job;
         }
 
-        /** Envia um horário. Devolve { ok, erro, repetir }. */
+        /**
+         * Envia um item da fila — um horário (HH:MM) ou uma justificativa de
+         * texto (FOLGA, HP, FALTA...). São endpoints diferentes na Secullum:
+         * horário vai em /CartaoPonto/Manual por coluna; justificativa vai em
+         * /CartaoPonto/Justificativa por GRUPO (a dupla Entrada/Saída inteira).
+         *
+         * Antes, o item de texto era descartado em silêncio antes de chegar
+         * aqui — filtrado por um regex que só aceita HH:MM — e o RH via
+         * "Justificativa anexada" sem perceber que nada foi para a Secullum.
+         * Devolve { ok, erro, repetir }.
+         */
         async function enviarHorario(job, item) {
+            const ehJustificativa = item.tipo === 'justificativa';
+            const url = ehJustificativa
+                ? `${API_CONFIG.baseURL}/IntegracaoExterna/CartaoPonto/Justificativa`
+                : `${API_CONFIG.baseURL}/IntegracaoExterna/CartaoPonto/Manual`;
+
+            const payload = ehJustificativa
+                ? {
+                    NumeroFolha: job.numeroFolha,
+                    Data: job.dataApi,
+                    Grupo: item.grupo,
+                    Justificativa: String(item.hora).toUpperCase()
+                }
+                : {
+                    FuncionarioId: job.funcionarioId,
+                    NumeroFolha: job.numeroFolha,
+                    Data: job.dataApi,
+                    Coluna: item.coluna,
+                    Hora: item.hora,
+                    Motivo: job.motivo,
+                    created_by: window.CURRENT_USER_EMAIL || (SESSION.getUsuario() || {}).login || 'Sistema'
+                };
+
             try {
-                const r = await fetch(`${API_CONFIG.baseURL}/IntegracaoExterna/CartaoPonto/Manual`, {
+                const r = await fetch(url, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                         'Authorization': `Bearer ${API_CONFIG.token}`,
                         'secullumidbancoselecionado': job.empresaId
                     },
-                    body: JSON.stringify({
-                        FuncionarioId: job.funcionarioId,
-                        NumeroFolha: job.numeroFolha,
-                        Data: job.dataApi,
-                        Coluna: item.coluna,
-                        Hora: item.hora,
-                        Motivo: job.motivo,
-                        created_by: window.CURRENT_USER_EMAIL || (SESSION.getUsuario() || {}).login || 'Sistema'
-                    })
+                    body: JSON.stringify(payload)
                 });
 
                 if (r.ok) return { ok: true };
@@ -9465,9 +9560,9 @@
                         }
 
                         if (r.ok) {
-                            if (item.slot) aceitos.push(item);
+                            if (item.slot || item.slots) aceitos.push(item);
                         } else {
-                            if (item.slot) recusados.push(item);
+                            if (item.slot || item.slots) recusados.push(item);
                             falhas.push(`${item.coluna} ${item.hora}: ${r.erro}`);
                         }
                     }
