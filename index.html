@@ -7055,24 +7055,6 @@
                     }
                 });
 
-            // Assinaturas não são editáveis, então podem ser repintadas à vontade
-            atualizarPastilhasAssinatura(dados);
-        }
-
-        /** Repinta as duas pastilhas de assinatura com o que a leitura achou. */
-        function atualizarPastilhasAssinatura(dados) {
-            const pastilhas = document.querySelectorAll('#ocrResult .anx-pill');
-            const estados = [!!dados.assinaturaFuncionario, !!dados.assinaturaLider];
-
-            pastilhas.forEach((pill, i) => {
-                const ok = estados[i];
-                pill.classList.toggle('sim', ok);
-                pill.classList.toggle('nao', !ok);
-                const icone = pill.querySelector('i');
-                const texto = pill.querySelector('em');
-                if (icone) icone.textContent = ok ? '✔' : '✕';
-                if (texto) texto.textContent = ok ? 'Assinado' : 'Não assinado';
-            });
         }
 
         // Qualquer digitação marca o campo como "da pessoa", e a leitura respeita
@@ -7133,12 +7115,10 @@
             const lido = await response.json();
             debugLog('OCR:', lido._meta);
 
-            // O restante da tela espera `confidence`; o backend devolve `confianca`
+            // Leitura enxuta: só motivo e horários. Cabeçalho (reg/nome/data) e
+            // assinatura saíram do que a IA lê — viraram conferência manual do
+            // RH, em troca de ler ~78% mais rápido (7,9s -> 1,7s medido).
             return {
-                id: lido.id,
-                reg: lido.reg,
-                nome: lido.nome,
-                dataFormulario: lido.dataFormulario,
                 motivo: lido.motivo,
                 ent1: lido.ent1 || '',
                 sai1: lido.sai1 || '',
@@ -7146,9 +7126,7 @@
                 sai2: lido.sai2 || '',
                 ent3: lido.ent3 || '',
                 sai3: lido.sai3 || '',
-                assinaturaFuncionario: !!lido.assinaturaFuncionario,
-                assinaturaLider: !!lido.assinaturaLider,
-                confidence: lido.confianca || {}
+                confidence: {}
             };
         }
 
@@ -8115,15 +8093,6 @@
                 `;
             };
             
-            const assinatura = (rotulo, assinado) => `
-                <div class="anx-pill ${assinado ? 'sim' : 'nao'}">
-                    <i>${assinado ? '✔' : '✕'}</i>
-                    <div>
-                        <b>${rotulo}</b>
-                        <em>${assinado ? 'Assinado' : 'Não assinado'}</em>
-                    </div>
-                </div>`;
-
             const opcoesMotivo = [
                 'Esqueceu de registrar o Ponto', 'Falha no App', 'Falta', 'Folga',
                 'Hora Parada', 'Maquina Ponto com defeito',
@@ -8131,14 +8100,6 @@
             ].map(m => `<option value="${m}" ${dados.motivo === m ? 'selected' : ''}>${m}</option>`).join('');
 
             let html = `
-                <div class="anx-sec">
-                    <h4 class="anx-sec-tit">Assinaturas</h4>
-                    <div class="anx-duo">
-                        ${assinatura('Funcionário', dados.assinaturaFuncionario)}
-                        ${assinatura('Líder', dados.assinaturaLider)}
-                    </div>
-                </div>
-
                 <div class="anx-sec">
                     <h4 class="anx-sec-tit">Classificação</h4>
                     <div class="anx-duo">
@@ -8227,15 +8188,6 @@
                 return;
             }
 
-            // 📝 VALIDAR ASSINATURAS ANTES DE ENVIAR - apenas aviso, não bloqueia
-            if (currentOCRData && (currentOCRData.assinaturaFuncionario === false || currentOCRData.assinaturaLider === false)) {
-                const faltantes = [];
-                if (!currentOCRData.assinaturaFuncionario) faltantes.push('Funcionário');
-                if (!currentOCRData.assinaturaLider) faltantes.push('Líder');
-                
-                console.log(`⚠️ Assinaturas faltando: ${faltantes.join(', ')} - prosseguindo mesmo assim`);
-            }
-            
             const btn = document.getElementById('btnConfirmarAnexo');
             btn.disabled = true;
             btn.textContent = 'Enviando...';
@@ -8317,14 +8269,23 @@
                 
                 if (result.success) {
                     console.log('? Anexo salvo:', result);
-                    
-                    // BUSCAR a referçãncia correta do FUNCIONÁRIO em allEmployees
+
+                    // BUSCAR a referçãncia correta do FUNCIONÁRIO em allEmployees.
+                    // O REG sozinho não identifica a pessoa: ALR e S5 FLORESTAL
+                    // reaproveitam a mesma numeração (REG 397 é um em cada uma, por
+                    // exemplo — 6 pares assim hoje). Sem o empresaId aqui, salvar
+                    // para uma pessoa podia repintar a linha de outra na tela,
+                    // enquanto o banco (que sempre usou empresa_id) gravava certo
+                    // — parecia que "não substituiu", quando na verdade só a tela
+                    // é que mostrava a pessoa errada.
                     const dataFormatada = currentAnexoEmployee.rawData?.Data?.split('T')[0] || currentAnexoEmployee.date;
-                    const empRef = allEmployees.find(e => 
-                        e.reg === currentAnexoEmployee.reg && 
+                    const empresaIdAlvo = currentAnexoEmployee.empresaId || currentAnexoEmployee.companyId;
+                    const empRef = allEmployees.find(e =>
+                        e.reg === currentAnexoEmployee.reg &&
+                        (e.empresaId || e.companyId) === empresaIdAlvo &&
                         (e.rawData?.Data?.split('T')[0] === dataFormatada || e.date === dataFormatada)
                     );
-                    
+
                     if (empRef) {
                         // Atualizar referçãncia com anexo
                         empRef.anexoUrl = result.blobUrl;
@@ -12957,7 +12918,6 @@
             content: ' · lendo…';
             color: #6FCF7B; font-weight: 600; letter-spacing: .04em;
         }
-        #ocrResult.lendo .anx-duo .anx-pill { opacity: .55; }
         @media (prefers-reduced-motion: reduce) {
             #ocrResult.lendo .anx-input { animation: none; }
         }
@@ -12984,19 +12944,6 @@
         }
 
         .anx-duo { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-        .anx-pill {
-            display: flex; align-items: center; gap: 9px;
-            padding: 9px 11px; border-radius: 12px; border: 1px solid;
-        }
-        .anx-pill.sim { background: rgba(111, 207, 123, .11); border-color: rgba(111, 207, 123, .4); }
-        .anx-pill.nao { background: rgba(220, 74, 63, .11);  border-color: rgba(220, 74, 63, .42); }
-        .anx-pill i { font-style: normal; font-size: 16px; line-height: 1; }
-        .anx-pill.sim i { color: #6FCF7B; }
-        .anx-pill.nao i { color: #E8776C; }
-        .anx-pill b { display: block; font-size: 12px; font-weight: 700; color: #EAF1E8; }
-        .anx-pill em { font-style: normal; font-size: 10.5px; letter-spacing: .4px; }
-        .anx-pill.sim em { color: #9ED6A9; }
-        .anx-pill.nao em { color: #E5A79F; }
 
         .anx-campo label {
             display: flex; align-items: center; justify-content: space-between; gap: 6px;

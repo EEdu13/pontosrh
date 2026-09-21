@@ -940,6 +940,16 @@ function horariosDoSchema() {
     return campos;
 }
 
+// Schema enxuto: só o necessário para preencher a tabela rápido. Cabeçalho
+// (reg/nome/data) e assinatura saíram daqui — cada campo a mais no schema
+// conta como token de ENTRADA em toda chamada (a definição do schema é
+// processada junto com a imagem), então cortar campos não usados acelera a
+// leitura inteira, não só a geração da resposta.
+//
+// Medido nesta mesma imagem: schema completo (cabeçalho+motivo+assinatura)
+// 7,9s; só ehFormulario+motivo+horários 1,7s — 78% mais rápido. Cabeçalho e
+// assinatura viram conferência manual do RH; ehFormulario continua rejeitando
+// foto que não é o formulário.
 const ESQUEMA_OCR = {
     type: 'object',
     properties: {
@@ -953,15 +963,6 @@ const ESQUEMA_OCR = {
             type: ['string', 'null'],
             description: 'Se ehFormulario for false, descreva em poucas palavras o que a imagem realmente mostra. Caso contrário, null.'
         },
-        id: { type: ['string', 'null'], description: 'Número após "ID IMP:" no cabeçalho. null se ilegível.' },
-
-        // O cabeçalho impresso identifica de quem e de que dia é o formulário.
-        // Serve para conferir se a foto foi anexada na linha certa — anexar a
-        // justificativa de um colaborador no dia de outro estraga a prova
-        // documental dos dois.
-        reg: { type: ['string', 'null'], description: 'Número após "REG:" no cabeçalho. Só os dígitos.' },
-        nome: { type: ['string', 'null'], description: 'Nome após "Nome:" no cabeçalho, como está escrito.' },
-        dataFormulario: { type: ['string', 'null'], description: 'Data após "Data:" no cabeçalho, em DD/MM/AAAA.' },
         // enum não pode conviver com type união (['string','null']) — o schema
         // é recusado com 400. A forma aceita é anyOf.
         motivo: {
@@ -983,49 +984,9 @@ const ESQUEMA_OCR = {
         // campo seguinte — e um "07" não passa no teste de HH:MM da tela, então
         // seria enviado à Secullum como JUSTIFICATIVA DE TEXTO "07" em vez de
         // horário. Com o pattern, o modelo não consegue emitir outra coisa.
-        ...horariosDoSchema(),
-        // A ordem das propriedades importa: a evidência vem ANTES do booleano,
-        // então o modelo precisa descrever o que viu na linha antes de decidir.
-        // Foi o que acabou com o falso "assinado" causado pelo nome impresso.
-        assinaturas: {
-            type: 'object',
-            properties: {
-                // Evidência em 3-5 palavras: o suficiente para forçar a olhada
-                // antes de decidir, sem gastar tempo de geração. Descrições
-                // longas custavam ~40 tokens de saída por leitura.
-                funcionarioEvidencia: {
-                    type: 'string',
-                    description: 'Máximo 5 palavras: o que existe SOBRE a linha do FUNCIONÁRIO. Ex.: "linha limpa" ou "rabisco azul sobre a linha".'
-                },
-                funcionario: { type: 'boolean', description: 'true só se a evidência descreve tinta manuscrita sobre a linha.' },
-                liderEvidencia: {
-                    type: 'string',
-                    description: 'Máximo 5 palavras, idem para a linha do Líder.'
-                },
-                lider: { type: 'boolean', description: 'true só se a evidência descreve tinta manuscrita sobre a linha.' }
-            },
-            required: ['funcionarioEvidencia', 'funcionario', 'liderEvidencia', 'lider'],
-            additionalProperties: false
-        },
-        confianca: {
-            type: 'object',
-            description: 'Confiança de 0 a 100 por campo lido.',
-            properties: {
-                id: { type: 'number' }, motivo: { type: 'number' },
-                ent1: { type: 'number' }, sai1: { type: 'number' },
-                ent2: { type: 'number' }, sai2: { type: 'number' },
-                ent3: { type: 'number' }, sai3: { type: 'number' }
-            },
-            required: ['id', 'motivo', 'ent1', 'sai1', 'ent2', 'sai2', 'ent3', 'sai3'],
-            additionalProperties: false
-        }
+        ...horariosDoSchema()
     },
-    required: [
-        'ehFormulario', 'oQueE',
-        'id', 'reg', 'nome', 'dataFormulario',
-        'motivo', 'ent1', 'sai1', 'ent2', 'sai2', 'ent3', 'sai3',
-        'assinaturas', 'confianca'
-    ],
+    required: ['ehFormulario', 'oQueE', 'motivo', 'ent1', 'sai1', 'ent2', 'sai2', 'ent3', 'sai3'],
     additionalProperties: false
 };
 
@@ -1033,42 +994,28 @@ const INSTRUCOES_OCR = `Você lê fotos de um formulário de ponto da Larsil, pr
 
 O formulário tem, de cima para baixo:
 - Título "PONTO MANUAL COMPLEMENTAR AO PONTO ELETRÔNICO" com o logotipo LARSIL à esquerda
-- Cabeçalho com Nome, Empresa, Data, REG, Projeto e "ID IMP: <número>".
-  Leia Nome, REG e Data sempre: é por eles que o sistema confere se a foto foi
-  anexada na linha certa.
+- Cabeçalho com Nome, Empresa, Data, REG, Projeto e "ID IMP: <número>"
 - Uma faixa "Horários (preencher somente os que faltaram)" com pares Entrada/Saída.
   Horários JÁ REGISTRADOS aparecem impressos com o selo "BATIDO" embaixo.
   Horários A PREENCHER aparecem como campos vazios "__:__" que o colaborador escreve à mão.
 - Uma faixa "JUSTIFICATIVA (marque o motivo)" com opções e um círculo/quadrado ao lado de cada
-- Duas linhas de assinatura no rodapé: FUNCIONÁRIO à esquerda, Líder à direita
+- Duas linhas de assinatura no rodapé
 
 PASSO 1 — é o formulário?
 Antes de qualquer leitura, confirme que a imagem é ESTE formulário: título, faixa de
 Horários e faixa de JUSTIFICATIVA precisam estar visíveis. Foto de pessoa, print de
 conversa, atestado, holerite, crachá, documento de outro tipo, foto desfocada demais
 para identificar o título ou pedaço solto do formulário sem o cabeçalho → ehFormulario
-= false, descreva em oQueE o que a imagem mostra e devolva todos os demais campos null
-ou false. Nesse caso NÃO tente adivinhar horário nenhum.
+= false, descreva em oQueE o que a imagem mostra e devolva os demais campos null.
+Nesse caso NÃO tente adivinhar horário nenhum.
 
 PASSO 2 — leitura (só se ehFormulario for true):
 - Devolva APENAS o que foi escrito À MÃO nos campos vazios. Um horário impresso com selo
   "BATIDO" já está no sistema — devolva null para ele, senão ele seria reenviado em duplicidade.
 - Horários sempre em HH:MM com 24 horas. "7h", "07 00" e "7:00" viram "07:00".
 - Motivo é o que está marcado com X, traço ou círculo. Nenhum marcado: null.
-- Se um campo estiver ilegível ou em dúvida, devolva null e uma confiança baixa.
-  Um campo em branco é melhor do que um horário errado no ponto de alguém.
-
-PASSO 3 — assinaturas (leia com atenção, é onde mais se erra):
-Abaixo de cada linha de assinatura o formulário JÁ VEM com texto impresso: o nome do
-colaborador em letra de fôrma e a legenda "Assinatura do FUNCIONÁRIO" / "Assinatura do
-Líder". Esse texto faz parte do formulário em branco e NÃO é assinatura.
-
-Para cada uma das duas linhas, primeiro descreva em "evidência" o que existe SOBRE a
-própria linha horizontal — e só então responda o booleano, coerente com o que descreveu.
-- Nada sobre a linha, apenas o nome e a legenda impressos abaixo dela → false.
-- Traço manuscrito, cursivo, irregular, frequentemente em cor de caneta diferente do
-  preto impresso, escrito sobre ou cruzando a linha → true.
-Na dúvida, false: dizer que alguém assinou quando não assinou é o pior erro possível aqui.`;
+- Se um campo estiver ilegível ou em dúvida, devolva null. Um campo em branco é
+  melhor do que um horário errado no ponto de alguém.`;
 
 // POST - Ler a justificativa anexada
 app.post('/api/ocr/justificativa', async (req, res) => {
@@ -1143,21 +1090,12 @@ app.post('/api/ocr/justificativa', async (req, res) => {
             });
         }
 
-        const assin = dadosLidos.assinaturas || {};
-        if (assin.funcionario || assin.lider) {
-            console.log(`   assinaturas → funcionário: ${assin.funcionarioEvidencia} | líder: ${assin.liderEvidencia}`);
-        }
-
         res.json({
             ...dadosLidos,
-            // Achatado para o formato que a tela já consome
-            assinaturaFuncionario: !!assin.funcionario,
-            assinaturaLider: !!assin.lider,
             _meta: {
                 modelo: CLAUDE_OCR_MODEL,
                 ms,
-                tokens: { entrada: resposta.usage.input_tokens, saida: resposta.usage.output_tokens },
-                assinaturas: assin
+                tokens: { entrada: resposta.usage.input_tokens, saida: resposta.usage.output_tokens }
             }
         });
 
