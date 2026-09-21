@@ -59,3 +59,7 @@ tmp/
 # Arquivos de teste
 teste.*
 test.*
+
+# Relatórios de ponto gerados sob demanda: trazem CPF, PIS, foto e GPS de
+# colaborador. Ficam na máquina de quem gerou, nunca no histórico do git.
+batidas-*.pdf

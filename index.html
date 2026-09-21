@@ -3856,15 +3856,6 @@
         // ==========================================
         // 🚀 CACHE HÍBRIDO INTELIGENTE - 60 DIAS
         // ==========================================
-        const CACHE_STRATEGY = {
-            DEFAULT_RANGE_DAYS: 60,
-            TTL: {
-                historical: 24 * 60 * 60 * 1000,
-                current_month: 5 * 60 * 1000,
-                today: 2 * 60 * 1000  // 🚨 OTIMIZAÇÃO: Aumentado de 30s para 2 minutos para reduzir carga
-            }
-        };
-
         // ==========================================
         // ⚡ CONFIGURAÇÃO OTIMIZADA (pode alterar aqui)
         // ==========================================
@@ -3903,7 +3894,6 @@
             employees: new Map(),      // ✅ NOVO: cache por funcionário (REG_DATA_EMPRESA)
             historical: new Map(),
             recent: new Map(),
-            today: new Map(),
             metadata: {
                 lastFullLoad: null,
                 lastUpdate: null,
@@ -4552,48 +4542,36 @@
             }
         }
 
-        // Cache da lista de funcionários por empresa. A lista muda raramente, mas o
-        // endpoint é pesado — sem isso, toda busca refazia o download inteiro.
-        const funcionariosPorEmpresa = new Map(); // empresaId -> { dados, timestamp }
-        const TTL_FUNCIONARIOS = 10 * 60 * 1000;  // 10 minutos
-
-        async function fetchFuncionariosDaEmpresa(company) {
-            const cached = funcionariosPorEmpresa.get(company.id);
-            if (cached && (Date.now() - cached.timestamp) < TTL_FUNCIONARIOS) {
-                return cached.dados;
-            }
-
-            const url = `${API_CONFIG.baseURL}/IntegracaoExterna/Funcionarios`;
-            const response = await fetch(url, {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${API_CONFIG.token}`,
-                    'secullumidbancoselecionado': company.id,
-                    'Content-Type': 'application/json'
-                }
-            });
-
+        // Lista de funcionários de TODAS as empresas numa requisição só.
+        //
+        // Antes eram N requisições (uma por empresa) trazendo o objeto inteiro da
+        // Secullum: 3.250 bytes por funcionário para a tela usar 198 — 8,7MB num
+        // fechamento de 4 empresas. Agora o corte é feito no servidor, que ainda
+        // guarda o resultado por 10 minutos para todo mundo.
+        async function fetchFuncionariosDasEmpresas(companies) {
+            const ids = companies.map(c => c.id).join(',');
+            const response = await apiFetch(`/api/secullum/slim/funcionarios?empresas=${encodeURIComponent(ids)}`);
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-            const dados = await response.json();
-            funcionariosPorEmpresa.set(company.id, { dados, timestamp: Date.now() });
-            return dados;
+            return await response.json(); // { [empresaId]: [ {Nome, Cpf, ...} ] }
         }
 
-        // função para enriquecer batidas com nomes dos funcionários
-        async function enrichWithEmployeeNames(batidas, companies) {
+        // função para enriquecer batidas com nomes dos funcionários.
+        // `promessaFuncionarios` chega pronta de quem já disparou a busca em
+        // paralelo com as batidas; sem ela, busca aqui mesmo.
+        async function enrichWithEmployeeNames(batidas, companies, promessaFuncionarios) {
             const funcionariosCache = new Map();
             const funcionariosAtivosSet = new Set(); // ? REGISTRAR APENAS FUNCIONÁRIOS ATIVOS
 
-            // TODAS as empresas em paralelo. Antes era um for/await sequencial:
-            // com 6 empresas, 6 downloads pesados um atrás do outro.
-            const listas = await Promise.all(companies.map(async (company) => {
-                try {
-                    return { company, funcionarios: await fetchFuncionariosDaEmpresa(company) };
-                } catch (error) {
-                    console.warn(`⚠️ Erro ao buscar funcionários de ${company.name}:`, error.message);
-                    return { company, funcionarios: [] };
-                }
+            let porEmpresa = {};
+            try {
+                porEmpresa = await (promessaFuncionarios || fetchFuncionariosDasEmpresas(companies));
+            } catch (error) {
+                console.warn('⚠️ Erro ao buscar funcionários:', error.message);
+            }
+
+            const listas = companies.map(company => ({
+                company,
+                funcionarios: porEmpresa[company.id] || porEmpresa[String(company.id)] || []
             }));
 
             for (const { company, funcionarios } of listas) {
@@ -4673,37 +4651,6 @@
             batidas.push(...batidasFiltradas);
         }
 
-        // 🚀 BUSCAR DADOS DE 1 DIA (micro-request para cache)
-        async function fetchDayData(company, date) {
-            try {
-                const url = `${API_CONFIG.baseURL}/IntegracaoExterna/Batidas?dataInicio=${date}&dataFim=${date}`;
-                
-                const response = await fetch(url, {
-                    method: 'GET',
-                    headers: {
-                        'Authorization': `Bearer ${API_CONFIG.token}`,
-                        'secullumidbancoselecionado': company.id,
-                        'Content-Type': 'application/json'
-                    }
-                });
-                
-                if (!response.ok) return [];
-                
-                const result = await response.json();
-                
-                if (Array.isArray(result)) {
-                    result.forEach(batida => {
-                        batida._empresa = company.name;
-                        batida._empresaId = company.id;
-                    });
-                    return result;
-                }
-                
-                return [];
-            } catch (err) {
-                return [];
-            }
-        }
 
         // ==========================================
         // ✅ FUNÇÃO OTIMIZADA - USA RANGE DE DATAS
@@ -4754,69 +4701,48 @@
             try {
                 const startTime = Date.now();
                 
-                // ✅ OTIMIZAÇÃO: 1 request por empresa (PARALELO)
-                const promises = empresas.map(async (empresa) => {
-                    console.log(`🔄 Buscando dados da ${empresa.name}...`);
-                    
-                    try {
-                        const url = `${API_CONFIG.baseURL}/IntegracaoExterna/Batidas?dataInicio=${dataInicio}&dataFim=${dataFim}`;
-                        
-                        const response = await fetch(url, {
-                            method: 'GET',
-                            headers: {
-                                'Authorization': `Bearer ${API_CONFIG.token}`,
-                                'secullumidbancoselecionado': empresa.id,
-                                'Content-Type': 'application/json'
-                            }
-                        });
-                        
-                        if (!response.ok) {
-                            const errorText = await response.text();
-                            console.error(`❌ Erro ${response.status} na empresa ${empresa.name}:`, errorText);
+                // UMA requisição para todas as empresas. O servidor busca em
+                // paralelo pelo link dele (rápido) e devolve só os campos que a
+                // tela lê — a batida crua da Secullum tem 65 campos e 1.490
+                // bytes; a tela usa 13 campos e 306.
+                const ids = empresas.map(e => e.id).join(',');
+                const resposta = await apiFetch(
+                    `/api/secullum/slim/batidas?dataInicio=${dataInicio}&dataFim=${dataFim}&empresas=${encodeURIComponent(ids)}`
+                );
 
-                            // A Secullum responde 400 "Operação não permitida para este usuário"
-                            // quando a conta não tem permissão de Integração Externa.
-                            // Sem tratar isso, a tela mostrava "0 funcionários" e parecia
-                            // que não havia dados, quando na verdade é falta de permissão.
-                            if (response.status === 400 && /não permitida|nao permitida/i.test(errorText)) {
-                                return {
-                                    empresaId: empresa.id,
-                                    empresaNome: empresa.name,
-                                    data: [],
-                                    success: false,
-                                    semPermissao: true
-                                };
-                            }
+                if (!resposta.ok) {
+                    throw new Error(`Erro ${resposta.status} ao buscar batidas`);
+                }
 
-                            throw new Error(`Erro ${response.status} na empresa ${empresa.name}`);
-                        }
+                const porEmpresa = await resposta.json();
 
-                        const data = await response.json();
-                        debugLog(`${empresa.name}: ${data.length} batidas recebidas`);
+                const results = empresas.map(empresa => {
+                    const lista = porEmpresa[empresa.id] ?? porEmpresa[String(empresa.id)];
 
-                        return {
-                            empresaId: empresa.id,
-                            empresaNome: empresa.name,
-                            data: Array.isArray(data) ? data : [],
-                            success: true
-                        };
-                        
-                    } catch (error) {
-                        console.error(`❌ Falha ao buscar ${empresa.name}:`, error);
+                    // O servidor devolve { erro, semPermissao } no lugar da lista
+                    // quando a Secullum recusou aquela empresa.
+                    if (lista && !Array.isArray(lista)) {
                         return {
                             empresaId: empresa.id,
                             empresaNome: empresa.name,
                             data: [],
                             success: false,
-                            error: error.message
+                            semPermissao: !!lista.semPermissao,
+                            error: lista.erro
                         };
                     }
+
+                    const data = Array.isArray(lista) ? lista : [];
+                    debugLog(`${empresa.name}: ${data.length} batidas recebidas`);
+
+                    return {
+                        empresaId: empresa.id,
+                        empresaNome: empresa.name,
+                        data,
+                        success: true
+                    };
                 });
-                
-                // ✅ Aguardar TODAS as empresas em paralelo
-                console.log(`⏳ Aguardando ${promises.length} requisições paralelas...`);
-                const results = await Promise.all(promises);
-                
+
                 const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
                 console.log(`⚡ Tempo total de requisições: ${elapsed}s`);
                 
@@ -4976,43 +4902,13 @@
             return null;
         }
 
-        // 🔄 ATUALIZAR APENAS HOJE E ONTEM (30s)
-        async function updateRecentData() {
-            const now = new Date();
-            const today = now.toISOString().split('T')[0];
-            const yesterday = new Date(now - 24*60*60*1000).toISOString().split('T')[0];
-            
-            console.log('⚡ Atualizando apenas hoje e ontem...');
-            
-            const companies = API_CONFIG.companies;
-            const dates = [yesterday, today];
-            const promises = [];
-            
-            dates.forEach(date => {
-                companies.forEach(company => {
-                    promises.push(
-                        fetchDayData(company, date).then(data => ({
-                            date,
-                            companyId: company.id,
-                            data
-                        }))
-                    );
-                });
-            });
-            
-            const results = await Promise.allSettled(promises);
-            
-            results.forEach(result => {
-                if (result.status === 'fulfilled') {
-                    const { date, companyId, data } = result.value;
-                    const key = `${date}_${companyId}`;
-                    SMART_CACHE.today.set(key, data);
-                }
-            });
-            
-            SMART_CACHE.metadata.lastUpdate = Date.now();
-            console.log('✅ Dados recentes atualizados');
-        }
+        // Havia aqui um updateRecentData() em setInterval de 30s que baixava
+        // ontem+hoje de TODAS as empresas — 1,4MB a cada 30 segundos, 170MB por
+        // hora em cada aba aberta — e guardava em SMART_CACHE.today, que nunca
+        // era lido por ninguém. Era o que deixava a tela lenta enquanto o RH
+        // trabalhava: a banda do escritório ia embora em tráfego descartado, e
+        // a leitura do formulário disputava espaço com ele. Quem precisa de
+        // dado novo usa o botão de buscar.
 
         // 📊 PEGAR DADOS DO CACHE (INSTANTÂNEO)
         // função para buscar batidas de todas as empresas selecionadas
@@ -5142,24 +5038,28 @@
         async function fetchEmployeesFromAPI(dateStart, dateEnd) {
             try {
                 console.log('🔍 Iniciando busca inteligente...');
-                
+
+                const companies = API_CONFIG.selectedCompanies.includes('all')
+                    ? API_CONFIG.companies
+                    : API_CONFIG.companies.filter(c => API_CONFIG.selectedCompanies.includes(c.id));
+
+                // A lista de funcionários não depende das batidas — as duas buscas
+                // podem correr juntas. Em sequência eram ~6s de batidas + ~6s de
+                // funcionários; disparando agora, a segunda já chegou quando as
+                // batidas terminam.
+                const promessaFuncionarios = fetchFuncionariosDasEmpresas(companies)
+                    .catch(erro => {
+                        console.warn('⚠️ Erro ao buscar funcionários:', erro.message);
+                        return {};
+                    });
+
                 // 📦 STEP 1: Carregar cache histórico (se não existir)
                 if (!SMART_CACHE.metadata.lastFullLoad) {
                     console.log('📥 PRIMEIRA CARGA: Buscando período selecionado...');
                     await loadFullHistoricalCache(dateStart, dateEnd);
                 }
-                
-                // 🔄 STEP 2: Atualizar APENAS os dados recentes
-                const now = Date.now();
-                const needsUpdate = !SMART_CACHE.metadata.lastUpdate || 
-                                   (now - SMART_CACHE.metadata.lastUpdate) > CACHE_STRATEGY.TTL.today;
-                
-                if (needsUpdate) {
-                    console.log('⚡ Atualizando dados recentes...');
-                    await updateRecentData();
-                }
-                
-                // 📊 STEP 3: Montar resultado do cache POR FUNCIONÁRIO
+
+                // 📊 STEP 2: Montar resultado do cache POR FUNCIONÁRIO
                 const startTime = performance.now();
                 let allBatidas = getCachedDataByEmployee(dateStart, dateEnd);
                 const elapsed = ((performance.now() - startTime)).toFixed(2);
@@ -5173,18 +5073,8 @@
                     return [];
                 }
                 
-                const companies = API_CONFIG.selectedCompanies.includes('all') 
-                    ? API_CONFIG.companies 
-                    : API_CONFIG.companies.filter(c => API_CONFIG.selectedCompanies.includes(c.id));
-                
-                await enrichWithEmployeeNames(allBatidas, companies);
-                
-                // Auto-refresh: iniciar se não estiver rodando
-                if (!autoRefreshInterval) {
-                    console.log('🔄 Iniciando auto-refresh (30s)');
-                    autoRefreshInterval = setInterval(updateRecentData, CACHE_STRATEGY.TTL.today);
-                }
-                
+                await enrichWithEmployeeNames(allBatidas, companies, promessaFuncionarios);
+
                 const parsedData = parseSecullumData(allBatidas, dateStart);
                 
                 // 🔍 PREENCHER DIAS FALTANTES: Se funcionário tem batidas no período, 
@@ -5222,7 +5112,6 @@
             SMART_CACHE.employees.clear();
             SMART_CACHE.historical.clear();
             SMART_CACHE.recent.clear();
-            SMART_CACHE.today.clear();
             SMART_CACHE.metadata.lastFullLoad = null;
             SMART_CACHE.metadata.lastUpdate = null;
             SMART_CACHE.metadata.totalRequests = 0;
@@ -5297,13 +5186,11 @@
             console.log('📊 CACHE STATS:');
             console.log(`  Historical: ${SMART_CACHE.historical.size} registros`);
             console.log(`  Recent: ${SMART_CACHE.recent.size} registros`);
-            console.log(`  Today: ${SMART_CACHE.today.size} registros`);
             console.log(`  Last Full Load: ${SMART_CACHE.metadata.lastFullLoad ? new Date(SMART_CACHE.metadata.lastFullLoad).toLocaleString() : 'Nunca'}`);
             console.log(`  Last Update: ${SMART_CACHE.metadata.lastUpdate ? new Date(SMART_CACHE.metadata.lastUpdate).toLocaleString() : 'Nunca'}`);
             return {
                 historical: SMART_CACHE.historical.size,
                 recent: SMART_CACHE.recent.size,
-                today: SMART_CACHE.today.size,
                 lastFullLoad: SMART_CACHE.metadata.lastFullLoad,
                 lastUpdate: SMART_CACHE.metadata.lastUpdate
             };
@@ -5678,6 +5565,11 @@
          * alfabética. É a mesma lista usada pelo "selecionar todos" e pela
          * geração — sem isso, marcar todos pega gente fora da tela.
          */
+        // Um Intl.Collator reaproveitado em vez de localeCompare a cada comparação:
+        // ordenar as ~12 mil linhas da tela cai de 34ms para 15ms, e isso acontece
+        // a cada render — inclusive a cada tecla digitada nos filtros.
+        const ordemPorNome = new Intl.Collator('pt-BR');
+
         function funcionariosFiltrados() {
             const nome = (document.getElementById('searchName')?.value || '').trim().toLowerCase();
             const lider = (document.getElementById('searchLider')?.value || '').trim().toLowerCase();
@@ -5696,7 +5588,7 @@
             if (projeto) lista = lista.filter(e => String(e.projeto || '').toLowerCase().includes(projeto));
             if (depto) lista = lista.filter(e => String(e.departamentoSecullum || '').toLowerCase().includes(depto));
 
-            return [...lista].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'pt-BR'));
+            return [...lista].sort((a, b) => ordemPorNome.compare(a.name || '', b.name || ''));
         }
         let selectedEmployees = [];
         let useDigitalSignature = false;
@@ -5899,20 +5791,17 @@
                 
                 // 🚀 CARREGAR TODOS OS DADOS EM BATCH (1 request ao invés de 180+)
                 await carregarDadosCompletos().catch(err => console.error('❌ Erro ao carregar dados:', err));
-                await carregarIDs().catch(err => console.error('? Erro ao carregar IDs:', err));
                 
                 hideLoading();
                 setApiStatus('connected', `${apiData.length} registros carregados em ${timeElapsed}s`);
                 
+                // Uma vez só. Havia aqui um segundo renderTable() em setTimeout,
+                // como garantia de que a tabela aparecia — mas carregarDadosCompletos()
+                // já terminou acima (é await), então a primeira chamada já vê os
+                // dados completos. A segunda só refazia o filtro e a ordenação de
+                // milhares de linhas à toa.
                 renderTable();
-                
-                // 🔧 WORKAROUND: Garantir renderização após processamento
-                setTimeout(() => {
-                    console.log('🔄 [FORÇADO] Chamando renderTable() novamente...');
-                    console.log('🔄 allEmployees.length:', allEmployees.length);
-                    renderTable();
-                }, 100);
-                
+
                 // Sem toast aqui: a pilula de status ao lado do titulo ja mostra
                 // "N registros carregados em Xs". Dois avisos para o mesmo fato.
             } else {
@@ -5957,9 +5846,37 @@
                 }
                 
                 const { anexos, perguntas, aprovacoes, totalRecords } = await response.json();
-                
+
                 debugLog(`✅ Dados carregados: ${totalRecords} registros no banco`);
-                
+
+                // Índice montado uma vez só. Antes cada funcionário varria de novo
+                // a lista de anexos do seu dia — com milhares de linhas na tela
+                // isso era um filtro por linha.
+                //
+                // Dois índices porque nem toda linha de ANEXOS tem CPF confiável
+                // (há registros antigos com CPF vazio ou errado). O REG cobre
+                // esses — era exatamente para isso que existia uma segunda ida ao
+                // banco em /justificativa/buscar-ids, que agora não é mais
+                // necessária: a resposta daqui já traz o id de cada anexo.
+                const anexoPorCpf = new Map();
+                const anexoPorReg = new Map();
+                for (const [dataKey, porEmpresa] of Object.entries(anexos || {})) {
+                    for (const [empresaId, lista] of Object.entries(porEmpresa || {})) {
+                        for (const a of lista) {
+                            const cpf = String(a.cpf || '').replace(/[.\-]/g, '').trim();
+                            if (cpf) {
+                                const chave = `${dataKey}|${empresaId}|${cpf}`;
+                                if (!anexoPorCpf.has(chave)) anexoPorCpf.set(chave, a);
+                            }
+                            const reg = String(a.reg || '').trim();
+                            if (reg) {
+                                const chave = `${dataKey}|${empresaId}|${reg}`;
+                                if (!anexoPorReg.has(chave)) anexoPorReg.set(chave, a);
+                            }
+                        }
+                    }
+                }
+
                 // 📋 Aplicar dados aos funcionários
                 allEmployees.forEach(emp => {
                     // Normalizar data do funcionário
@@ -5988,26 +5905,22 @@
                     const cpfEmp = String(emp.cpf || '').replace(/[.\-]/g, '').trim();
                     const empresaId = emp.empresaId || emp.companyId;
                     
-                    // 🔍 Buscar anexos para este funcionário
-                    if (anexos[dataEmp] && anexos[dataEmp][empresaId]) {
-                        const anexosFuncionario = anexos[dataEmp][empresaId].filter(a => {
-                            const cpfAnexo = String(a.cpf || '').replace(/[.\-]/g, '').trim();
-                            return cpfAnexo === cpfEmp;
-                        });
-                        
-                        if (anexosFuncionario.length > 0) {
-                            const anexo = anexosFuncionario[0];
-                            emp.anexoId = anexo.id;
-                            emp.anexoUrl = anexo.blob_url;
-                            emp.anexoDate = dataEmp;
-                            // Gerar e anexar são ações distintas, de pessoas distintas
-                            emp.geradoPor = anexo.created_by || null;
-                            emp.geradoEm = anexo.created_at || null;
-                            emp.anexoPor = anexo.anexado_por || null;
-                            emp.anexoEm = anexo.anexado_em || null;
-                            emp.attachments = anexo.blob_filename ? [anexo.blob_filename] : [];
-                            emp.id = anexo.id; // ID para impressão
-                        }
+                    // 🔍 Buscar anexos para este funcionário: pelo CPF e, quando o
+                    // anexo não tem CPF gravado, pelo REG
+                    const anexo = (cpfEmp && anexoPorCpf.get(`${dataEmp}|${empresaId}|${cpfEmp}`))
+                               || anexoPorReg.get(`${dataEmp}|${empresaId}|${String(emp.reg || '').trim()}`);
+
+                    if (anexo) {
+                        emp.anexoId = anexo.id;
+                        emp.anexoUrl = anexo.blob_url;
+                        emp.anexoDate = dataEmp;
+                        // Gerar e anexar são ações distintas, de pessoas distintas
+                        emp.geradoPor = anexo.created_by || null;
+                        emp.geradoEm = anexo.created_at || null;
+                        emp.anexoPor = anexo.anexado_por || null;
+                        emp.anexoEm = anexo.anexado_em || null;
+                        emp.attachments = anexo.blob_filename ? [anexo.blob_filename] : [];
+                        emp.id = anexo.id; // ID para impressão
                     }
                     
                     // 💬 Buscar perguntas para este funcionário
@@ -6070,61 +5983,11 @@
             console.log(`✅ Recálculo concluído! ${removidos} inconsistências removidas por aprovação`);
         }
 
-        // ℹ Carregar IDs de impressão (alias para carregarIdsImpressao)
-        async function carregarIDs() {
-            return await carregarIdsImpressao();
-        }
-        
-        // ℹ Carregar IDs de impressão de TODOS os funcionários
-        async function carregarIdsImpressao() {
-            try {
-                // Carregar IDs do banco de dados
-                
-                // Montar array com todos os registros (REG + DATA + EMPRESA_ID)
-                const registros = allEmployees.map(emp => ({
-                    reg: emp.reg,
-                    data: emp.date,
-                    empresa_id: emp.empresaId || emp.companyId || 0
-                }));
-                
-                if (registros.length === 0) return;
-                
-                const response = await apiFetch('/api/justificativa/buscar-ids', {
-                    method: 'POST',
-                    body: JSON.stringify({ registros })
-                });
-                
-                if (!response.ok) {
-                    console.warn('⚠️ Erro ao buscar IDs do banco');
-                    return;
-                }
-                
-                const { ids } = await response.json();
-                
-                // Atribuir IDs aos funcionários
-                allEmployees.forEach(emp => {
-                    // Normalizar data
-                    let dataNormalizada = emp.date;
-                    if (emp.date.includes('/')) {
-                        const [dia, mes, ano] = emp.date.split('/');
-                        dataNormalizada = `${ano}-${mes}-${dia}`;
-                    } else if (emp.date.includes('T')) {
-                        dataNormalizada = emp.date.split('T')[0];
-                    }
-                    
-                    const empresaId = emp.empresaId || emp.companyId || 0;
-                    const key = `${emp.reg}_${dataNormalizada}_${empresaId}`;
-                    if (ids[key]) {
-                        emp.id = ids[key];
-                    }
-                });
-                
-                debugLog(`? IDs carregados! ${Object.keys(ids).length} encontrado(s)`);
-                
-            } catch (err) {
-                console.error('? Erro ao carregar IDs do banco:', err);
-            }
-        }
+        // Aqui existiam carregarIDs()/carregarIdsImpressao(), que mandavam a lista
+        // inteira de funcionários ao servidor para buscar na tabela ANEXOS os ids
+        // de impressão — a mesma tabela, o mesmo período que /anexos/batch-period
+        // acabara de consultar, e cujo retorno já traz o id de cada anexo. Agora
+        // o casamento por REG é feito ali mesmo, sem uma segunda ida ao banco.
 
         // Desconectar da API
         function disconnectFromAPI() {
@@ -9517,80 +9380,131 @@
         }
 
         /** Roda a fila, um trabalho por vez. Só uma execução simultânea. */
+        /**
+         * Identifica o cartão de ponto que o trabalho vai alterar: pessoa + dia
+         * + empresa. Dois trabalhos com a mesma chave NÃO podem sair ao mesmo
+         * tempo (ver o comentário sobre concorrência otimista em filaProcessarJob);
+         * com chaves diferentes, não há o que colidir.
+         */
+        function filaChaveCartao(job) {
+            return `${job.empresaId}|${job.numeroFolha || job.reg}|${job.dataApi}`;
+        }
+
+        // Cartões com envio em andamento agora.
+        const cartoesEmVoo = new Set();
+        const FILA_PARALELA = 4;
+
+        /**
+         * Despacha a fila: trabalhos de cartões diferentes saem em paralelo,
+         * trabalhos do mesmo cartão esperam a vez.
+         *
+         * Antes isto era um laço estritamente serial — uma pessoa de cada vez,
+         * do começo ao fim. Com 10 justificativas anexadas em sequência, a
+         * última só chegava à Secullum quase um minuto e meio depois, e a aba
+         * de Logs ficava mostrando "Na fila" esse tempo todo.
+         */
         async function filaProcessar() {
             if (filaRodando) return;
             filaRodando = true;
 
             try {
+                const emAndamento = new Set();
+
                 while (true) {
-                    const job = filaEnvio.find(j => j.estado === 'pendente');
-                    if (!job) break;
+                    // Próximos trabalhos cujo cartão está livre
+                    const prontos = filaEnvio.filter(j =>
+                        j.estado === 'pendente' && !cartoesEmVoo.has(filaChaveCartao(j)));
 
-                    job.estado = 'enviando';
-                    job.tentativas++;
-                    filaSalvar();
-
-                    const falhas = [];
-                    const aceitos = [];       // slots que a Secullum aceitou
-                    const recusados = [];     // slots que ela recusou
-                    const pendentes = [...job.horarios];
-
-                    // UM DE CADA VEZ, sempre.
-                    //
-                    // Todos os horários de um trabalho são do MESMO cartão —
-                    // mesma pessoa, mesmo dia. A Secullum carrega o cartão,
-                    // altera uma coluna e grava com concorrência otimista: dois
-                    // envios simultâneos fazem o segundo encontrar a versão já
-                    // mudada e devolver
-                    //   DbUpdateConcurrencyException: expected to affect 1 row(s)
-                    //   but actually affected 0 row(s)
-                    //
-                    // Foi exatamente o que aconteceu quando paralelizei isto:
-                    // TODO envio com 2+ horários falhou, todo envio com 1 passou.
-                    // Aqui a corretude vale mais que o tempo — e como a fila roda
-                    // em segundo plano, ninguém está esperando.
-                    for (const item of pendentes) {
-                        let r = await enviarHorario(job, item);
-
-                        // Conflito de concorrência é transitório: o cartão mudou
-                        // entre a leitura e a gravação. Tentar de novo resolve.
-                        for (let t = 1; t <= 2 && !r.ok && r.repetir; t++) {
-                            await new Promise(s => setTimeout(s, 700 * t));
-                            r = await enviarHorario(job, item);
-                        }
-
-                        if (r.ok) {
-                            if (item.slot || item.slots) aceitos.push(item);
-                        } else {
-                            if (item.slot || item.slots) recusados.push(item);
-                            falhas.push(`${item.coluna} ${item.hora}: ${r.erro}`);
-                        }
+                    if (!prontos.length) {
+                        if (!emAndamento.size) break;      // nada pendente e nada rodando
+                        await Promise.race(emAndamento);   // espera abrir uma vaga
+                        continue;
                     }
 
-                    // A tabela acompanha o que a Secullum respondeu, horario a
-                    // horario: o que passou fica, o que nao passou e desfeito.
-                    try { reconciliarTabela(job, aceitos, recusados); }
-                    catch (e) { console.warn('Falha ao reconciliar a tabela:', e.message); }
+                    while (prontos.length && emAndamento.size < FILA_PARALELA) {
+                        const job = prontos.shift();
+                        const chave = filaChaveCartao(job);
+                        if (cartoesEmVoo.has(chave)) continue;
 
-                    if (falhas.length) {
-                        job.estado = 'falhou';
-                        job.erro = falhas.join(' | ');
-                        // O aviso é o ponto do envio em segundo plano: ninguém
-                        // fica olhando a fila, então a falha tem de chegar sozinha
-                        showToast(
-                            `NAO foi para a Secullum: ${job.nome}` + "\n" + falhas[0] + "\n" + "O horario foi retirado da tabela. Abra Logs para reenviar.",
-                            'error', 12000
-                        );
-                    } else {
-                        job.estado = 'enviado';
-                        job.erro = null;
+                        cartoesEmVoo.add(chave);
+                        const tarefa = filaProcessarJob(job)
+                            .catch(e => console.error('Falha no envio:', e))
+                            .finally(() => {
+                                cartoesEmVoo.delete(chave);
+                                emAndamento.delete(tarefa);
+                            });
+                        emAndamento.add(tarefa);
                     }
-                    job.concluidoEm = new Date().toISOString();
-                    filaSalvar();
+
+                    await Promise.race(emAndamento);
                 }
             } finally {
                 filaRodando = false;
             }
+        }
+
+        async function filaProcessarJob(job) {
+            job.estado = 'enviando';
+            job.tentativas++;
+            filaSalvar();
+
+            const falhas = [];
+            const aceitos = [];       // slots que a Secullum aceitou
+            const recusados = [];     // slots que ela recusou
+            const pendentes = [...job.horarios];
+
+            // UM DE CADA VEZ, sempre.
+            //
+            // Todos os horários de um trabalho são do MESMO cartão —
+            // mesma pessoa, mesmo dia. A Secullum carrega o cartão,
+            // altera uma coluna e grava com concorrência otimista: dois
+            // envios simultâneos fazem o segundo encontrar a versão já
+            // mudada e devolver
+            //   DbUpdateConcurrencyException: expected to affect 1 row(s)
+            //   but actually affected 0 row(s)
+            //
+            // Foi exatamente o que aconteceu quando paralelizei isto:
+            // TODO envio com 2+ horários falhou, todo envio com 1 passou.
+            // Aqui a corretude vale mais que o tempo — e como a fila roda
+            // em segundo plano, ninguém está esperando.
+            for (const item of pendentes) {
+                let r = await enviarHorario(job, item);
+
+                // Conflito de concorrência é transitório: o cartão mudou
+                // entre a leitura e a gravação. Tentar de novo resolve.
+                for (let t = 1; t <= 2 && !r.ok && r.repetir; t++) {
+                    await new Promise(s => setTimeout(s, 700 * t));
+                    r = await enviarHorario(job, item);
+                }
+
+                if (r.ok) {
+                    if (item.slot || item.slots) aceitos.push(item);
+                } else {
+                    if (item.slot || item.slots) recusados.push(item);
+                    falhas.push(`${item.coluna} ${item.hora}: ${r.erro}`);
+                }
+            }
+
+            // A tabela acompanha o que a Secullum respondeu, horario a
+            // horario: o que passou fica, o que nao passou e desfeito.
+            try { reconciliarTabela(job, aceitos, recusados); }
+            catch (e) { console.warn('Falha ao reconciliar a tabela:', e.message); }
+
+            if (falhas.length) {
+                job.estado = 'falhou';
+                job.erro = falhas.join(' | ');
+                // O aviso é o ponto do envio em segundo plano: ninguém
+                // fica olhando a fila, então a falha tem de chegar sozinha
+                showToast(
+                    `NAO foi para a Secullum: ${job.nome}` + "\n" + falhas[0] + "\n" + "O horario foi retirado da tabela. Abra Logs para reenviar.",
+                    'error', 12000
+                );
+            } else {
+                job.estado = 'enviado';
+                job.erro = null;
+            }
+            job.concluidoEm = new Date().toISOString();
+            filaSalvar();
         }
 
         function filaReenviar(id) {

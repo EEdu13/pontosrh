@@ -635,6 +635,217 @@ function rotaPermitida(metodo, caminho) {
     return SECULLUM_PERMITIDOS.some(r => r.metodo === metodo && r.caminho === caminho);
 }
 
+// ==========================================
+// ROTAS ENXUTAS — o que a tela realmente consome
+//
+// A Secullum devolve objetos gigantes: cada funcionário vem com a empresa, o
+// horário e a estrutura inteiros aninhados (3.250 bytes para usar 198), e cada
+// batida carrega 10 blocos FonteDados + Memoria + EquipId (1.490 bytes para
+// usar 306). Num fechamento de 4 empresas isso dava 29MB baixados no navegador
+// de quem está só conferindo horário.
+//
+// Aqui o corte acontece do lado do servidor, que fala com a Secullum por um
+// link rápido: o navegador recebe só os campos que a tela lê. Também vira UMA
+// requisição para todas as empresas em vez de uma por empresa.
+// ==========================================
+
+// A lista de funcionários muda por admissão/demissão — raro. Cachear no
+// servidor vale por todos os usuários juntos, não por aba aberta.
+const cacheFuncionarios = new Map(); // empresaId -> { dados, ts }
+const TTL_FUNCIONARIOS_MS = 10 * 60 * 1000;
+
+function empresasDaQuery(req) {
+    return String(req.query.empresas || '')
+        .split(',')
+        .map(s => s.trim())
+        .filter(Boolean);
+}
+
+async function buscarJson(caminho, bancoId) {
+    let r = await chamarSecullum(caminho, { bancoId });
+    if (r.status === 401) {
+        await authenticateSecullum();
+        r = await chamarSecullum(caminho, { bancoId });
+    }
+    if (!r.ok) throw new Error(`Secullum ${r.status} em ${caminho} (banco ${bancoId})`);
+    return r.json();
+}
+
+/** Só os campos que enrichWithEmployeeNames() usa, com Departamento já achatado. */
+function enxugarFuncionario(f) {
+    const d = f.Departamento;
+    return {
+        Nome: f.Nome || null,
+        Cpf: f.Cpf || null,
+        NumeroPis: f.NumeroPis || null,
+        NumeroFolha: f.NumeroFolha || null,
+        NumeroIdentificador: f.NumeroIdentificador || null,
+        Demissao: f.Demissao || null,
+        Departamento: d ? (typeof d === 'string' ? d : (d.Descricao || d.Nome || d.Id || null)) : null
+    };
+}
+
+/** Só os campos que parseSecullumData() usa. Fora: FonteDados, Memoria, EquipId. */
+function enxugarBatida(b) {
+    const f = b.Funcionario;
+    return {
+        Id: b.Id,
+        FuncionarioId: b.FuncionarioId,
+        Data: b.Data,
+        Entrada1: b.Entrada1, Saida1: b.Saida1,
+        Entrada2: b.Entrada2, Saida2: b.Saida2,
+        Entrada3: b.Entrada3, Saida3: b.Saida3,
+        Entrada4: b.Entrada4, Saida4: b.Saida4,
+        Entrada5: b.Entrada5, Saida5: b.Saida5,
+        Observacoes: b.Observacoes,
+        Funcionario: f ? {
+            Nome: f.Nome || null,
+            NumeroPis: f.NumeroPis || null,
+            NumeroFolha: f.NumeroFolha || null,
+            NumeroIdentificador: f.NumeroIdentificador || null
+        } : null
+    };
+}
+
+// GET - Funcionários de várias empresas, enxutos e cacheados
+app.get('/api/secullum/slim/funcionarios', async (req, res) => {
+    if (!SECULLUM_TOKEN) {
+        return res.status(503).json({ error: 'Token Secullum indisponível. Tente novamente em instantes.' });
+    }
+
+    const empresas = empresasDaQuery(req);
+    if (!empresas.length) return res.status(400).json({ error: 'Informe ?empresas=id1,id2' });
+
+    const inicio = Date.now();
+    let doCache = 0;
+
+    const resultado = {};
+    await Promise.all(empresas.map(async (empresaId) => {
+        const cached = cacheFuncionarios.get(empresaId);
+        if (cached && (Date.now() - cached.ts) < TTL_FUNCIONARIOS_MS) {
+            resultado[empresaId] = cached.dados;
+            doCache++;
+            return;
+        }
+        try {
+            const bruto = await buscarJson('/IntegracaoExterna/Funcionarios', empresaId);
+            const dados = Array.isArray(bruto) ? bruto.map(enxugarFuncionario) : [];
+            cacheFuncionarios.set(empresaId, { dados, ts: Date.now() });
+            resultado[empresaId] = dados;
+        } catch (err) {
+            console.warn(`⚠️ Funcionários da empresa ${empresaId}: ${err.message}`);
+            resultado[empresaId] = [];
+        }
+    }));
+
+    const total = Object.values(resultado).reduce((n, l) => n + l.length, 0);
+    console.log(`👥 slim/funcionarios: ${total} em ${Date.now() - inicio}ms (${doCache}/${empresas.length} do cache)`);
+    res.json(resultado);
+});
+
+/**
+ * Quebra o período em faixas de até DIAS_POR_FATIA dias.
+ *
+ * A Secullum fica desproporcionalmente lenta com faixas longas: um mês de uma
+ * empresa grande leva ~9,6s, mas o MESMO mês pedido em 6 pedaços paralelos volta
+ * em 2,8s — com a contagem de batidas idêntica. O gargalo é por requisição, não
+ * por volume de dados.
+ */
+const DIAS_POR_FATIA = 6;
+
+function fatiarPeriodo(dataInicio, dataFim) {
+    const inicio = new Date(`${dataInicio}T00:00:00Z`);
+    const fim = new Date(`${dataFim}T00:00:00Z`);
+    if (isNaN(inicio) || isNaN(fim) || fim < inicio) return [[dataInicio, dataFim]];
+
+    const dia = d => d.toISOString().slice(0, 10);
+    const totalDias = Math.round((fim - inicio) / 86400000) + 1;
+    const fatias = [];
+
+    for (let i = 0; i < totalDias; i += DIAS_POR_FATIA) {
+        const a = new Date(inicio); a.setUTCDate(a.getUTCDate() + i);
+        const b = new Date(inicio); b.setUTCDate(b.getUTCDate() + Math.min(i + DIAS_POR_FATIA - 1, totalDias - 1));
+        fatias.push([dia(a), dia(b)]);
+    }
+    return fatias;
+}
+
+/** Roda as tarefas com um teto de simultaneidade, para não afogar a Secullum. */
+async function comLimite(tarefas, limite) {
+    const resultados = new Array(tarefas.length);
+    let proxima = 0;
+
+    await Promise.all(Array.from({ length: Math.min(limite, tarefas.length) }, async () => {
+        while (proxima < tarefas.length) {
+            const i = proxima++;
+            resultados[i] = await tarefas[i]();
+        }
+    }));
+
+    return resultados;
+}
+
+// GET - Batidas de várias empresas num período, enxutas
+app.get('/api/secullum/slim/batidas', async (req, res) => {
+    if (!SECULLUM_TOKEN) {
+        return res.status(503).json({ error: 'Token Secullum indisponível. Tente novamente em instantes.' });
+    }
+
+    const empresas = empresasDaQuery(req);
+    const { dataInicio, dataFim } = req.query;
+    if (!empresas.length) return res.status(400).json({ error: 'Informe ?empresas=id1,id2' });
+    if (!dataInicio || !dataFim) return res.status(400).json({ error: 'dataInicio e dataFim são obrigatórios' });
+
+    const inicio = Date.now();
+    const fatias = fatiarPeriodo(dataInicio, dataFim);
+    const resultado = {};
+    const falhas = {};
+
+    // Cada (empresa × fatia) é uma requisição; todas entram na mesma fila limitada.
+    const pedidos = [];
+    for (const empresaId of empresas) {
+        resultado[empresaId] = [];
+        for (const [de, ate] of fatias) {
+            pedidos.push(async () => {
+                try {
+                    const caminho = `/IntegracaoExterna/Batidas?dataInicio=${encodeURIComponent(de)}&dataFim=${encodeURIComponent(ate)}`;
+                    const bruto = await buscarJson(caminho, empresaId);
+                    if (Array.isArray(bruto)) {
+                        for (const b of bruto) resultado[empresaId].push(enxugarBatida(b));
+                    }
+                } catch (err) {
+                    // A Secullum responde 400 "Operação não permitida" quando a conta
+                    // não tem Integração Externa liberada. A tela precisa distinguir
+                    // isso de "não há batidas", senão mostra 0 funcionários como se
+                    // fosse normal.
+                    if (!falhas[empresaId]) {
+                        falhas[empresaId] = {
+                            erro: err.message,
+                            semPermissao: /não permitida|nao permitida/i.test(err.message)
+                        };
+                        console.warn(`⚠️ Batidas da empresa ${empresaId}: ${err.message}`);
+                    }
+                }
+            });
+        }
+    }
+
+    // 12 medido como o melhor ponto: com 8 o mês fecha em 5,5s, com 12 em 4,8s,
+    // com 16 sobe para 7,5s — a Secullum começa a enfileirar do lado dela.
+    await comLimite(pedidos, 12);
+
+    // Uma fatia que falhou deixaria um buraco silencioso no período: se alguma
+    // falhou, a empresa inteira vira erro em vez de devolver dados pela metade.
+    for (const empresaId of Object.keys(falhas)) {
+        resultado[empresaId] = falhas[empresaId];
+    }
+
+    const total = Object.values(resultado).reduce((n, l) => n + (Array.isArray(l) ? l.length : 0), 0);
+    console.log(`⏱️ slim/batidas ${dataInicio}..${dataFim}: ${total} batidas em ${Date.now() - inicio}ms ` +
+        `(${empresas.length} empresa(s) × ${fatias.length} fatia(s))`);
+    res.json(resultado);
+});
+
 // Proxy: tudo sob /api/secullum/ vira uma chamada à Secullum
 app.all(/^\/api\/secullum\/(.+)/, async (req, res) => {
     if (!SECULLUM_TOKEN) {
@@ -708,6 +919,27 @@ const anthropic = process.env.ANTHROPIC_API_KEY
 // O formulário tem campos fixos; pedir JSON com esquema evita ter de
 // interpretar texto livre no frontend (era o que o parser do Azure fazia,
 // com dezenas de regex).
+/** Os seis campos de horário do formulário, todos com o mesmo formato travado. */
+function horariosDoSchema() {
+    const HHMM = '^([01][0-9]|2[0-3]):[0-5][0-9]$';
+    const rotulos = {
+        ent1: 'Entrada 1 manuscrita. null se vazio ou já impresso como batido.',
+        sai1: 'Saída 1 manuscrita.',
+        ent2: 'Entrada 2 manuscrita.',
+        sai2: 'Saída 2 manuscrita.',
+        ent3: 'Entrada 3 manuscrita.',
+        sai3: 'Saída 3 manuscrita.'
+    };
+    const campos = {};
+    for (const [nome, descricao] of Object.entries(rotulos)) {
+        campos[nome] = {
+            description: `${descricao} Sempre HH:MM com dois dígitos em cada parte (ex.: 07:00).`,
+            anyOf: [{ type: 'string', pattern: HHMM }, { type: 'null' }]
+        };
+    }
+    return campos;
+}
+
 const ESQUEMA_OCR = {
     type: 'object',
     properties: {
@@ -746,12 +978,12 @@ const ESQUEMA_OCR = {
                 { type: 'null' }
             ]
         },
-        ent1: { type: ['string', 'null'], description: 'Entrada 1 manuscrita, formato HH:MM. null se vazio ou já impresso como batido.' },
-        sai1: { type: ['string', 'null'], description: 'Saída 1 manuscrita, HH:MM.' },
-        ent2: { type: ['string', 'null'], description: 'Entrada 2 manuscrita, HH:MM.' },
-        sai2: { type: ['string', 'null'], description: 'Saída 2 manuscrita, HH:MM.' },
-        ent3: { type: ['string', 'null'], description: 'Entrada 3 manuscrita, HH:MM.' },
-        sai3: { type: ['string', 'null'], description: 'Saída 3 manuscrita, HH:MM.' },
+        // O formato vai no schema, não só na descrição. Sem o pattern, a mesma
+        // foto ora era lida como "07:00", ora como "07" com o "00" caindo no
+        // campo seguinte — e um "07" não passa no teste de HH:MM da tela, então
+        // seria enviado à Secullum como JUSTIFICATIVA DE TEXTO "07" em vez de
+        // horário. Com o pattern, o modelo não consegue emitir outra coisa.
+        ...horariosDoSchema(),
         // A ordem das propriedades importa: a evidência vem ANTES do booleano,
         // então o modelo precisa descrever o que viu na linha antes de decidir.
         // Foi o que acabou com o falso "assinado" causado pelo nome impresso.
