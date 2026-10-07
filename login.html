@@ -15,6 +15,268 @@
 </head>
 <body>
     <div class="login-page">
+        <!-- Cena de fundo: o dia de quem usa o sistema. Chega e bate o ponto,
+             esquece a saída no fim da tarde e volta com a justificativa.
+             Decorativa: aria-hidden e sem interação. -->
+        <!-- Cena do ponto: o ônibus chega com a turma, quatro passam no
+             terminal facial e batem; dois param para conversar e esquecem. O
+             terminal acusa "2 NÃO BATERAM". O líder volta, pergunta, entrega
+             as justificativas — eles assinam e o ponto fecha em verde.
+             Decorativa: aria-hidden e sem interação. Só SVG e CSS. -->
+        <div class="cena-ponto" aria-hidden="true">
+            <div class="cena-ceu">
+                <span class="ceu-noite"></span>
+                <span class="ceu-amanhecer"></span>
+                <span class="ceu-dia"></span>
+            </div>
+
+            <span class="cena-sol"></span>
+
+            <div class="cena-mata-fundo"></div>
+            <div class="cena-mata"></div>
+            <div class="cena-chao"></div>
+
+            <svg class="cena-svg" viewBox="0 0 2560 240">
+                <defs>
+                    <!-- Colaborador de perfil, andando para a esquerda. A roupa
+                         vem de fora por variável: turma de verde, líder de azul. -->
+                    <g id="trabLado">
+                        <rect x="-9" y="164" width="8" height="28" rx="3" fill="var(--calca)" />
+                        <rect x="1"  y="164" width="8" height="28" rx="3" fill="var(--calca)" />
+                        <rect x="-15" y="190" width="14" height="8" rx="3" fill="#2A2118" />
+                        <rect x="-1"  y="190" width="14" height="8" rx="3" fill="#2A2118" />
+                        <rect x="-10" y="134" width="20" height="34" rx="7" fill="var(--camisa)" />
+                        <rect x="-10" y="152" width="20" height="4" fill="#F4F8F0" opacity=".9" />
+                        <rect x="-28" y="143" width="19" height="7.5" rx="3.7" fill="var(--camisa)" />
+                        <circle cx="-3" cy="124" r="10.5" fill="var(--pele)" />
+                        <path d="M-13 121 a10 10 0 0 1 20 0z" fill="var(--chapeu)" />
+                        <rect x="-13" y="117.4" width="20" height="3.6" fill="var(--banda)" />
+                        <ellipse cx="-3" cy="122" rx="14.5" ry="3.2" fill="var(--chapeu)" />
+                    </g>
+
+                    <!-- De frente: é assim que eles ficam quando o líder chega -->
+                    <g id="trabFrente">
+                        <rect x="-11" y="164" width="8.5" height="28" rx="3.5" fill="var(--calca)" />
+                        <rect x="2.5" y="164" width="8.5" height="28" rx="3.5" fill="var(--calca)" />
+                        <rect x="-15" y="190" width="13" height="8" rx="3" fill="#2A2118" />
+                        <rect x="2"   y="190" width="13" height="8" rx="3" fill="#2A2118" />
+                        <rect x="-20" y="136" width="8" height="30" rx="4" fill="var(--camisa)" />
+                        <rect x="12"  y="136" width="8" height="30" rx="4" fill="var(--camisa)" />
+                        <rect x="-12" y="134" width="24" height="34" rx="8" fill="var(--camisa)" />
+                        <rect x="-12" y="152" width="24" height="4" fill="#F4F8F0" opacity=".9" />
+                        <circle cx="0" cy="124" r="10.5" fill="var(--pele)" />
+                        <circle cx="-4" cy="124.5" r="1.5" fill="#3A2E22" />
+                        <circle cx="4"  cy="124.5" r="1.5" fill="#3A2E22" />
+                        <path d="M-10 121 a10 10 0 0 1 20 0z" fill="var(--chapeu)" />
+                        <rect x="-10" y="117.4" width="20" height="3.6" fill="var(--banda)" />
+                        <ellipse cx="0" cy="122" rx="14.5" ry="3.2" fill="var(--chapeu)" />
+                    </g>
+                </defs>
+
+                <!-- ====================== O ÔNIBUS ====================== -->
+                <g class="cena-onibus">
+                    <rect x="0" y="118" width="256" height="62" rx="12" fill="#E9EEE6" />
+                    <rect x="0" y="152" width="256" height="9" fill="#2F6B50" />
+                    <g fill="#8FB7CF">
+                        <rect x="16"  y="126" width="30" height="20" rx="3" />
+                        <rect x="52"  y="126" width="30" height="20" rx="3" />
+                        <rect x="88"  y="126" width="30" height="20" rx="3" />
+                        <rect x="124" y="126" width="30" height="20" rx="3" />
+                        <rect x="160" y="126" width="30" height="20" rx="3" />
+                    </g>
+                    <rect x="200" y="124" width="36" height="56" rx="4"
+                          fill="#9FB8C8" stroke="#CBD5C4" stroke-width="1.5" />
+                    <line x1="218" y1="124" x2="218" y2="180" stroke="#CBD5C4" stroke-width="1.5" />
+                    <circle cx="54"  cy="182" r="16" fill="#1E2A23" />
+                    <circle cx="54"  cy="182" r="7"  fill="#7E8C7B" />
+                    <circle cx="206" cy="182" r="16" fill="#1E2A23" />
+                    <circle cx="206" cy="182" r="7"  fill="#7E8C7B" />
+                </g>
+
+                <!-- ============ OS QUATRO QUE BATEM O PONTO ============ -->
+                <use href="#trabLado" class="bate bate-1" x="0" y="0" />
+                <use href="#trabLado" class="bate bate-2" x="0" y="0" />
+                <use href="#trabLado" class="bate bate-3" x="0" y="0" />
+                <use href="#trabLado" class="bate bate-4" x="0" y="0" />
+
+                <!-- ====================== TERMINAL FACIAL ====================== -->
+                <g class="cena-rep">
+                    <rect x="94" y="150" width="18" height="48" fill="#55644F" />
+                    <rect x="76" y="192" width="54" height="7" rx="3.5" fill="#3E4A3A" />
+
+                    <rect x="54" y="52" width="98" height="104" rx="13"
+                          fill="#EDF1E9" stroke="#AFBCA8" stroke-width="2" />
+
+                    <!-- faixa da câmera -->
+                    <rect x="62" y="60" width="82" height="28" rx="7" fill="#17241D" />
+                    <circle cx="88" cy="74" r="7.5" fill="#09110D"
+                            stroke="#6FCF7B" stroke-opacity=".5" stroke-width="1.6" />
+                    <circle cx="88" cy="74" r="2.6" fill="#6FCF7B" />
+                    <circle class="rep-led" cx="128" cy="74" r="4" fill="#6FCF7B" />
+
+                    <!-- tela -->
+                    <rect x="62" y="94" width="82" height="42" rx="5" fill="#0C1A14" />
+                    <text class="rep-ocioso" x="103" y="120" text-anchor="middle"
+                          font-family="Inter, sans-serif" font-size="12" font-weight="700"
+                          letter-spacing="1.5" fill="#7E9486">PONTO</text>
+                    <text class="rep-ok" x="103" y="121" text-anchor="middle"
+                          font-family="Inter, sans-serif" font-size="17" font-weight="800"
+                          fill="#6FCF7B">07:02</text>
+                    <g class="rep-falta">
+                        <text x="103" y="112" text-anchor="middle" font-family="Inter, sans-serif"
+                              font-size="12" font-weight="800" fill="#E8A44A">2 NÃO</text>
+                        <text x="103" y="127" text-anchor="middle" font-family="Inter, sans-serif"
+                              font-size="12" font-weight="800" fill="#E8A44A">BATERAM</text>
+                    </g>
+                    <g class="rep-fim">
+                        <text x="103" y="114" text-anchor="middle" font-family="Inter, sans-serif"
+                              font-size="11" font-weight="800" fill="#6FCF7B">PONTO</text>
+                        <text x="103" y="128" text-anchor="middle" font-family="Inter, sans-serif"
+                              font-size="11" font-weight="800" fill="#6FCF7B">REGULAR</text>
+                    </g>
+
+                    <!-- leitor biométrico -->
+                    <rect x="66" y="142" width="74" height="7" rx="3.5" fill="#C2CCBB" />
+
+                    <!-- feixe do reconhecimento -->
+                    <path class="cena-feixe" d="M96 74 L176 104 L176 152 Z" fill="#6FCF7B" />
+
+                    <!-- aviso laranja de pendência -->
+                    <circle class="rep-alerta" cx="146" cy="58" r="6" fill="#E8A44A" />
+
+                    <!-- selo de aceite -->
+                    <g class="cena-check">
+                        <circle cx="146" cy="58" r="13" fill="#6FCF7B" />
+                        <path d="M140 58 l4.5 4.5 8.5 -10" fill="none" stroke="#0E2419"
+                              stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" />
+                    </g>
+                </g>
+
+                <!-- linha de varredura no rosto de quem está batendo -->
+                <rect class="cena-scan" x="170" y="110" width="40" height="3.4" rx="1.7" fill="#8CFF9E" />
+
+                <!-- ============ OS DOIS QUE FICAM CONVERSANDO ============ -->
+                <!-- de perfil, virados um para o outro, enquanto conversam -->
+                <g class="fica-lado fica-lado-1"><use href="#trabLado" x="0" y="0" /></g>
+                <g class="fica-lado fica-lado-2"><g transform="scale(-1,1)"><use href="#trabLado" x="0" y="0" /></g></g>
+                <g class="cena-papo">
+                    <circle cx="0" cy="0" r="3.5" fill="#F4F7F2" />
+                    <circle cx="11" cy="0" r="3.5" fill="#F4F7F2" />
+                    <circle cx="22" cy="0" r="3.5" fill="#F4F7F2" />
+                </g>
+
+                <!-- de frente, coçando a cabeça, quando o líder chega -->
+                <g class="fica-frente fica-frente-1">
+                    <use href="#trabFrente" x="0" y="0" />
+                    <rect class="braco-coca" x="11" y="119" width="8" height="28" rx="4" fill="var(--camisa-claro)" />
+                    <g class="justi justi-1">
+                        <rect x="-31" y="140" width="20" height="26" rx="2.5" fill="#F4F7F2" />
+                        <g stroke="#9AB3A2" stroke-width="1.8" stroke-linecap="round">
+                            <line x1="-27" y1="147" x2="-15" y2="147" />
+                            <line x1="-27" y1="153" x2="-15" y2="153" />
+                        </g>
+                        <path class="cena-assinatura" d="M-27 161 q3 -4 5.5 0 t5.5 0" fill="none"
+                              stroke="#2F6BD8" stroke-width="2" stroke-linecap="round" />
+                    </g>
+                </g>
+                <g class="fica-frente fica-frente-2">
+                    <use href="#trabFrente" x="0" y="0" />
+                    <rect class="braco-coca" x="11" y="119" width="8" height="28" rx="4" fill="var(--camisa-claro)" />
+                    <g class="justi justi-2">
+                        <rect x="-31" y="140" width="20" height="26" rx="2.5" fill="#F4F7F2" />
+                        <g stroke="#9AB3A2" stroke-width="1.8" stroke-linecap="round">
+                            <line x1="-27" y1="147" x2="-15" y2="147" />
+                            <line x1="-27" y1="153" x2="-15" y2="153" />
+                        </g>
+                        <path class="cena-assinatura" d="M-27 161 q3 -4 5.5 0 t5.5 0" fill="none"
+                              stroke="#2F6BD8" stroke-width="2" stroke-linecap="round" />
+                    </g>
+                </g>
+
+                <!-- ====================== O LÍDER, DE AZUL ====================== -->
+                <g class="lider">
+                    <g transform="scale(-1,1)"><use href="#trabLado" x="0" y="0" /></g>
+                    <!-- as justificativas na mão, antes de entregar -->
+                    <g class="lider-pasta">
+                        <rect x="11" y="139" width="19" height="25" rx="2.5" fill="#F4F7F2" />
+                        <rect x="8"  y="135" width="19" height="25" rx="2.5" fill="#E4EADF" />
+                    </g>
+                </g>
+
+                <!-- ====================== OS BALÕES ====================== -->
+                <!-- o que cada um diz ao passar no terminal -->
+                <g class="cena-falas-rep">
+                    <g class="fala fala-rep fala-bate-1">
+                        <path d="M150 24 h160 a10 10 0 0 1 10 10 v24 a10 10 0 0 1 -10 10 h-110 l-14 14 v-14 h-36
+                                 a10 10 0 0 1 -10 -10 v-24 a10 10 0 0 1 10 -10z" fill="#F4F7F2" />
+                        <text x="166" y="53" font-family="Inter, sans-serif" font-size="13"
+                              font-weight="600" fill="#1B2D22">Pronto, ponto batido!</text>
+                    </g>
+
+                    <g class="fala fala-rep fala-bate-2">
+                        <path d="M150 24 h275 a10 10 0 0 1 10 10 v24 a10 10 0 0 1 -10 10 h-225 l-14 14 v-14 h-36
+                                 a10 10 0 0 1 -10 -10 v-24 a10 10 0 0 1 10 -10z" fill="#F4F7F2" />
+                        <text x="166" y="53" font-family="Inter, sans-serif" font-size="13"
+                              font-weight="600" fill="#1B2D22">Perfeito, vou conferir as ferramentas.</text>
+                    </g>
+
+                    <g class="fala fala-rep fala-bate-3">
+                        <path d="M150 24 h248 a10 10 0 0 1 10 10 v24 a10 10 0 0 1 -10 10 h-198 l-14 14 v-14 h-36
+                                 a10 10 0 0 1 -10 -10 v-24 a10 10 0 0 1 10 -10z" fill="#F4F7F2" />
+                        <text x="166" y="53" font-family="Inter, sans-serif" font-size="13"
+                              font-weight="600" fill="#1B2D22">O que será que tem de almoço hoje?</text>
+                    </g>
+                </g>
+
+                <g class="cena-falas">
+                <g class="fala fala-papo-1">
+                    <path d="M150 16 h276 a10 10 0 0 1 10 10 v34 a10 10 0 0 1 -10 10 h-176 l-14 14 v-14 h-66
+                             a10 10 0 0 1 -10 -10 v-34 a10 10 0 0 1 10 -10z" fill="#F4F7F2" />
+                    <text x="166" y="38" font-family="Inter, sans-serif" font-size="11"
+                          font-weight="800" letter-spacing="1" fill="#2F6B50">CARLOS</text>
+                    <text x="166" y="56" font-family="Inter, sans-serif" font-size="14"
+                          font-weight="600" fill="#1B2D22">José, como foi seu fim de semana?</text>
+                </g>
+
+                <g class="fala fala-papo-2">
+                    <path d="M150 16 h276 a10 10 0 0 1 10 10 v34 a10 10 0 0 1 -10 10 h-96 l-14 14 v-14 h-146
+                             a10 10 0 0 1 -10 -10 v-34 a10 10 0 0 1 10 -10z" fill="#F4F7F2" />
+                    <text x="166" y="38" font-family="Inter, sans-serif" font-size="11"
+                          font-weight="800" letter-spacing="1" fill="#2F6B50">JOSÉ</text>
+                    <text x="166" y="56" font-family="Inter, sans-serif" font-size="14"
+                          font-weight="600" fill="#1B2D22">Foi ótimo! Passeei com a família.</text>
+                </g>
+
+                <g class="fala fala-lider">
+                    <path d="M150 16 h276 a10 10 0 0 1 10 10 v34 a10 10 0 0 1 -10 10 h-252 l-14 14 v-14
+                             a10 10 0 0 1 -10 -10 v-34 a10 10 0 0 1 10 -10z" fill="#F4F7F2" />
+                    <text x="166" y="38" font-family="Inter, sans-serif" font-size="11"
+                          font-weight="800" letter-spacing="1" fill="#2F6BD8">LÍDER</text>
+                    <text x="166" y="56" font-family="Inter, sans-serif" font-size="14"
+                          font-weight="600" fill="#1B2D22">Vocês bateram o ponto?</text>
+                </g>
+
+                <g class="fala fala-dupla">
+                    <path d="M150 10 h266 a10 10 0 0 1 10 10 v52 a10 10 0 0 1 -10 10 h-150 l-14 14 v-14 h-102
+                             a10 10 0 0 1 -10 -10 v-52 a10 10 0 0 1 10 -10z" fill="#F4F7F2" />
+                    <text x="166" y="36" font-family="Inter, sans-serif" font-size="14"
+                          font-weight="600" fill="#1B2D22">Desculpa, esquecemos!</text>
+                    <text x="166" y="58" font-family="Inter, sans-serif" font-size="14"
+                          font-weight="600" fill="#1B2D22">O que podemos fazer agora?</text>
+                </g>
+
+                <g class="fala fala-entrega">
+                    <path d="M150 16 h276 a10 10 0 0 1 10 10 v34 a10 10 0 0 1 -10 10 h-252 l-14 14 v-14
+                             a10 10 0 0 1 -10 -10 v-34 a10 10 0 0 1 10 -10z" fill="#F4F7F2" />
+                    <text x="166" y="38" font-family="Inter, sans-serif" font-size="11"
+                          font-weight="800" letter-spacing="1" fill="#2F6BD8">LÍDER</text>
+                    <text x="166" y="56" font-family="Inter, sans-serif" font-size="14"
+                          font-weight="600" fill="#1B2D22">Assinem a justificativa de ponto.</text>
+                </g>
+                </g>
+            </svg>
+        </div>
+
         <div class="login-card">
             <img src="/assets/larsil-logo.png" alt="Larsil Serviços Florestais" class="login-logo">
             <p class="login-eyebrow">SGL - Controle de Ponto</p>

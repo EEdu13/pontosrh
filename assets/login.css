@@ -247,8 +247,429 @@
     color: #A9C1AC;
 }
 
+/* ==========================================================================
+   CENA DO PONTO — a rotina que o sistema atende, em loop.
+
+   Amanhece, o ônibus chega com a turma. Quatro passam no terminal facial e
+   batem o ponto; dois param para conversar e esquecem. O terminal acusa
+   "2 NÃO BATERAM". O líder volta, pergunta, entrega as justificativas — eles
+   assinam e o ponto fecha em verde.
+
+   SVG e CSS puros, sem canvas e sem JS. Um ciclo só (--ciclo) rege tudo, e as
+   posições à direita são presas ao 100vw para não sumirem atrás do card em
+   telas largas.
+   ========================================================================== */
+
+.cena-ponto {
+    --ciclo: 32s;
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+    z-index: 0;
+}
+
+/* Mata ao fundo, em duas fileiras: faixa repetida, cobre a largura toda. */
+.cena-mata {
+    position: absolute;
+    left: 0; right: 0; bottom: 84px;
+    height: 76px;
+    opacity: .85;
+    background-repeat: repeat-x;
+    background-position: left bottom;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='320' height='104' viewBox='0 0 320 104'%3E%3Cg fill='%230A1C13'%3E%3Cpath d='M0 104 L18 46 L36 104z'/%3E%3Cpath d='M44 104 L60 64 L76 104z'/%3E%3Cpath d='M86 104 L110 26 L134 104z'/%3E%3Cpath d='M142 104 L158 68 L174 104z'/%3E%3Cpath d='M184 104 L206 34 L228 104z'/%3E%3Cpath d='M238 104 L254 60 L270 104z'/%3E%3Cpath d='M278 104 L300 50 L322 104z'/%3E%3C/g%3E%3C/svg%3E");
+}
+.cena-mata-fundo {
+    position: absolute;
+    left: 0; right: 0; bottom: 112px;
+    height: 56px;
+    opacity: .38;
+    background-repeat: repeat-x;
+    background-position: 90px bottom;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='230' height='72' viewBox='0 0 230 72'%3E%3Cg fill='%230A1C13'%3E%3Cpath d='M0 72 L14 36 L28 72z'/%3E%3Cpath d='M40 72 L58 20 L76 72z'/%3E%3Cpath d='M90 72 L104 42 L118 72z'/%3E%3Cpath d='M132 72 L152 26 L172 72z'/%3E%3Cpath d='M186 72 L202 40 L218 72z'/%3E%3C/g%3E%3C/svg%3E");
+}
+
+.cena-chao {
+    position: absolute;
+    left: 0; right: 0; bottom: 0;
+    height: 84px;
+    background: rgba(21, 16, 11, .5);
+    border-top: 2px solid rgba(234, 241, 232, .18);
+}
+
+/* --- CÉU --- */
+.cena-ceu { position: absolute; inset: 0; }
+.cena-ceu > span {
+    position: absolute; inset: 0;
+    opacity: 0;
+    animation: var(--ciclo) linear infinite;
+}
+.cena-ceu .ceu-noite {
+    background: linear-gradient(to top, #14301F 0%, #0F2419 44%, #0A1813 100%);
+    animation-name: faseNoite;
+}
+.cena-ceu .ceu-amanhecer {
+    background: linear-gradient(to top, #E8734A 0%, #C2603E 14%, #3C5A46 48%, #17392B 100%);
+    animation-name: faseAmanhecer;
+}
+.cena-ceu .ceu-dia {
+    background: linear-gradient(to top, #2F6B50 0%, #2A5E47 38%, #1E4636 100%);
+    animation-name: faseDia;
+}
+@keyframes faseNoite {
+    0%   { opacity: 1; }
+    4%   { opacity: 0; }
+    95%  { opacity: 0; }
+    100% { opacity: 1; }
+}
+@keyframes faseAmanhecer {
+    0%, 1%   { opacity: 0; }
+    5%, 14%  { opacity: 1; }
+    22%      { opacity: 0; }
+    89%      { opacity: 0; }
+    95%      { opacity: .55; }
+    100%     { opacity: 0; }
+}
+@keyframes faseDia {
+    0%, 17%  { opacity: 0; }
+    24%, 89% { opacity: 1; }
+    95%      { opacity: 0; }
+    100%     { opacity: 0; }
+}
+
+/* O sol mora no céu, fora do SVG — o SVG só cobre a faixa de baixo. */
+.cena-sol {
+    position: absolute;
+    left: 6%; top: 62%;
+    width: 72px; height: 72px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 50% 50%, #FFF0C4 0%, #FFD98E 56%, rgba(255, 217, 142, 0) 72%);
+    opacity: 0;
+    animation: arcoSol var(--ciclo) linear infinite;
+}
+@keyframes arcoSol {
+    0%   { transform: translate(0, 90px) scale(.8);      opacity: 0; }
+    6%   { transform: translate(30px, 10px) scale(1);    opacity: .95; }
+    50%  { transform: translate(44vw, -46vh) scale(.82); opacity: .8; }
+    90%  { transform: translate(84vw, 10px) scale(1);    opacity: .95; }
+    97%  { transform: translate(90vw, 90px) scale(.8);   opacity: 0; }
+    100% { transform: translate(90vw, 90px) scale(.8);   opacity: 0; }
+}
+
+/* 1 unidade do SVG = 1 px. A caixa é bem mais larga que a tela de propósito:
+   assim dá para prender posições ao 100vw sem nada ser cortado. */
+.cena-svg {
+    position: absolute;
+    left: 0; bottom: 0;
+    width: 2560px;
+    height: 240px;
+}
+
+/* ======================= UNIFORMES ======================= */
+/* Turma: camisa verde clara, calça verde escura, chapéu de aba larga. */
+.bate, .fica-lado, .fica-frente {
+    --camisa: #9BC63F;
+    --camisa-claro: #BBDF68;   /* o braço que coça, para destacar do tronco */
+    --calca: #1F4A2C;
+    --chapeu: #EFEAD8;
+    --banda: #6E7A6B;
+    --pele: #C98E63;
+}
+.bate-2, .fica-frente-2, .fica-lado-2 { --pele: #E2C9A6; }
+.bate-4 { --pele: #A76F45; }
+
+/* Líder: camisa azul clara, calça azul escura. */
+.lider {
+    --camisa: #6BA8E0;
+    --calca: #1E3A6B;
+    --chapeu: #EFEAD8;
+    --banda: #2F6BD8;
+    --pele: #E2C9A6;
+}
+
+/* ======================= O ÔNIBUS ======================= */
+.cena-onibus { opacity: 0; animation: onibusChega var(--ciclo) cubic-bezier(.2, .7, .3, 1) infinite; }
+@keyframes onibusChega {
+    0%, 2%    { transform: translateX(calc(100vw + 60px)); opacity: 0; }
+    3%        { transform: translateX(calc(100vw + 60px)); opacity: 1; }
+    12%, 96%  { transform: translateX(calc(100vw - 300px)); opacity: 1; }
+    100%      { transform: translateX(calc(100vw - 300px)); opacity: 0; }
+}
+
+/* ============ OS QUATRO QUE BATEM O PONTO ============ */
+/* Descem na porta, andam até o terminal, batem e seguem para a frente. */
+.bate { opacity: 0; animation: vaiBater var(--ciclo) linear infinite; }
+@keyframes vaiBater {
+    0%        { transform: translateX(calc(100vw - 120px)); opacity: 0; }
+    1%        { transform: translateX(calc(100vw - 120px)); opacity: 1; }
+    18%       { transform: translateX(196px); opacity: 1; }
+    22%       { transform: translateX(196px); opacity: 1; }   /* reconhecimento */
+    27%       { transform: translateX(-140px); opacity: 1; }
+    28%, 100% { transform: translateX(-140px); opacity: 0; }
+}
+.bate-1 { animation-delay: calc(var(--ciclo) * 0.085); }
+.bate-2 { animation-delay: calc(var(--ciclo) * 0.140); }
+.bate-3 { animation-delay: calc(var(--ciclo) * 0.195); }
+.bate-4 { animation-delay: calc(var(--ciclo) * 0.250); }
+
+/* ============ OS DOIS QUE FICAM NA CONVERSA ============ */
+/* Param antes de chegar no terminal — é esse o esquecimento. */
+.fica-lado { opacity: 0; }
+.fica-lado-1 { animation: ficaAnda1 var(--ciclo) linear infinite; }
+.fica-lado-2 { animation: ficaAnda2 var(--ciclo) linear infinite; }
+@keyframes ficaAnda1 {
+    0%, 13%   { transform: translateX(calc(100vw - 120px)); opacity: 0; }
+    14%       { transform: translateX(calc(100vw - 120px)); opacity: 1; }
+    17%       { transform: translateX(calc(100vw - 230px)); opacity: 1; }
+    63%       { transform: translateX(calc(100vw - 230px)); opacity: 1; }
+    64%, 100% { transform: translateX(calc(100vw - 230px)); opacity: 0; }
+}
+@keyframes ficaAnda2 {
+    0%, 15%   { transform: translateX(calc(100vw - 120px)); opacity: 0; }
+    16%       { transform: translateX(calc(100vw - 120px)); opacity: 1; }
+    20%       { transform: translateX(calc(100vw - 310px)); opacity: 1; }
+    63%       { transform: translateX(calc(100vw - 310px)); opacity: 1; }
+    64%, 100% { transform: translateX(calc(100vw - 310px)); opacity: 0; }
+}
+/* reticências entre os dois: a conversa que faz o ponto ser esquecido */
+.cena-papo {
+    opacity: 0;
+    transform: translate(calc(100vw - 282px), 108px);
+    animation: papoAparece var(--ciclo) linear infinite;
+}
+@keyframes papoAparece {
+    0%, 21%   { opacity: 0; }
+    23%, 42%  { opacity: .85; }
+    44%, 100% { opacity: 0; }
+}
+
+/* De frente, coçando a cabeça, quando o líder chega e pergunta */
+.fica-frente { opacity: 0; animation: viraDeFrente var(--ciclo) linear infinite; }
+.fica-frente-1 { transform: translateX(calc(100vw - 230px)); }
+.fica-frente-2 { transform: translateX(calc(100vw - 310px)); }
+@keyframes viraDeFrente {
+    0%, 63%  { opacity: 0; }
+    65%, 97% { opacity: 1; }
+    100%     { opacity: 0; }
+}
+
+.braco-coca {
+    opacity: 0;
+    transform-box: fill-box; transform-origin: bottom center;
+    animation: cocaAparece var(--ciclo) linear infinite,
+               cocaBalanco .55s ease-in-out infinite;
+}
+@keyframes cocaAparece {
+    0%, 66%   { opacity: 0; }
+    68%, 79%  { opacity: 1; }
+    81%, 100% { opacity: 0; }
+}
+@keyframes cocaBalanco {
+    0%, 100% { transform: rotate(-12deg); }
+    50%      { transform: rotate(-24deg); }
+}
+
+/* ======================= O LÍDER ======================= */
+.lider { opacity: 0; animation: liderVolta var(--ciclo) linear infinite; }
+@keyframes liderVolta {
+    /* sai mais cedo para chegar na mesma hora andando no passo dos outros */
+    0%, 51%   { transform: translateX(-120px); opacity: 0; }
+    52%       { transform: translateX(-120px); opacity: 1; }
+    68%       { transform: translateX(calc(100vw - 400px)); opacity: 1; }
+    97%       { transform: translateX(calc(100vw - 400px)); opacity: 1; }
+    100%      { transform: translateX(calc(100vw - 400px)); opacity: 0; }
+}
+/* as justificativas que ele traz, até entregar */
+.lider-pasta { animation: pastaNaMao var(--ciclo) linear infinite; }
+@keyframes pastaNaMao {
+    0%, 89%   { opacity: 1; }
+    91%, 100% { opacity: 0; }
+}
+
+/* ======================= AS JUSTIFICATIVAS ======================= */
+.justi { opacity: 0; animation: justiNaMao var(--ciclo) linear infinite; }
+@keyframes justiNaMao {
+    0%, 90%   { opacity: 0; }
+    92%, 97%  { opacity: 1; }
+    100%      { opacity: 0; }
+}
+.cena-assinatura {
+    stroke-dasharray: 40;
+    stroke-dashoffset: 40;
+    animation: assina var(--ciclo) linear infinite;
+}
+@keyframes assina {
+    0%, 92%   { stroke-dashoffset: 40; }
+    96%, 100% { stroke-dashoffset: 0; }
+}
+
+/* ======================= OS BALÕES ======================= */
+/* Presos ao 100vw, igual aos atores: a pontinha não desgruda da cabeça de
+   quem fala quando a tela muda de largura. */
+.cena-falas { transform: translateX(calc(100vw - 560px)); }
+
+.fala {
+    opacity: 0;
+    transform-box: fill-box; transform-origin: bottom right;
+}
+.fala-rep { transform-origin: bottom left; }
+.fala-bate-1  { animation: falaBate1 var(--ciclo) linear infinite; }
+.fala-bate-2  { animation: falaBate2 var(--ciclo) linear infinite; }
+.fala-bate-3  { animation: falaBate3 var(--ciclo) linear infinite; }
+.fala-papo-1  { animation: falaPapo1 var(--ciclo) linear infinite; }
+.fala-papo-2  { animation: falaPapo2 var(--ciclo) linear infinite; }
+.fala-lider   { animation: falaLider var(--ciclo) linear infinite; }
+.fala-dupla   { animation: falaDupla var(--ciclo) linear infinite; }
+.fala-entrega { animation: falaEntrega var(--ciclo) linear infinite; }
+@keyframes falaBate1 {
+    0%, 26%     { opacity: 0; transform: scale(.75); }
+    27.5%, 30%  { opacity: 1; transform: scale(1); }
+    31.5%, 100% { opacity: 0; transform: scale(.75); }
+}
+@keyframes falaBate2 {
+    0%, 31.5%   { opacity: 0; transform: scale(.75); }
+    33%, 35.5%  { opacity: 1; transform: scale(1); }
+    37%, 100%   { opacity: 0; transform: scale(.75); }
+}
+@keyframes falaBate3 {
+    0%, 37%     { opacity: 0; transform: scale(.75); }
+    38.5%, 41%  { opacity: 1; transform: scale(1); }
+    42.5%, 100% { opacity: 0; transform: scale(.75); }
+}
+@keyframes falaPapo1 {
+    0%, 44%     { opacity: 0; transform: scale(.75); }
+    45.5%, 52%  { opacity: 1; transform: scale(1); }
+    53.5%, 100% { opacity: 0; transform: scale(.75); }
+}
+@keyframes falaPapo2 {
+    0%, 53.5%   { opacity: 0; transform: scale(.75); }
+    55%, 61%    { opacity: 1; transform: scale(1); }
+    62.5%, 100% { opacity: 0; transform: scale(.75); }
+}
+@keyframes falaLider {
+    0%, 68%   { opacity: 0; transform: scale(.75); }
+    70%, 77%  { opacity: 1; transform: scale(1); }
+    79%, 100% { opacity: 0; transform: scale(.75); }
+}
+@keyframes falaDupla {
+    0%, 79%   { opacity: 0; transform: scale(.75); }
+    81%, 86%  { opacity: 1; transform: scale(1); }
+    88%, 100% { opacity: 0; transform: scale(.75); }
+}
+@keyframes falaEntrega {
+    0%, 87%   { opacity: 0; transform: scale(.75); }
+    89%, 93%  { opacity: 1; transform: scale(1); }
+    95%, 100% { opacity: 0; transform: scale(.75); }
+}
+
+/* ======================= O TERMINAL ======================= */
+.rep-ocioso { opacity: 1; animation: repOcioso var(--ciclo) linear infinite; }
+.rep-ok     { opacity: 0; animation: repOk     var(--ciclo) linear infinite; }
+.rep-falta  { opacity: 0; animation: repFalta  var(--ciclo) linear infinite; }
+.rep-fim    { opacity: 0; animation: repFim    var(--ciclo) linear infinite; }
+
+@keyframes repOcioso {
+    0%, 23%   { opacity: 1; }
+    25%, 100% { opacity: 0; }
+}
+@keyframes repOk {
+    /* Só enquanto a turma está batendo. No fim quem fala é o "PONTO REGULAR";
+       deixar os dois acesos empilhava texto em cima de texto no visor. */
+    0%, 23%   { opacity: 0; }
+    25%, 48%  { opacity: 1; }
+    50%, 100% { opacity: 0; }
+}
+@keyframes repFalta {
+    0%, 49%   { opacity: 0; }
+    51%, 89%  { opacity: 1; }
+    91%, 100% { opacity: 0; }
+}
+@keyframes repFim {
+    0%, 90%   { opacity: 0; }
+    92%, 97%  { opacity: 1; }
+    100%      { opacity: 0; }
+}
+
+.rep-led { animation: ledEstado var(--ciclo) linear infinite; }
+@keyframes ledEstado {
+    0%, 48%   { fill: #6FCF7B; }
+    51%, 89%  { fill: #E8A44A; }
+    92%, 100% { fill: #6FCF7B; }
+}
+.rep-alerta {
+    opacity: 0;
+    animation: alertaJanela var(--ciclo) linear infinite,
+               alertaPulso 1.5s ease-in-out infinite;
+}
+@keyframes alertaJanela {
+    0%, 49%   { visibility: hidden; opacity: 0; }
+    51%, 89%  { visibility: visible; opacity: 1; }
+    91%, 100% { visibility: hidden; opacity: 0; }
+}
+@keyframes alertaPulso { 0%, 100% { opacity: .4; } 50% { opacity: 1; } }
+
+/* feixe e varredura: só enquanto a turma está batendo */
+.cena-feixe { opacity: 0; animation: feixeLigado var(--ciclo) linear infinite; }
+@keyframes feixeLigado {
+    0%, 24%   { opacity: 0; }
+    26%, 47%  { opacity: .24; }
+    49%, 100% { opacity: 0; }
+}
+.cena-scan {
+    opacity: 0;
+    transform-box: fill-box;
+    animation: scanVisivel var(--ciclo) linear infinite,
+               scanDesce calc(var(--ciclo) * 0.035) linear infinite;
+}
+@keyframes scanVisivel {
+    0%, 24%   { opacity: 0; }
+    26%, 47%  { opacity: 1; }
+    49%, 100% { opacity: 0; }
+}
+@keyframes scanDesce {
+    0%   { transform: translateY(0); }
+    100% { transform: translateY(38px); }
+}
+
+.cena-check {
+    opacity: 0;
+    transform-box: fill-box; transform-origin: center;
+    animation: checkAceite var(--ciclo) linear infinite;
+}
+@keyframes checkAceite {
+    0%, 91%  { opacity: 0; transform: scale(.3); }
+    93%      { opacity: 1; transform: scale(1.18); }
+    94%      { opacity: 1; transform: scale(1); }
+    97%      { opacity: 1; transform: scale(1); }
+    100%     { opacity: 0; transform: scale(1); }
+}
+
+/* Em tela estreita o card cobre quase tudo; a cena fica mais discreta. */
+@media (max-width: 900px) {
+    .cena-svg { opacity: .45; }
+}
+
 @media (prefers-reduced-motion: reduce) {
     .login-card, .login-avatar-preview, .entrada-overlay { animation: none; }
     .entrada-marca { animation: none; left: 40%; }
     .entrada-muda { animation: none; opacity: 1; transform: none; }
+
+    /* Cena parada no instante que resume o sistema: a pendência à vista. */
+    .cena-ceu > span, .cena-sol, .cena-onibus, .bate, .fica-lado, .fica-frente,
+    .braco-coca, .lider, .lider-pasta, .justi, .cena-assinatura, .cena-papo,
+    .fala, .rep-ocioso, .rep-ok, .rep-falta, .rep-fim, .rep-led, .rep-alerta,
+    .cena-scan, .cena-feixe, .cena-check { animation: none; }
+
+    .cena-ceu .ceu-dia { opacity: 1; }
+    .cena-sol { opacity: .9; transform: translate(44vw, -46vh); }
+    .cena-onibus { opacity: 1; transform: translateX(calc(100vw - 300px)); }
+    .fica-frente { opacity: 1; }
+    .braco-coca { opacity: 1; transform: rotate(-38deg); }
+    .lider { opacity: 1; transform: translateX(calc(100vw - 400px)); }
+    .fala-lider { opacity: 1; transform: none; }
+    .rep-falta, .rep-alerta { opacity: 1; visibility: visible; }
+    .bate, .fica-lado, .cena-papo, .lider-pasta, .justi, .rep-ocioso, .rep-ok,
+    .rep-fim, .cena-scan, .cena-feixe, .cena-check,
+    .fala-dupla, .fala-entrega, .fala-papo-1, .fala-papo-2,
+    .fala-bate-1, .fala-bate-2, .fala-bate-3 { opacity: 0; }
 }
