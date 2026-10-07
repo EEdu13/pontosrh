@@ -846,6 +846,141 @@ app.get('/api/secullum/slim/batidas', async (req, res) => {
     res.json(resultado);
 });
 
+// ===================== COBRANÇA DE JUSTIFICATIVAS =====================
+// Contexto do RH para o período: a quem cada colaborador responde (para os
+// filtros) e em que dias ele estava fora (folga, férias, falta, sem atividade).
+// Sem isso o calendário acusaria pendência em dia que a pessoa nem trabalhou.
+
+// Status do TICKET que significam "não estava produzindo nesse dia".
+const TICKET_AUSENCIAS = [
+    'FOLGA', 'SEM ATIVIDADE', 'FÉRIAS', 'FALTA', 'OFICINA',
+    'NÃO ESTÁ NA EQUIPE', 'SEM EQUIPE', 'À DISPOSIÇÃO'
+];
+
+function soData(v) {
+    if (!v) return null;
+    const d = v instanceof Date ? v : new Date(v);
+    if (Number.isNaN(d.getTime())) return null;
+    // as colunas são DATE; o driver devolve meia-noite UTC
+    return d.toISOString().slice(0, 10);
+}
+
+app.get('/api/cobranca/contexto', async (req, res) => {
+    if (!sqlConnected || !poolPromise) {
+        return res.status(503).json({ error: 'SQL não conectado' });
+    }
+    const { inicio, fim } = req.query;
+    if (!inicio || !fim) {
+        return res.status(400).json({ error: 'inicio e fim são obrigatórios' });
+    }
+
+    const comecou = Date.now();
+    try {
+        const pool = await poolPromise;
+        const pedido = () => pool.request()
+            .input('inicio', sql.Date, inicio)
+            .input('fim', sql.Date, fim);
+
+        const marcadores = TICKET_AUSENCIAS.map((_, i) => `@s${i}`).join(', ');
+        const pedidoAusencias = pedido();
+        TICKET_AUSENCIAS.forEach((s, i) => pedidoAusencias.input(`s${i}`, sql.VarChar, s));
+
+        const [hierarquia, ausencias, folgasCompleto, folgasEquipe] = await Promise.all([
+            // Uma linha por CPF: a lotação mais recente dentro do período. É daqui
+            // que saem os filtros de projeto, coordenador, supervisor, líder e equipe.
+            pedido().query(`
+                SELECT t.CPF, t.COLABORADOR, t.PROJETO, t.COORDENADOR,
+                       t.SUPERVISOR, t.NOME_LIDER, t.EQUIPE
+                  FROM dbo.TICKET t
+                  JOIN (SELECT CPF, MAX(DATA) AS DATA
+                          FROM dbo.TICKET
+                         WHERE DATA BETWEEN @inicio AND @fim AND CPF IS NOT NULL AND CPF <> ''
+                         GROUP BY CPF) u
+                    ON u.CPF = t.CPF AND u.DATA = t.DATA
+                 WHERE t.DATA BETWEEN @inicio AND @fim`),
+
+            // Dias em que o ticket diz que a pessoa não estava produzindo.
+            pedidoAusencias.query(`
+                SELECT DISTINCT CPF, COLABORADOR, DATA, STATUS
+                  FROM dbo.TICKET
+                 WHERE DATA BETWEEN @inicio AND @fim
+                   AND STATUS IN (${marcadores})
+                   AND (CPF <> '' OR COLABORADOR <> '')`),
+
+            // Folgas lançadas por período, por nome do colaborador.
+            pedido().query(`
+                SELECT COLABORADOR, NOME, INICIO, FIM, TIPO, MOTIVO, PROJETO, EQUIPE, LIDER
+                  FROM dbo.FOLGAS_COMPLETO
+                 WHERE INICIO <= @fim AND FIM >= @inicio`),
+
+            // Folga da equipe inteira: não traz colaborador, vale para todo o time.
+            pedido().query(`
+                SELECT DATA, PROJETO, LIDER, NOME_DO_LIDER, EVENTO, MOTIVO
+                  FROM dbo.FOLGAS
+                 WHERE DATA BETWEEN @inicio AND @fim
+                   AND EVENTO IS NOT NULL AND EVENTO <> 'NÃO APLICA'`)
+        ]);
+
+        const soDigitos = (v) => String(v || '').replace(/\D/g, '');
+
+        const resposta = {
+            hierarquia: (() => {
+                // o mesmo CPF pode aparecer duas vezes no dia (duas máquinas, por
+                // exemplo); para o filtro basta uma lotação
+                const vistos = new Set();
+                return hierarquia.recordset.filter(r => {
+                    const c = soDigitos(r.CPF);
+                    if (!c || vistos.has(c)) return false;
+                    vistos.add(c);
+                    return true;
+                });
+            })().map(r => ({
+                cpf: soDigitos(r.CPF),
+                nome: r.COLABORADOR || '',
+                projeto: r.PROJETO || '',
+                coordenador: r.COORDENADOR || '',
+                supervisor: r.SUPERVISOR || '',
+                lider: r.NOME_LIDER || '',
+                equipe: r.EQUIPE || ''
+            })),
+            ausencias: ausencias.recordset.map(r => ({
+                cpf: soDigitos(r.CPF),
+                nome: r.COLABORADOR || '',
+                data: soData(r.DATA),
+                status: r.STATUS || ''
+            })),
+            folgas: folgasCompleto.recordset.map(r => ({
+                nome: (r.NOME || r.COLABORADOR || '').trim(),
+                inicio: soData(r.INICIO),
+                fim: soData(r.FIM),
+                tipo: r.TIPO || '',
+                motivo: r.MOTIVO || '',
+                projeto: r.PROJETO || '',
+                equipe: r.EQUIPE || '',
+                lider: r.LIDER || ''
+            })),
+            folgasEquipe: folgasEquipe.recordset.map(r => ({
+                data: soData(r.DATA),
+                projeto: r.PROJETO || '',
+                equipe: r.LIDER || '',
+                lider: r.NOME_DO_LIDER || '',
+                evento: r.EVENTO || '',
+                motivo: r.MOTIVO || ''
+            }))
+        };
+
+        console.log(`📅 cobrança/contexto ${inicio}..${fim}: ` +
+            `${resposta.hierarquia.length} lotações, ${resposta.ausencias.length} ausências, ` +
+            `${resposta.folgas.length} folgas, ${resposta.folgasEquipe.length} folgas de equipe ` +
+            `em ${Date.now() - comecou}ms`);
+        res.json(resposta);
+    } catch (erro) {
+        console.error('❌ cobrança/contexto:', erro.message);
+        res.status(500).json({ error: erro.message });
+    }
+});
+
+
 // Proxy: tudo sob /api/secullum/ vira uma chamada à Secullum
 app.all(/^\/api\/secullum\/(.+)/, async (req, res) => {
     if (!SECULLUM_TOKEN) {

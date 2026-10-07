@@ -1,0 +1,1478 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cobrança de Justificativas — Larsil</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/assets/theme.css">
+    <script src="/assets/session.js"></script>
+    <style>
+        /* ==================================================================
+           COBRANÇA — um calendário por colaborador no período escolhido.
+           Cada célula é um dia: verde quando está resolvido, vermelho com a
+           contagem quando ainda deve, e uma tarja quando a pessoa estava fora
+           (folga, férias, falta, sem atividade). Clicando na bolinha verde
+           abre a justificativa que já foi entregue.
+           ================================================================== */
+        /* Os selos do calendário têm cor própria: a mesma alfa que funciona
+           no escuro some no branco, então o tema claro usa tons mais fechados. */
+        :root {
+            --sel-ok-bg: #2FA84F;   --sel-ok-fg: #FFFFFF;  --sel-ok-linha: #248C40;
+            --sel-ok-num: #7BE08F;                     /* o número na coluna Entreg. */
+            --sel-deve-bg: #D93B2B; --sel-deve-fg: #FFFFFF; --sel-deve-linha: #B82D1F;
+            --sel-deve-num: #FF7A63;
+            --sel-deve-halo: rgba(217, 59, 43, .34);
+            --sel-folga-bg: rgba(123, 160, 255, .17);  --sel-folga-fg: #9DB8FF;
+            --sel-ferias-bg: rgba(190, 140, 255, .17); --sel-ferias-fg: #C9A3FF;
+            --sel-falta-bg: rgba(232, 164, 74, .19);   --sel-falta-fg: #F0B964;
+            --sel-viagem-bg: rgba(94, 214, 214, .16);  --sel-viagem-fg: #7FE0E0;
+            --sel-neutro-bg: var(--lar-surface-3);     --sel-neutro-fg: var(--lar-muted);
+            --card-azul: rgba(76, 143, 214, .12);
+            --card-vermelho: rgba(217, 59, 43, .12);
+            --card-ambar: rgba(232, 164, 74, .12);
+            --card-verde: rgba(47, 168, 79, .12);
+        }
+        :root[data-tema="claro"] {
+            --sel-ok-bg: #1F8F3C;   --sel-ok-fg: #FFFFFF;  --sel-ok-linha: #16702D;
+            --sel-ok-num: #1F8F3C;
+            --sel-deve-bg: #C62828; --sel-deve-fg: #FFFFFF; --sel-deve-linha: #99201F;
+            --sel-deve-num: #C62828;
+            --sel-deve-halo: rgba(198, 40, 40, .3);
+            --sel-folga-bg: rgba(42, 82, 168, .13);   --sel-folga-fg: #26478F;
+            --sel-ferias-bg: rgba(122, 62, 180, .13); --sel-ferias-fg: #6B32A3;
+            --sel-falta-bg: rgba(178, 110, 12, .15);  --sel-falta-fg: #8A5405;
+            --sel-viagem-bg: rgba(16, 124, 124, .13); --sel-viagem-fg: #0E6B6B;
+            --card-azul: rgba(76, 143, 214, .14);
+            --card-vermelho: rgba(198, 40, 40, .1);
+            --card-ambar: rgba(224, 154, 50, .14);
+            --card-verde: rgba(31, 143, 60, .12);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', system-ui, sans-serif; min-height: 100vh; }
+
+        .topo {
+            display: flex; align-items: center; gap: 14px;
+            padding: 10px 18px;
+            background: var(--lar-surface);
+            border-bottom: 1px solid var(--lar-line);
+            position: sticky; top: 0; z-index: 40;
+        }
+        .topo-marca { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+        .topo-logo { height: 30px; width: auto; }
+        .topo-titulo { font-size: 14px; font-weight: 800; line-height: 1.15; }
+        .topo-sub {
+            font-size: 10.5px; font-weight: 700; letter-spacing: .09em;
+            text-transform: uppercase; color: var(--lar-text-dim);
+        }
+        .topo-espaco { flex: 1; }
+
+        .btn {
+            display: inline-flex; align-items: center; gap: 7px;
+            height: 34px; padding: 0 13px;
+            border-radius: 999px; border: 1px solid var(--lar-line);
+            background: var(--lar-surface-2); color: var(--lar-text);
+            font: inherit; font-size: 12.5px; font-weight: 600;
+            cursor: pointer; white-space: nowrap;
+            transition: background .15s, border-color .15s;
+        }
+        .btn:hover { background: var(--lar-realce); }
+        .btn.principal { background: var(--lar-green); border-color: var(--lar-green); color: var(--lar-green-sobre); font-weight: 700; }
+        .btn[aria-pressed="true"] { border-color: var(--lar-green); color: var(--lar-green); }
+
+        .barra {
+            display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px;
+            padding: 12px 18px;
+            background: var(--lar-surface);
+            border-bottom: 1px solid var(--lar-line);
+            position: sticky; top: 55px; z-index: 35;
+        }
+        .campo { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+        .campo-rotulo {
+            font-size: 9.5px; font-weight: 800; letter-spacing: .1em;
+            text-transform: uppercase; color: var(--lar-text-dim);
+        }
+        .campo-entrada {
+            height: 34px; padding: 0 10px;
+            border-radius: 9px; border: 1px solid var(--lar-line);
+            background: var(--lar-surface-2); color: var(--lar-text);
+            font: inherit; font-size: 12.5px;
+        }
+        .campo-entrada:focus { outline: none; border-color: var(--lar-green); }
+        select.campo-entrada { cursor: pointer; }
+
+        .chip-grupo { display: flex; gap: 6px; flex-wrap: wrap; }
+        .chip {
+            height: 30px; padding: 0 13px;
+            border-radius: 999px; border: 1px solid var(--lar-line);
+            background: transparent; color: var(--lar-text-dim);
+            font: inherit; font-size: 11.5px; font-weight: 700;
+            cursor: pointer; white-space: nowrap;
+        }
+        .chip.ativo { background: var(--lar-green); border-color: var(--lar-green); color: var(--lar-green-sobre); }
+
+        /* ---------- resumo ---------- */
+        .resumo { display: flex; gap: 10px; flex-wrap: wrap; padding: 12px 18px 0; }
+        .resumo-caixa {
+            flex: 1 1 150px; min-width: 140px;
+            padding: 10px 14px 10px 16px; border-radius: 12px;
+            border: 1px solid var(--lar-line); background: var(--lar-surface);
+            border-left: 5px solid var(--lar-line-forte);
+        }
+        .resumo-caixa.pessoas { border-left-color: #4C8FD6; background: var(--card-azul); }
+        .resumo-caixa.alerta  { border-left-color: var(--sel-deve-bg); background: var(--card-vermelho); }
+        .resumo-caixa.cobrar  { border-left-color: #E8A44A; background: var(--card-ambar); }
+        .resumo-caixa.ok      { border-left-color: var(--sel-ok-bg); background: var(--card-verde); }
+        .resumo-caixa.pessoas .resumo-num { color: #6FA8E0; }
+        .resumo-caixa.cobrar .resumo-num { color: #E09A32; }
+        .resumo-caixa.ok .resumo-num { color: var(--sel-ok-num); }
+        .resumo-num { font-size: 22px; font-weight: 800; line-height: 1.1; }
+        .resumo-rot {
+            font-size: 10px; font-weight: 700; letter-spacing: .08em;
+            text-transform: uppercase; color: var(--lar-text-dim); margin-top: 2px;
+        }
+        .resumo-caixa.alerta .resumo-num { color: var(--sel-deve-num); }
+        .resumo-caixa.ok .resumo-num { color: var(--lar-green); }
+
+        /* ---------- tabela ---------- */
+        .moldura {
+            margin: 12px 18px 24px;
+            border: 1px solid var(--lar-line); border-radius: 12px;
+            background: var(--lar-surface); overflow: auto;
+            max-height: calc(100vh - 230px);
+        }
+        table { border-collapse: separate; border-spacing: 0; width: max-content; min-width: 100%; }
+        th, td { padding: 0; font-size: 12px; }
+
+        thead th {
+            position: sticky; top: 0; z-index: 20;
+            background: var(--lar-surface-2);
+            border-bottom: 1px solid var(--lar-line);
+            font-weight: 700; color: var(--lar-text-dim);
+            text-align: left; white-space: nowrap;
+            padding: 7px 10px;
+        }
+
+        /* ---------- cabeçalho clicável, no estilo da planilha ---------- */
+        .th-botao {
+            display: flex; align-items: center; gap: 6px; width: 100%;
+            background: none; border: 0; padding: 0; margin: 0;
+            font: inherit; color: inherit; cursor: pointer; text-align: left;
+        }
+        .th-botao:hover .th-funil { opacity: 1; }
+        .th-rotulo { flex: 1; overflow: hidden; text-overflow: ellipsis; }
+        .th-seta { font-size: 9px; color: var(--lar-green); }
+        .th-funil {
+            font-size: 9px; opacity: .35; flex-shrink: 0;
+            width: 14px; height: 14px; line-height: 14px; text-align: center;
+            border-radius: 4px;
+        }
+        .th-funil.ligado {
+            opacity: 1; color: var(--lar-green-sobre); background: var(--lar-green); font-weight: 800;
+        }
+
+        /* ---------- menu de filtro ---------- */
+        .menu-filtro {
+            position: fixed; z-index: 70;
+            width: 258px; max-height: 420px;
+            display: flex; flex-direction: column;
+            background: var(--lar-surface-solida); border: 1px solid var(--lar-line);
+            border-radius: 11px; box-shadow: var(--lar-sombra);
+            overflow: hidden;
+        }
+        .menu-filtro[hidden] { display: none; }
+        .menu-acao {
+            display: flex; align-items: center; gap: 8px; width: 100%;
+            padding: 8px 12px; background: none; border: 0;
+            font: inherit; font-size: 12.5px; color: var(--lar-text);
+            cursor: pointer; text-align: left;
+        }
+        .menu-acao:hover { background: var(--lar-realce); }
+        .menu-sep { height: 1px; background: var(--lar-line); }
+        .menu-busca { padding: 8px 10px; }
+        .menu-busca input { width: 100%; height: 29px; font-size: 12px; }
+        .menu-lista { overflow: auto; flex: 1; padding: 2px 0 6px; }
+        .menu-item {
+            display: flex; align-items: center; gap: 8px;
+            padding: 5px 12px; font-size: 12.5px; cursor: pointer;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .menu-item:hover { background: var(--lar-realce); }
+        .menu-item input { accent-color: var(--lar-green); cursor: pointer; flex-shrink: 0; }
+        .menu-item span { overflow: hidden; text-overflow: ellipsis; }
+        .menu-item.todos { font-weight: 700; border-bottom: 1px solid var(--lar-line); padding-bottom: 7px; margin-bottom: 3px; }
+        .menu-rodape { display: flex; gap: 8px; padding: 9px 10px; border-top: 1px solid var(--lar-line); }
+        .menu-rodape .btn { flex: 1; justify-content: center; height: 30px; font-size: 12px; }
+        .menu-vazio { padding: 14px 12px; font-size: 12px; color: var(--lar-text-dim); }
+
+        /* colunas fixas: o nome não some ao rolar o calendário para o lado */
+        .fixa { position: sticky; z-index: 10; background: var(--lar-surface); }
+        thead .fixa { z-index: 25; background: var(--lar-surface-2); }
+        .col-nome  { left: 0; min-width: 258px; }
+        .col-lider { left: 258px; min-width: 186px; box-shadow: 1px 0 0 var(--lar-line); }
+        /* Deve e Entregues grudam na borda direita: o calendário rola por baixo
+           e o total continua à vista. */
+        .col-deve  { right: 78px; min-width: 66px; text-align: center !important;
+                     box-shadow: -1px 0 0 var(--lar-line); }
+        .col-ok    { right: 0;    min-width: 78px; text-align: center !important; }
+
+        tbody td { border-bottom: 1px solid var(--lar-line-soft); padding: 4px 10px; }
+        tbody tr:hover td { background: var(--lar-realce); }
+        tbody tr:hover .fixa { background: var(--lar-surface-2); }
+
+        .cel-nome { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 230px; }
+        .cel-sec { color: var(--lar-text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .cel-conta { text-align: center; font-weight: 800; font-variant-numeric: tabular-nums; }
+        .cel-conta.deve { color: var(--sel-deve-num); }
+        .cel-conta.ok { color: var(--sel-ok-num); }
+        .cel-conta.zero { color: var(--lar-text-dim); font-weight: 600; }
+
+        /* cabeçalho de cada dia: dia do mês em cima, letra da semana embaixo */
+        .dia-th { text-align: center !important; padding: 5px 2px !important; min-width: 34px; cursor: pointer; }
+        .dia-num { font-size: 12px; font-weight: 800; color: var(--lar-text); display: block; }
+        .dia-sem { font-size: 9px; font-weight: 700; letter-spacing: .04em; display: block; }
+        .dia-th.fds .dia-num, .dia-th.fds .dia-sem { color: var(--lar-text-dim); }
+
+        td.dia { text-align: center; padding: 3px 2px; }
+
+        .bolinha {
+            display: inline-flex; align-items: center; justify-content: center;
+            width: 21px; height: 21px; border-radius: 50%;
+            font-size: 10.5px; font-weight: 800; line-height: 1;
+            border: 1px solid transparent;
+        }
+        .bolinha.ok      { background: var(--sel-ok-bg); color: var(--sel-ok-fg); border-color: var(--sel-ok-linha); }
+        .bolinha.vazia   { background: var(--sel-ok-bg); border-color: var(--sel-ok-linha); width: 10px; height: 10px; opacity: .5; }
+        .bolinha.deve    { background: var(--sel-deve-bg); color: var(--sel-deve-fg); border-color: var(--sel-deve-linha); }
+        .bolinha.clicavel { cursor: pointer; }
+        .bolinha.clicavel:hover { filter: brightness(1.35); }
+        .bolinha.deve { animation: pulsaDeve 2.4s ease-in-out infinite; }
+        @keyframes pulsaDeve {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(232, 88, 64, 0); }
+            50%      { box-shadow: 0 0 0 3px var(--sel-deve-halo); }
+        }
+
+        /* dia em que a pessoa estava fora: tarja, não bolinha — para o RH
+           distinguir num relance "não devia nada" de "nem trabalhou" */
+        .tarja {
+            display: inline-block; min-width: 25px; padding: 2px 4px;
+            border-radius: 5px; font-size: 9px; font-weight: 800; letter-spacing: .03em;
+        }
+        .tarja.folga   { background: var(--sel-folga-bg); color: var(--sel-folga-fg); }
+        .tarja.ferias  { background: var(--sel-ferias-bg); color: var(--sel-ferias-fg); }
+        .tarja.falta   { background: var(--sel-falta-bg); color: var(--sel-falta-fg); }
+        .tarja.semativ { background: var(--sel-neutro-bg); color: var(--sel-neutro-fg); }
+        .tarja.viagem  { background: var(--sel-viagem-bg); color: var(--sel-viagem-fg); }
+        .sem-cartao { color: var(--lar-line-forte); font-size: 13px; }
+
+        .vazio { padding: 40px 18px; text-align: center; color: var(--lar-text-dim); font-size: 13px; }
+
+        /* ---------- legenda ---------- */
+        .legenda {
+            display: flex; flex-wrap: wrap; gap: 14px;
+            padding: 0 18px 4px; font-size: 11px; color: var(--lar-text-dim);
+        }
+        .legenda span { display: inline-flex; align-items: center; gap: 5px; }
+
+        /* ---------- visor do anexo ---------- */
+        .visor {
+            position: fixed; inset: 0; z-index: 90;
+            background: var(--lar-veu);
+            display: flex; align-items: center; justify-content: center; padding: 24px;
+        }
+        .visor[hidden] { display: none; }
+        .visor-caixa {
+            background: var(--lar-surface); border: 1px solid var(--lar-line);
+            border-radius: 14px; max-width: min(960px, 94vw); max-height: 92vh;
+            display: flex; flex-direction: column; overflow: hidden;
+        }
+        .visor-topo {
+            display: flex; align-items: center; gap: 12px;
+            padding: 11px 15px; border-bottom: 1px solid var(--lar-line);
+        }
+        .visor-titulo { font-size: 13px; font-weight: 700; }
+        .visor-sub { font-size: 11px; color: var(--lar-text-dim); }
+        .visor-corpo { overflow: auto; padding: 12px; text-align: center; }
+        .visor-corpo img { max-width: 100%; border-radius: 8px; display: block; margin: 0 auto; }
+        .visor-corpo iframe { width: min(860px, 86vw); height: 70vh; border: 0; border-radius: 8px; background: #FFFFFF; }
+        .visor-aviso { padding: 26px; color: var(--lar-text-dim); font-size: 13px; }
+
+        .carregando {
+            padding: 46px 18px; text-align: center;
+            color: var(--lar-text-dim); font-size: 13px;
+        }
+    </style>
+</head>
+<body class="lar-fundo">
+
+<header class="topo">
+    <div class="topo-marca">
+        <img src="/assets/larsil-logo.png" alt="Larsil" class="topo-logo">
+        <div>
+            <div class="topo-titulo">Cobrança de Justificativas</div>
+            <div class="topo-sub" id="topoEmpresa">Gestão de Ponto</div>
+        </div>
+    </div>
+    <div class="topo-espaco"></div>
+    <button class="btn" onclick="window.location.href='/index.html'">← Painel</button>
+    <button class="btn" id="btnExportar">⬇ Excel</button>
+    <span id="lugarDoTema"></span>
+</header>
+
+<section class="barra">
+    <div class="campo">
+        <label class="campo-rotulo" for="inicio">Data início</label>
+        <input type="date" class="campo-entrada" id="inicio">
+    </div>
+    <div class="campo">
+        <label class="campo-rotulo" for="fim">Data fim</label>
+        <input type="date" class="campo-entrada" id="fim">
+    </div>
+    <button class="btn principal" id="btnBuscar">🔍 Buscar</button>
+
+    <div class="campo" style="flex:1 1 180px">
+        <label class="campo-rotulo" for="busca">Buscar colaborador</label>
+        <input type="search" class="campo-entrada" id="busca" placeholder="Digite o nome...">
+    </div>
+
+    <!-- Em cascata, na ordem da hierarquia: cada um só mostra o que existe
+         dentro do que foi escolhido antes dele. -->
+    <div class="campo">
+        <span class="campo-rotulo">Projeto</span>
+        <button class="btn" id="fProjeto" data-campo="projeto">Todos ▾</button>
+    </div>
+    <div class="campo">
+        <span class="campo-rotulo">Coordenador</span>
+        <button class="btn" id="fCoord" data-campo="coordenador">Todos ▾</button>
+    </div>
+    <div class="campo">
+        <span class="campo-rotulo">Supervisor</span>
+        <button class="btn" id="fSuper" data-campo="supervisor">Todos ▾</button>
+    </div>
+    <div class="campo">
+        <span class="campo-rotulo">Líder</span>
+        <button class="btn" id="fLider" data-campo="lider">Todos ▾</button>
+    </div>
+
+    <div class="campo">
+        <span class="campo-rotulo">Mostrar</span>
+        <div class="chip-grupo">
+            <button class="chip ativo" data-ver="todos">Todos</button>
+            <button class="chip" data-ver="devendo">Só devendo</button>
+            <button class="chip" data-ver="emdia">Em dia</button>
+        </div>
+    </div>
+</section>
+
+<div class="resumo" id="resumo"></div>
+
+<div class="legenda">
+    <span><i class="bolinha vazia"></i> nada gerado nesse dia</span>
+    <span><i class="bolinha deve">1</i> justificativa gerada e não devolvida (clique: ponto e quem gerou)</span>
+    <span><i class="bolinha ok">1</i> entregue (clique para ver o anexo)</span>
+    <span><i class="tarja folga">FLG</i> folga</span>
+    <span><i class="tarja ferias">FER</i> férias</span>
+    <span><i class="tarja falta">FLT</i> falta</span>
+    <span><i class="tarja semativ">S/A</i> sem atividade</span>
+    <span><i class="tarja viagem">VIA</i> viagem</span>
+    <span><span class="sem-cartao">·</span> sem cartão no dia</span>
+</div>
+
+<div class="moldura" id="moldura">
+    <div class="carregando" id="estado">Escolha a empresa e o período e clique em Buscar.</div>
+</div>
+
+<div class="menu-filtro" id="menuFiltro" hidden></div>
+
+<div class="visor" id="visor" hidden>
+    <div class="visor-caixa">
+        <div class="visor-topo">
+            <div style="flex:1">
+                <div class="visor-titulo" id="visorTitulo"></div>
+                <div class="visor-sub" id="visorSub"></div>
+            </div>
+            <button class="btn" id="visorAbrir">Abrir original</button>
+            <button class="btn" id="visorFechar">Fechar</button>
+        </div>
+        <div class="visor-corpo" id="visorCorpo"></div>
+    </div>
+</div>
+
+<script>
+(function () {
+    'use strict';
+
+    if (!SESSION.requireAuth()) return;
+
+    // claro/escuro: o botão e a escolha guardada vivem no session.js
+    document.getElementById('lugarDoTema').appendChild(SESSION.botaoTema());
+
+    // ---------------------------------------------------------------------
+    // Estado
+    // ---------------------------------------------------------------------
+    var empresas = [];          // [{ id, name }]
+    var empresaId = null;       // banco selecionado
+    var dias = [];              // ['2026-09-21', ...]
+    var linhas = [];            // uma por colaborador
+    var filtros = { busca: '', ver: 'todos' };
+    // Multisseleção por campo, como na planilha: conjunto vazio = passa tudo.
+    // A ordem importa: é a cascata. Cada campo só enxerga o que sobrou dos
+    // campos à sua esquerda.
+    var CASCATA = ['projeto', 'coordenador', 'supervisor', 'lider'];
+    var CAMPOS_FILTRAVEIS = CASCATA.concat(['nome']);
+    var selecao = {};
+    CAMPOS_FILTRAVEIS.forEach(function (c) { selecao[c] = new Set(); });
+    var ordem = { coluna: 'nome', desc: false };
+    var VAZIO = '\u0000vazio';   // rótulo interno para célula em branco
+
+    var el = function (id) { return document.getElementById(id); };
+
+    // ---------------------------------------------------------------------
+    // Datas
+    // ---------------------------------------------------------------------
+    function hojeISO() {
+        var d = new Date();
+        return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    }
+    /** Período de fechamento corrente: do dia 21 ao dia 20. */
+    function fechamentoAtual() {
+        var d = new Date();
+        var ano = d.getFullYear(), mes = d.getMonth();
+        if (d.getDate() <= 20) mes -= 1;
+        var ini = new Date(ano, mes, 21);
+        var fim = new Date(ano, mes + 1, 20);
+        var iso = function (x) {
+            return x.getFullYear() + '-' + String(x.getMonth() + 1).padStart(2, '0') + '-' + String(x.getDate()).padStart(2, '0');
+        };
+        return { inicio: iso(ini), fim: iso(fim) };
+    }
+    function listarDias(inicio, fim) {
+        var saida = [], d = new Date(inicio + 'T12:00:00'), limite = new Date(fim + 'T12:00:00');
+        while (d <= limite && saida.length < 120) {
+            saida.push(d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'));
+            d.setDate(d.getDate() + 1);
+        }
+        return saida;
+    }
+    var LETRA_SEMANA = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'];
+    function diaDaSemana(iso) { return new Date(iso + 'T12:00:00').getDay(); }
+    function dataBR(iso) {
+        var p = String(iso).split('-');
+        return p[2] + '/' + p[1] + '/' + p[0];
+    }
+
+    var soDigitos = function (v) { return String(v || '').replace(/\D/g, ''); };
+    var semAcento = function (v) {
+        return String(v || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().trim();
+    };
+
+    // ---------------------------------------------------------------------
+    // Empresas
+    // ---------------------------------------------------------------------
+    /** O banco vem escolhido do painel; aqui só se mostra qual é. */
+    function mostrarEmpresa() {
+        var alvo = el('topoEmpresa');
+        if (alvo) alvo.textContent = nomeDaEmpresa() || 'Gestão de Ponto';
+        document.title = 'Cobrança — ' + (nomeDaEmpresa() || 'Larsil');
+    }
+
+    // ---------------------------------------------------------------------
+    // Carga
+    // ---------------------------------------------------------------------
+    function buscar() {
+        var inicio = el('inicio').value, fim = el('fim').value;
+        if (!empresaId || !inicio || !fim) return;
+        if (inicio > fim) { mostrarEstado('A data de início é posterior à data fim.'); return; }
+
+        dias = listarDias(inicio, fim);
+        mostrarEstado('Carregando ' + dias.length + ' dia(s)…');
+
+        var emp = encodeURIComponent(empresaId);
+        Promise.all([
+            SESSION.apiFetch('/api/secullum/slim/funcionarios?empresas=' + emp).then(leJson),
+            SESSION.apiFetch('/api/secullum/slim/batidas?dataInicio=' + inicio + '&dataFim=' + fim + '&empresas=' + emp).then(leJson),
+            SESSION.apiFetch('/api/anexos/batch-period', {
+                method: 'POST',
+                body: JSON.stringify({ dateStart: inicio, dateEnd: fim, empresaIds: [empresaId] })
+            }).then(leJson),
+            SESSION.apiFetch('/api/cobranca/contexto?inicio=' + inicio + '&fim=' + fim).then(leJson)
+        ]).then(function (r) {
+            linhas = montarLinhas(r[0], r[1], r[2], r[3]);
+            aplicarOpcoesDeFiltro();
+            render();
+        }).catch(function (e) {
+            console.error(e);
+            mostrarEstado('Não deu para carregar: ' + e.message);
+        });
+    }
+
+    function leJson(resp) {
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
+        return resp.json();
+    }
+
+    function mostrarEstado(texto) {
+        el('moldura').replaceChildren(Object.assign(document.createElement('div'), {
+            className: 'carregando', textContent: texto
+        }));
+        el('resumo').replaceChildren();
+    }
+
+    // ---------------------------------------------------------------------
+    // Montagem: junta Secullum (cartões), ANEXOS (o que já foi entregue) e o
+    // contexto do RH (lotação e dias de ausência).
+    // ---------------------------------------------------------------------
+    function montarLinhas(respFuncionarios, respBatidas, respAnexos, contexto) {
+        var funcionarios = respFuncionarios[empresaId] || respFuncionarios[String(empresaId)] || [];
+        var batidas = respBatidas[empresaId] || respBatidas[String(empresaId)] || [];
+        if (!Array.isArray(batidas)) batidas = [];
+
+        // --- colaboradores ativos, indexados pelo mesmo REG que o painel usa
+        var porReg = new Map();
+        funcionarios.forEach(function (f) {
+            var demissao = f.Demissao;
+            if (demissao && demissao !== '0001-01-01T00:00:00') return;   // demitido não entra
+            var reg = f.NumeroIdentificador || f.NumeroFolha;
+            if (!reg) return;
+            porReg.set(String(reg), {
+                reg: String(reg),
+                nome: f.Nome || 'Nome não informado',
+                cpf: soDigitos(f.Cpf),
+                departamento: f.Departamento == null ? '' : String(f.Departamento),
+                dias: {}
+            });
+        });
+
+        // --- justificativas: por CPF e por REG, porque REG se repete entre empresas
+        var anexosPorChave = new Map();
+        var blocos = (respAnexos && respAnexos.anexos) || {};
+        Object.keys(blocos).forEach(function (dia) {
+            var porEmpresa = blocos[dia] || {};
+            Object.keys(porEmpresa).forEach(function (eid) {
+                if (String(eid) !== String(empresaId)) return;
+                (porEmpresa[eid] || []).forEach(function (a) {
+                    var chaves = [];
+                    if (a.cpf) chaves.push('cpf:' + soDigitos(a.cpf) + '|' + dia);
+                    if (a.reg) chaves.push('reg:' + String(a.reg) + '|' + dia);
+                    chaves.forEach(function (k) {
+                        if (!anexosPorChave.has(k)) anexosPorChave.set(k, []);
+                        anexosPorChave.get(k).push(a);
+                    });
+                });
+            });
+        });
+        var anexosDoDia = function (pessoa, dia) {
+            var porCpf = pessoa.cpf ? anexosPorChave.get('cpf:' + pessoa.cpf + '|' + dia) : null;
+            return porCpf || anexosPorChave.get('reg:' + pessoa.reg + '|' + dia) || [];
+        };
+        // Enquanto não houver arquivo, a justificativa foi só gerada — é o que
+        // o RH precisa cobrar de volta.
+        var foiEntregue = function (j) { return !!(j && j.blob_url); };
+
+        // --- lotação (filtros) por CPF
+        var lotacao = new Map();
+        (contexto.hierarquia || []).forEach(function (h) { if (h.cpf) lotacao.set(h.cpf, h); });
+
+        // --- ausências do ticket por CPF+dia, e por nome quando falta o CPF
+        var ausenciaPorCpf = new Map(), ausenciaPorNome = new Map();
+        (contexto.ausencias || []).forEach(function (a) {
+            if (!a.data) return;
+            if (a.cpf) ausenciaPorCpf.set(a.cpf + '|' + a.data, a.status);
+            if (a.nome) ausenciaPorNome.set(semAcento(a.nome) + '|' + a.data, a.status);
+        });
+
+        // --- folgas por período, por nome
+        var folgasPorNome = new Map();
+        (contexto.folgas || []).forEach(function (f) {
+            var chave = semAcento(f.nome);
+            if (!chave) return;
+            if (!folgasPorNome.has(chave)) folgasPorNome.set(chave, []);
+            folgasPorNome.get(chave).push(f);
+        });
+
+        // --- folga da equipe inteira: vale para quem está naquele projeto+equipe
+        var folgaEquipe = new Map();
+        (contexto.folgasEquipe || []).forEach(function (f) {
+            if (!f.data) return;
+            folgaEquipe.set(String(f.projeto) + '|' + String(f.equipe) + '|' + f.data, f.evento);
+        });
+
+        // --- cartões da Secullum, dia a dia
+        batidas.forEach(function (b) {
+            var reg = (b.Funcionario && (b.Funcionario.NumeroIdentificador || b.Funcionario.NumeroFolha));
+            var pessoa = reg != null ? porReg.get(String(reg)) : null;
+            if (!pessoa) return;                       // demitido ou fora da empresa
+            var dia = String(b.Data || '').slice(0, 10);
+            if (!dia) return;
+
+            // O cartão não decide nada aqui: serve para mostrar o ponto do dia
+            // quando o RH clica na pendência, e para saber se houve expediente.
+            pessoa.dias[dia] = { temCartao: true, motivo: motivoDoCartao(b), cartao: b };
+        });
+
+        // --- fecha cada colaborador: ausências, anexos e contagens
+        var saida = [];
+        porReg.forEach(function (pessoa) {
+            var lot = lotacao.get(pessoa.cpf) || {};
+            var chaveNome = semAcento(pessoa.nome);
+            var listaFolgas = folgasPorNome.get(chaveNome) || [];
+
+            var devendo = 0, entregues = 0;
+            var celulas = dias.map(function (dia) {
+                var base = pessoa.dias[dia] || { temCartao: false, motivo: '' };
+                var justificativas = anexosDoDia(pessoa, dia);
+                var naMao = justificativas.filter(foiEntregue);
+                var emAberto = justificativas.filter(function (j) { return !foiEntregue(j); });
+
+                devendo += emAberto.length;
+                entregues += naMao.length;
+
+                return {
+                    dia: dia,
+                    emAberto: emAberto,          // geradas e ainda não devolvidas
+                    entregues: naMao,            // já com a via assinada anexada
+                    fora: ausenciaDoDia(pessoa, lot, dia, listaFolgas,
+                        ausenciaPorCpf, ausenciaPorNome, folgaEquipe, chaveNome, base.motivo),
+                    temCartao: base.temCartao,
+                    cartao: base.cartao
+                };
+            });
+
+            saida.push({
+                reg: pessoa.reg, nome: pessoa.nome, cpf: pessoa.cpf,
+                projeto: lot.projeto || '', coordenador: lot.coordenador || '',
+                supervisor: lot.supervisor || '', lider: lot.lider || '', equipe: lot.equipe || '',
+                devendo: devendo, entregues: entregues, celulas: celulas
+            });
+        });
+        return saida;
+    }
+
+    /**
+     * Texto que a Secullum grava no lugar do horário quando o dia não é de
+     * trabalho (FERIAS, FALTA, afastamento). Serve só para a tarja do dia.
+     */
+    var STATUS_DO_CARTAO = {
+        'FALTA': 'FALTA', 'FERIAS': 'FÉRIAS',
+        'A. INSS': 'AFASTAMENTO INSS', 'AFASTAMENTO INSS': 'AFASTAMENTO INSS', 'A.INSS': 'AFASTAMENTO INSS',
+        'L.MATER': 'LICENÇA MATERNIDADE', 'L. MATER': 'LICENÇA MATERNIDADE', 'LIC.MATERNIDADE': 'LICENÇA MATERNIDADE'
+    };
+    var CAMPOS_CARTAO = ['Entrada1', 'Saida1', 'Entrada2', 'Saida2', 'Entrada3', 'Saida3',
+                         'Entrada4', 'Saida4', 'Entrada5', 'Saida5'];
+
+    function motivoDoCartao(cartao) {
+        for (var i = 0; i < CAMPOS_CARTAO.length; i++) {
+            var v = cartao[CAMPOS_CARTAO[i]];
+            if (v && STATUS_DO_CARTAO[v]) return STATUS_DO_CARTAO[v];
+        }
+        return '';
+    }
+
+    /** O colaborador estava fora nesse dia? Devolve a tarja ou ''. */
+    function ausenciaDoDia(pessoa, lot, dia, listaFolgas, porCpf, porNome, folgaEquipe, chaveNome, motivoCartao) {
+        // 1) o próprio cartão da Secullum já diz (FÉRIAS, FALTA, afastamento)
+        if (motivoCartao) return rotuloDaAusencia(motivoCartao);
+
+        // 2) ticket do dia
+        var status = (pessoa.cpf && porCpf.get(pessoa.cpf + '|' + dia)) || porNome.get(chaveNome + '|' + dia);
+        if (status) {
+            var r = rotuloDaAusencia(status);
+            if (r) return r;
+        }
+
+        // 3) folga lançada por período
+        for (var i = 0; i < listaFolgas.length; i++) {
+            var f = listaFolgas[i];
+            if (f.inicio && f.fim && dia >= f.inicio && dia <= f.fim) {
+                var rf = rotuloDaAusencia(f.tipo || f.motivo);
+                if (rf) return rf;
+            }
+        }
+
+        // 4) folga da equipe inteira
+        if (lot.projeto && lot.equipe) {
+            var ev = folgaEquipe.get(String(lot.projeto) + '|' + String(lot.equipe) + '|' + dia);
+            if (ev) {
+                var re = rotuloDaAusencia(ev);
+                if (re) return re;
+            }
+        }
+        return '';
+    }
+
+    function rotuloDaAusencia(texto) {
+        var t = semAcento(texto);
+        if (!t) return '';
+        if (t.indexOf('FERIAS') !== -1) return { classe: 'ferias', sigla: 'FER', titulo: 'Férias' };
+        if (t.indexOf('FALTA') !== -1) return { classe: 'falta', sigla: 'FLT', titulo: 'Falta' };
+        if (t.indexOf('SEM ATIVIDADE') !== -1) return { classe: 'semativ', sigla: 'S/A', titulo: 'Sem atividade' };
+        if (t.indexOf('VIAGEM') !== -1) return { classe: 'viagem', sigla: 'VIA', titulo: 'Viagem' };
+        if (t.indexOf('FOLGA') !== -1) return { classe: 'folga', sigla: 'FLG', titulo: 'Folga' };
+        if (t.indexOf('AFASTAMENTO') !== -1) return { classe: 'semativ', sigla: 'INSS', titulo: 'Afastamento INSS' };
+        if (t.indexOf('MATERNIDADE') !== -1) return { classe: 'semativ', sigla: 'LIC', titulo: 'Licença maternidade' };
+        if (t.indexOf('OFICINA') !== -1) return { classe: 'semativ', sigla: 'OFC', titulo: 'Oficina' };
+        if (t.indexOf('NAO ESTA NA EQUIPE') !== -1 || t.indexOf('SEM EQUIPE') !== -1) {
+            return { classe: 'semativ', sigla: 'S/E', titulo: 'Sem equipe' };
+        }
+        if (t.indexOf('DISPOSICAO') !== -1) return { classe: 'semativ', sigla: 'DISP', titulo: 'À disposição' };
+        return '';
+    }
+
+    function nomeDaEmpresa() {
+        var e = empresas.find(function (x) { return String(x.id) === String(empresaId); });
+        return e ? e.name : '';
+    }
+
+    // ---------------------------------------------------------------------
+    // Filtros
+    // ---------------------------------------------------------------------
+    /**
+     * De onde saem as opções de um campo: das linhas que já passaram pelos
+     * filtros anteriores da cascata. O nome, por ser o último, enxerga o
+     * resultado de todos eles.
+     */
+    function escopoDe(campo) {
+        var ate = CASCATA.indexOf(campo);
+        if (ate === -1) ate = CASCATA.length;          // 'nome' e afins
+        return linhas.filter(function (l) {
+            for (var i = 0; i < ate; i++) {
+                if (!passaNoFiltro(l, CASCATA[i])) return false;
+            }
+            return true;
+        });
+    }
+
+    function opcoesDe(campo) {
+        var contagem = new Map();
+        escopoDe(campo).forEach(function (l) {
+            var v = l[campo] || VAZIO;
+            contagem.set(v, (contagem.get(v) || 0) + 1);
+        });
+        var lista = Array.from(contagem.keys());
+        lista.sort(function (a, b) {
+            if (a === VAZIO) return 1;
+            if (b === VAZIO) return -1;
+            return String(a).localeCompare(String(b), 'pt-BR', { numeric: true });
+        });
+        return lista.map(function (v) {
+            return { valor: v, rotulo: v === VAZIO ? '(em branco)' : v, n: contagem.get(v) };
+        });
+    }
+
+    /**
+     * Tira da seleção o que deixou de existir — seja porque a busca trouxe
+     * outros dados, seja porque um filtro acima na cascata estreitou o campo.
+     * Vai da esquerda para a direita, porque podar o de cima muda o de baixo.
+     */
+    function podarSelecoes() {
+        CAMPOS_FILTRAVEIS.forEach(function (campo) {
+            if (!selecao[campo].size) return;
+            var existentes = new Set(opcoesDe(campo).map(function (o) { return o.valor; }));
+            selecao[campo].forEach(function (v) { if (!existentes.has(v)) selecao[campo].delete(v); });
+        });
+        atualizarBotoesDaBarra();
+    }
+    var aplicarOpcoesDeFiltro = podarSelecoes;
+
+    function passaNoFiltro(linha, campo) {
+        var escolhidos = selecao[campo];
+        if (!escolhidos.size) return true;
+        return escolhidos.has(linha[campo] || VAZIO);
+    }
+
+    function filtradas() {
+        var busca = semAcento(filtros.busca);
+        return linhas.filter(function (l) {
+            if (busca && semAcento(l.nome).indexOf(busca) === -1) return false;
+            for (var i = 0; i < CAMPOS_FILTRAVEIS.length; i++) {
+                if (!passaNoFiltro(l, CAMPOS_FILTRAVEIS[i])) return false;
+            }
+            if (filtros.ver === 'devendo' && l.devendo === 0) return false;
+            if (filtros.ver === 'emdia' && l.devendo > 0) return false;
+            return true;
+        });
+    }
+
+    function ordenadas(lista) {
+        var col = ordem.coluna, desc = ordem.desc;
+        var copia = lista.slice();
+        copia.sort(function (a, b) {
+            var r;
+            if (col.indexOf('dia:') === 0) {
+                r = pesoDoDia(a, col.slice(4)) - pesoDoDia(b, col.slice(4));
+            } else if (col === 'devendo' || col === 'entregues') {
+                r = a[col] - b[col];
+            } else {
+                r = String(a[col] || '').localeCompare(String(b[col] || ''), 'pt-BR');
+            }
+            if (r === 0) r = a.nome.localeCompare(b.nome, 'pt-BR');
+            return desc ? -r : r;
+        });
+        return copia;
+    }
+
+    /** Ordem útil ao clicar no dia: primeiro quem deve, depois entregou, etc. */
+    function pesoDoDia(linha, dia) {
+        var c = linha.celulas.find(function (x) { return x.dia === dia; });
+        if (!c) return 9;
+        if (c.emAberto.length) return 0;
+        if (c.entregues.length) return 1;
+        if (c.fora) return 2;
+        if (c.temCartao) return 3;
+        return 4;
+    }
+
+    // ---------------------------------------------------------------------
+    // Menu de coluna — classificar e escolher vários valores, como na planilha
+    // ---------------------------------------------------------------------
+    var ROTULO_CAMPO = {
+        nome: 'Colaborador', projeto: 'Projeto',
+        coordenador: 'Coordenador', supervisor: 'Supervisor', lider: 'Líder'
+    };
+
+    function fecharMenu() {
+        var m = el('menuFiltro');
+        m.hidden = true;
+        m.removeAttribute('data-campo');
+        m.replaceChildren();
+    }
+
+    /**
+     * @param {string} campo    coluna a filtrar
+     * @param {Element} ancora  elemento sob o qual o menu aparece
+     * @param {boolean} comOrdem mostra as opções de classificação
+     */
+    function abrirMenu(campo, ancora, comOrdem) {
+        var m = el('menuFiltro');
+        m.replaceChildren();
+
+        // a seleção só vale quando o usuário confirma — até lá é rascunho
+        var rascunho = new Set(selecao[campo]);
+        var opcoes = opcoesDe(campo);
+        var termo = '';
+
+        if (comOrdem) {
+            m.appendChild(botaoMenu('↑  Classificar A → Z', function () {
+                ordem = { coluna: campo, desc: false }; fecharMenu(); render();
+            }));
+            m.appendChild(botaoMenu('↓  Classificar Z → A', function () {
+                ordem = { coluna: campo, desc: true }; fecharMenu(); render();
+            }));
+            m.appendChild(Object.assign(document.createElement('div'), { className: 'menu-sep' }));
+        }
+
+        var caixaBusca = document.createElement('div');
+        caixaBusca.className = 'menu-busca';
+        var busca = document.createElement('input');
+        busca.type = 'search';
+        busca.className = 'campo-entrada';
+        busca.placeholder = 'Buscar em ' + (ROTULO_CAMPO[campo] || campo) + '…';
+        caixaBusca.appendChild(busca);
+        m.appendChild(caixaBusca);
+
+        var lista = document.createElement('div');
+        lista.className = 'menu-lista';
+        m.appendChild(lista);
+
+        function visiveis() {
+            if (!termo) return opcoes;
+            return opcoes.filter(function (o) { return semAcento(o.rotulo).indexOf(termo) !== -1; });
+        }
+
+        function desenharLista() {
+            lista.replaceChildren();
+            var mostrados = visiveis();
+            if (!mostrados.length) {
+                lista.appendChild(Object.assign(document.createElement('div'), {
+                    className: 'menu-vazio', textContent: 'Nada encontrado.'
+                }));
+                return;
+            }
+
+            // "(Selecionar tudo)" age sobre o que está à vista, como no Excel
+            var marcadosAqui = mostrados.filter(function (o) { return rascunho.has(o.valor); }).length;
+            var todos = itemMenu('(Selecionar tudo)', mostrados.length,
+                marcadosAqui === mostrados.length, function (ligado) {
+                    mostrados.forEach(function (o) {
+                        if (ligado) rascunho.add(o.valor); else rascunho.delete(o.valor);
+                    });
+                    desenharLista();
+                });
+            todos.classList.add('todos');
+            if (marcadosAqui && marcadosAqui < mostrados.length) {
+                todos.querySelector('input').indeterminate = true;
+            }
+            lista.appendChild(todos);
+
+            mostrados.forEach(function (o) {
+                lista.appendChild(itemMenu(o.rotulo, o.n, rascunho.has(o.valor), function (ligado) {
+                    if (ligado) rascunho.add(o.valor); else rascunho.delete(o.valor);
+                    desenharLista();
+                }));
+            });
+        }
+
+        // seleção vazia quer dizer "tudo"; ao abrir, mostra tudo marcado
+        if (!rascunho.size) opcoes.forEach(function (o) { rascunho.add(o.valor); });
+        desenharLista();
+
+        busca.oninput = function () { termo = semAcento(busca.value); desenharLista(); };
+
+        var rodape = document.createElement('div');
+        rodape.className = 'menu-rodape';
+        var limpar = document.createElement('button');
+        limpar.className = 'btn';
+        limpar.textContent = 'Limpar';
+        limpar.onclick = function () {
+            selecao[campo].clear();
+            fecharMenu(); podarSelecoes(); render();
+        };
+        var aplicar = document.createElement('button');
+        aplicar.className = 'btn principal';
+        aplicar.textContent = 'Aplicar';
+        aplicar.onclick = function () {
+            // tudo marcado = sem filtro, para o funil não ficar aceso à toa
+            selecao[campo] = (rascunho.size === opcoes.length) ? new Set() : new Set(rascunho);
+            fecharMenu(); podarSelecoes(); render();
+        };
+        rodape.append(limpar, aplicar);
+        m.appendChild(rodape);
+
+        m.dataset.campo = campo;
+        m.hidden = false;
+        posicionarMenu(m, ancora);
+        setTimeout(function () { busca.focus(); }, 0);
+    }
+
+    function botaoMenu(texto, acao) {
+        var b = document.createElement('button');
+        b.className = 'menu-acao';
+        b.textContent = texto;
+        b.onclick = acao;
+        return b;
+    }
+
+    function itemMenu(rotulo, quantos, marcado, aoMudar) {
+        var l = document.createElement('label');
+        l.className = 'menu-item';
+        var c = document.createElement('input');
+        c.type = 'checkbox';
+        c.checked = marcado;
+        c.onchange = function () { aoMudar(c.checked); };
+        var t = document.createElement('span');
+        t.textContent = rotulo;
+        var n = document.createElement('small');
+        n.style.cssText = 'margin-left:auto;opacity:.5;font-size:10.5px';
+        n.textContent = quantos;
+        l.append(c, t, n);
+        l.title = rotulo;
+        return l;
+    }
+
+    function posicionarMenu(m, ancora) {
+        var r = ancora.getBoundingClientRect();
+        var largura = m.offsetWidth || 258;
+        var esq = Math.min(Math.max(8, r.left), window.innerWidth - largura - 8);
+
+        // Preferência por abrir para baixo, encolhendo a lista quando o espaço
+        // aperta. Virar para cima cobriria a barra de filtros.
+        var abaixo = window.innerHeight - r.bottom - 12;
+        var acima = r.top - 12;
+        // Abre para baixo sempre que couber uma lista utilizável ali; a lista
+        // rola dentro do menu. Virar para cima só quando embaixo não dá mesmo,
+        // porque lá em cima o menu cobre a barra de filtros.
+        var MINIMO_UTIL = 220;
+        var topo;
+        if (abaixo >= MINIMO_UTIL || abaixo >= acima) {
+            topo = r.bottom + 4;
+            m.style.maxHeight = abaixo + 'px';
+        } else {
+            m.style.maxHeight = acima + 'px';
+            topo = Math.max(8, r.top - Math.min(m.offsetHeight, acima) - 4);
+        }
+        m.style.left = esq + 'px';
+        m.style.top = topo + 'px';
+    }
+
+    function atualizarBotoesDaBarra() {
+        [['fProjeto', 'projeto'], ['fCoord', 'coordenador'],
+         ['fSuper', 'supervisor'], ['fLider', 'lider']].forEach(function (par) {
+            var b = el(par[0]);
+            if (!b) return;
+            var n = selecao[par[1]].size;
+            var disponiveis = opcoesDe(par[1]).length;
+            b.textContent = (n ? n + ' selecionado' + (n > 1 ? 's' : '') : 'Todos') + ' ▾';
+            b.setAttribute('aria-pressed', n ? 'true' : 'false');
+            // mostra quanto a cascata já estreitou este nível
+            b.title = (n ? n + ' de ' : '') + disponiveis + ' disponível(is) com os filtros acima';
+        });
+    }
+
+    // ---------------------------------------------------------------------
+    // Render
+    // ---------------------------------------------------------------------
+    function render() {
+        var lista = ordenadas(filtradas());
+        renderResumo(lista);
+
+        if (!linhas.length) { mostrarEstado('Nenhum colaborador ativo nessa empresa no período.'); renderResumo([]); return; }
+
+        var tabela = document.createElement('table');
+        tabela.appendChild(montarCabecalho());
+        var corpo = document.createElement('tbody');
+
+        if (!lista.length) {
+            var tr = document.createElement('tr');
+            var td = document.createElement('td');
+            td.colSpan = 4 + dias.length;
+            td.className = 'vazio';
+            td.textContent = 'Nenhum colaborador com esses filtros.';
+            tr.appendChild(td);
+            corpo.appendChild(tr);
+        } else {
+            lista.forEach(function (l) { corpo.appendChild(montarLinha(l)); });
+        }
+
+        tabela.appendChild(corpo);
+        el('moldura').replaceChildren(tabela);
+    }
+
+    function renderResumo(lista) {
+        var devendo = lista.reduce(function (n, l) { return n + l.devendo; }, 0);
+        var pessoas = lista.filter(function (l) { return l.devendo > 0; }).length;
+        var entregues = lista.reduce(function (n, l) { return n + l.entregues; }, 0);
+        var caixas = [
+            { num: lista.length, rot: 'Colaboradores', cls: 'pessoas' },
+            { num: devendo, rot: 'Geradas e não devolvidas', cls: 'alerta' },
+            { num: pessoas, rot: 'Pessoas a cobrar', cls: 'cobrar' },
+            { num: entregues, rot: 'Já entregues', cls: 'ok' }
+        ];
+        el('resumo').replaceChildren.apply(el('resumo'), caixas.map(function (c) {
+            var d = document.createElement('div');
+            d.className = 'resumo-caixa ' + c.cls;
+            var n = document.createElement('div'); n.className = 'resumo-num'; n.textContent = c.num;
+            var r = document.createElement('div'); r.className = 'resumo-rot'; r.textContent = c.rot;
+            d.append(n, r);
+            return d;
+        }));
+    }
+
+
+    function montarCabecalho() {
+        var thead = document.createElement('thead');
+        var tr = document.createElement('tr');
+
+        tr.appendChild(thColuna('Colaborador', 'nome', 'fixa col-nome', true));
+        tr.appendChild(thColuna('Líder', 'lider', 'fixa col-lider', true));
+
+        dias.forEach(function (dia) {
+            var th = document.createElement('th');
+            var ds = diaDaSemana(dia);
+            th.className = 'dia-th' + (ds === 0 || ds === 6 ? ' fds' : '');
+            th.title = dataBR(dia) + ' — clique para classificar por este dia';
+            var n = document.createElement('span'); n.className = 'dia-num'; n.textContent = dia.slice(8, 10);
+            var s = document.createElement('span'); s.className = 'dia-sem'; s.textContent = LETRA_SEMANA[ds];
+            th.append(n, s);
+            th.onclick = function () {
+                var col = 'dia:' + dia;
+                if (ordem.coluna === col) ordem.desc = !ordem.desc;
+                else { ordem.coluna = col; ordem.desc = false; }
+                render();
+            };
+            tr.appendChild(th);
+        });
+
+        tr.appendChild(thColuna('Deve', 'devendo', 'fixa col-deve', false));
+        tr.appendChild(thColuna('Entreg.', 'entregues', 'fixa col-ok', false));
+
+        thead.appendChild(tr);
+        return thead;
+    }
+
+    /**
+     * Cabeçalho que classifica no clique. Quando a coluna tem valores para
+     * escolher (o nome), ganha também o funil de multisseleção.
+     */
+    function thColuna(rotulo, campo, classe, comFunil) {
+        var th = document.createElement('th');
+        th.className = classe || '';
+
+        var b = document.createElement('button');
+        b.className = 'th-botao';
+        b.title = 'Clique para classificar';
+
+        var t = document.createElement('span');
+        t.className = 'th-rotulo';
+        t.textContent = rotulo;
+        b.appendChild(t);
+
+        if (ordem.coluna === campo) {
+            var seta = document.createElement('span');
+            seta.className = 'th-seta';
+            seta.textContent = ordem.desc ? '▼' : '▲';
+            b.appendChild(seta);
+        }
+        b.onclick = function () {
+            if (ordem.coluna === campo) ordem.desc = !ordem.desc;
+            else { ordem.coluna = campo; ordem.desc = (campo === 'devendo' || campo === 'entregues'); }
+            render();
+        };
+        th.appendChild(b);
+
+        if (comFunil) {
+            var funil = document.createElement('span');
+            var ligado = selecao[campo] && selecao[campo].size;
+            funil.className = 'th-funil' + (ligado ? ' ligado' : '');
+            funil.textContent = ligado ? String(selecao[campo].size) : '▼';
+            funil.title = ligado ? selecao[campo].size + ' selecionado(s)' : 'Filtrar';
+            funil.onclick = function (e) {
+                e.stopPropagation();
+                var jaAberto = !el('menuFiltro').hidden && el('menuFiltro').dataset.campo === campo;
+                fecharMenu();
+                if (!jaAberto) abrirMenu(campo, th, true);
+            };
+            b.appendChild(funil);
+        }
+        return th;
+    }
+
+
+
+
+
+    function montarLinha(l) {
+        var tr = document.createElement('tr');
+
+        var tdNome = document.createElement('td');
+        tdNome.className = 'fixa col-nome cel-nome';
+        tdNome.textContent = l.nome;
+
+        // projeto, equipe e líder saíram da tabela — ficam no tooltip do nome
+        // e nos filtros de cima, para o calendário caber na tela
+        tdNome.title = [l.nome, l.cpf ? 'CPF ' + l.cpf : '', 'REG ' + l.reg,
+            l.projeto ? 'Projeto ' + l.projeto : '', l.equipe ? 'Equipe ' + l.equipe : '',
+            l.coordenador ? 'Coord. ' + l.coordenador : ''].filter(Boolean).join(' · ');
+
+        tr.appendChild(tdNome);
+
+        // O líder volta para a frente da tabela: é com ele que o RH fala.
+        var tdLider = document.createElement('td');
+        tdLider.className = 'fixa col-lider cel-sec';
+        tdLider.textContent = l.lider || '—';
+        tdLider.title = l.lider || 'sem líder informado';
+        tr.appendChild(tdLider);
+
+        l.celulas.forEach(function (c) { tr.appendChild(celDia(l, c)); });
+        tr.appendChild(celConta(l.devendo, 'fixa col-deve', l.devendo > 0 ? 'deve' : 'zero'));
+        tr.appendChild(celConta(l.entregues, 'fixa col-ok', l.entregues > 0 ? 'ok' : 'zero'));
+        return tr;
+    }
+
+
+    function celConta(valor, classe, tom) {
+        var td = document.createElement('td');
+        td.className = classe + ' cel-conta ' + tom;
+        td.textContent = valor;
+        return td;
+    }
+
+    function celDia(linha, c) {
+        var td = document.createElement('td');
+        td.className = 'dia';
+
+        // A pendência manda na célula: é o motivo da tela existir. Depois vem o
+        // que já foi entregue, e só então o aviso de que a pessoa estava fora.
+        if (c.emAberto.length) {
+            var deve = document.createElement('span');
+            deve.className = 'bolinha deve clicavel';
+            deve.textContent = c.emAberto.length;
+            deve.title = c.emAberto.length + ' justificativa(s) gerada(s) em ' + dataBR(c.dia) +
+                ' e ainda não devolvida(s) — clique para ver o ponto e quem gerou';
+            deve.onclick = function () { verPendencia(linha, c); };
+            td.appendChild(deve);
+            return td;
+        }
+
+        if (c.entregues.length) {
+            var ok = document.createElement('span');
+            ok.className = 'bolinha ok clicavel';
+            ok.textContent = c.entregues.length;
+            ok.title = 'Justificativa entregue em ' + dataBR(c.dia) + ' — clique para ver o anexo';
+            ok.onclick = function () { verAnexo(linha, c); };
+            td.appendChild(ok);
+            return td;
+        }
+
+        if (c.fora) {
+            var tarja = document.createElement('span');
+            tarja.className = 'tarja ' + c.fora.classe;
+            tarja.textContent = c.fora.sigla;
+            tarja.title = c.fora.titulo + ' — ' + dataBR(c.dia);
+            td.appendChild(tarja);
+            return td;
+        }
+
+        if (c.temCartao) {
+            var vazia = document.createElement('span');
+            vazia.className = 'bolinha vazia';
+            vazia.title = 'Nenhuma justificativa gerada em ' + dataBR(c.dia);
+            td.appendChild(vazia);
+            return td;
+        }
+
+        var nada = document.createElement('span');
+        nada.className = 'sem-cartao';
+        nada.textContent = '·';
+        nada.title = 'Sem cartão de ponto em ' + dataBR(c.dia);
+        td.appendChild(nada);
+        return td;
+    }
+
+    // ---------------------------------------------------------------------
+    // Visor
+    // ---------------------------------------------------------------------
+    function abrirVisor(titulo, sub, montarCorpo, urlOriginal) {
+        el('visorTitulo').textContent = titulo;
+        el('visorSub').textContent = sub;
+        var corpo = el('visorCorpo');
+        corpo.replaceChildren();
+        montarCorpo(corpo);
+        el('visorAbrir').style.display = urlOriginal ? '' : 'none';
+        el('visorAbrir').onclick = function () { if (urlOriginal) window.open(urlOriginal, '_blank', 'noopener'); };
+        el('visor').hidden = false;
+    }
+    function fecharVisor() { el('visor').hidden = true; el('visorCorpo').replaceChildren(); }
+
+    function verAnexo(linha, c) {
+        var a = c.entregues[0];
+        var sub = dataBR(c.dia) +
+            ' · gerada por ' + (a.created_by || '—') + (a.created_at ? ' em ' + dataHoraBR(a.created_at) : '') +
+            ' · anexada por ' + (a.anexado_por || '—') + (a.anexado_em ? ' em ' + dataHoraBR(a.anexado_em) : '') +
+            (c.entregues.length > 1 ? ' · ' + c.entregues.length + ' arquivos' : '');
+        abrirVisor(linha.nome, sub, function (corpo) {
+            c.entregues.forEach(function (anexo) {
+                var url = anexo.blob_url;
+                if (!url) return;
+                var ehPdf = /\.pdf(\?|$)/i.test(anexo.blob_filename || url);
+                if (ehPdf) {
+                    var f = document.createElement('iframe');
+                    f.src = url;
+                    corpo.appendChild(f);
+                } else {
+                    var img = document.createElement('img');
+                    img.src = url;
+                    img.alt = 'Justificativa de ' + linha.nome;
+                    img.referrerPolicy = 'no-referrer';
+                    img.onerror = function () {
+                        img.replaceWith(Object.assign(document.createElement('div'), {
+                            className: 'visor-aviso',
+                            textContent: 'Não deu para exibir o arquivo aqui. Use "Abrir original".'
+                        }));
+                    };
+                    corpo.appendChild(img);
+                }
+            });
+            if (!corpo.childNodes.length) {
+                corpo.appendChild(Object.assign(document.createElement('div'), {
+                    className: 'visor-aviso', textContent: 'O anexo não tem arquivo guardado.'
+                }));
+            }
+        }, a.blob_url);
+    }
+
+    /**
+     * O que o RH precisa ver antes de cobrar: o ponto daquele dia, quem gerou a
+     * justificativa e quando. Sem isso ele não sabe com quem falar.
+     */
+    function verPendencia(linha, c) {
+        var quantas = c.emAberto.length;
+        var sub = dataBR(c.dia) + ' · ' + quantas + ' justificativa' + (quantas > 1 ? 's' : '') +
+            ' gerada' + (quantas > 1 ? 's' : '') + ' e sem devolução';
+
+        abrirVisor(linha.nome, sub, function (corpo) {
+            var d = document.createElement('div');
+            d.className = 'visor-aviso';
+            d.style.textAlign = 'left';
+
+            // Montado por DOM, não por innerHTML: nome de líder e autor vêm do
+            // banco e não podem ser interpretados como marcação.
+            d.appendChild(blocoPonto(c));
+
+            c.emAberto.forEach(function (j) {
+                var p = document.createElement('p');
+                p.style.marginBottom = '8px';
+                var b = document.createElement('strong');
+                b.textContent = 'Gerada por: ';
+                p.appendChild(b);
+                p.appendChild(document.createTextNode(
+                    (j.created_by || 'autor não registrado') +
+                    (j.created_at ? ' em ' + dataHoraBR(j.created_at) : '')
+                ));
+                if (j.motivo_detectado) {
+                    p.appendChild(document.createElement('br'));
+                    var bm = document.createElement('strong');
+                    bm.textContent = 'Motivo: ';
+                    p.appendChild(bm);
+                    p.appendChild(document.createTextNode(j.motivo_detectado));
+                }
+                d.appendChild(p);
+            });
+
+            var rodape = document.createElement('p');
+            rodape.style.cssText = 'margin-top:12px;opacity:.75';
+            rodape.appendChild(document.createTextNode('Cobrar com: '));
+            var forte = document.createElement('strong');
+            forte.textContent = linha.lider || 'líder não informado';
+            rodape.appendChild(forte);
+            if (linha.equipe) rodape.appendChild(document.createTextNode(' · equipe ' + linha.equipe));
+            if (linha.projeto) rodape.appendChild(document.createTextNode(' · projeto ' + linha.projeto));
+            d.appendChild(rodape);
+
+            corpo.appendChild(d);
+        }, null);
+    }
+
+    /** O cartão de ponto do dia, em texto — é o que o RH confere na hora. */
+    function blocoPonto(c) {
+        var caixa = document.createElement('div');
+        caixa.style.cssText = 'margin-bottom:12px';
+
+        var titulo = document.createElement('strong');
+        titulo.textContent = 'Ponto do dia: ';
+        caixa.appendChild(titulo);
+
+        if (!c.cartao) {
+            caixa.appendChild(document.createTextNode('sem cartão na Secullum.'));
+            return caixa;
+        }
+        var marcacoes = CAMPOS_CARTAO
+            .map(function (k) { return c.cartao[k]; })
+            .filter(function (v) { return v && v !== '--:--'; });
+
+        var codigo = document.createElement('code');
+        codigo.textContent = marcacoes.length ? marcacoes.join('   ') : 'nenhuma batida';
+        caixa.appendChild(codigo);
+
+        if (c.fora) {
+            caixa.appendChild(document.createElement('br'));
+            var obs = document.createElement('small');
+            obs.style.opacity = '.75';
+            obs.textContent = 'Nesse dia o colaborador constava como ' + c.fora.titulo.toLowerCase() + '.';
+            caixa.appendChild(obs);
+        }
+        return caixa;
+    }
+
+    function dataHoraBR(iso) {
+        var d = new Date(iso);
+        if (isNaN(d.getTime())) return String(iso);
+        var p = function (n) { return String(n).padStart(2, '0'); };
+        return p(d.getDate()) + '/' + p(d.getMonth() + 1) + '/' + d.getFullYear() +
+            ' às ' + p(d.getHours()) + ':' + p(d.getMinutes());
+    }
+
+    // ---------------------------------------------------------------------
+    // Exportação
+    // ---------------------------------------------------------------------
+    function exportar() {
+        var lista = ordenadas(filtradas());
+        if (!lista.length) return;
+        var cab = ['Colaborador', 'CPF', 'REG', 'Projeto', 'Equipe', 'Lider', 'Coordenador', 'Supervisor', 'Nao devolvidas', 'Entregues']
+            .concat(dias.map(dataBR));
+        var linhasCsv = [cab];
+        lista.forEach(function (l) {
+            linhasCsv.push([l.nome, l.cpf, l.reg, l.projeto, l.equipe, l.lider, l.coordenador, l.supervisor, l.devendo, l.entregues]
+                .concat(l.celulas.map(function (c) {
+                    if (c.emAberto.length) {
+                        var quem = c.emAberto.map(function (j) { return j.created_by || '?'; }).join('/');
+                        return 'NAO DEVOLVIDA (' + c.emAberto.length + ') - gerada por ' + quem;
+                    }
+                    if (c.entregues.length) return 'ENTREGUE (' + c.entregues.length + ')';
+                    if (c.fora) return c.fora.titulo;
+                    if (c.temCartao) return '';
+                    return '';
+                })));
+        });
+        var csv = linhasCsv.map(function (l) {
+            return l.map(function (v) { return '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"'; }).join(';');
+        }).join('\r\n');
+        var blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
+        var a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'cobranca-' + el('inicio').value + '_a_' + el('fim').value + '.csv';
+        a.click();
+        setTimeout(function () { URL.revokeObjectURL(a.href); }, 2000);
+    }
+
+    // ---------------------------------------------------------------------
+    // Ligações
+    // ---------------------------------------------------------------------
+    // os filtros da barra abrem o mesmo menu das colunas (sem classificação:
+    // a classificação pertence às colunas da tabela)
+    document.querySelectorAll('.barra [data-campo]').forEach(function (b) {
+        b.onclick = function (e) {
+            e.stopPropagation();
+            var jaAberto = !el('menuFiltro').hidden && el('menuFiltro').dataset.campo === b.dataset.campo;
+            fecharMenu();
+            if (jaAberto) return;
+            el('menuFiltro').dataset.campo = b.dataset.campo;
+            abrirMenu(b.dataset.campo, b, false);
+        };
+    });
+
+    // clique fora, Escape ou rolagem fecham o menu — como em qualquer planilha
+    document.addEventListener('click', function (e) {
+        if (!el('menuFiltro').contains(e.target)) fecharMenu();
+    });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') fecharMenu(); });
+    el('moldura').addEventListener('scroll', fecharMenu, { passive: true });
+    window.addEventListener('resize', fecharMenu);
+
+    el('btnBuscar').onclick = buscar;
+    el('btnExportar').onclick = exportar;
+    el('visorFechar').onclick = fecharVisor;
+    el('visor').onclick = function (e) { if (e.target === el('visor')) fecharVisor(); };
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') fecharVisor(); });
+
+    var atrasoBusca;
+    el('busca').oninput = function () {
+        clearTimeout(atrasoBusca);
+        atrasoBusca = setTimeout(function () { filtros.busca = el('busca').value; render(); }, 180);
+    };
+    document.querySelectorAll('.chip[data-ver]').forEach(function (b) {
+        b.onclick = function () {
+            document.querySelectorAll('.chip[data-ver]').forEach(function (x) { x.classList.remove('ativo'); });
+            b.classList.add('ativo');
+            filtros.ver = b.dataset.ver;
+            render();
+        };
+    });
+
+    // ---------------------------------------------------------------------
+    // Início: período e empresa vêm da URL (o painel passa o que está na tela)
+    // ---------------------------------------------------------------------
+    (function iniciar() {
+        var p = new URLSearchParams(location.search);
+        var padrao = fechamentoAtual();
+        el('inicio').value = p.get('inicio') || padrao.inicio;
+        el('fim').value = p.get('fim') || (padrao.fim > hojeISO() ? hojeISO() : padrao.fim);
+
+        SESSION.loadCompanies().then(function (bancos) {
+            empresas = (bancos || []).map(function (b) {
+                return { id: b.id != null ? b.id : b.Id, name: b.name || b.Nome || b.descricao || ('Empresa ' + b.id) };
+            }).filter(function (b) { return b.id != null; });
+
+            var pedida = p.get('empresa');
+            empresaId = (pedida && empresas.some(function (e) { return String(e.id) === String(pedida); }))
+                ? pedida : (empresas[0] && empresas[0].id);
+
+            mostrarEmpresa();
+            if (empresaId) buscar();
+            else mostrarEstado('Nenhuma empresa disponível para o seu usuário.');
+        });
+    })();
+})();
+</script>
+</body>
+</html>

@@ -22,6 +22,80 @@
     var USER_KEY = 'larsil_user';      // identidade + permissões (cache local)
     var FOTO_KEY = 'larsil_foto_base'; // URL do resolvedor de fotos (PCP)
 
+    var TEMA_KEY = "larsil_tema";      // "claro" ou "escuro"
+
+    // ======================================================================
+    // TEMA
+    //
+    // Aplicado já na leitura do script, que está no <head>: assim a página
+    // nasce na cor certa e ninguém vê o escuro piscar antes do claro.
+    // ======================================================================
+    function temaSalvo() {
+        try {
+            var v = localStorage.getItem(TEMA_KEY);
+            if (v === "claro" || v === "escuro") return v;
+        } catch (e) { /* navegador sem storage: segue no padrão */ }
+        // sem escolha guardada, respeita a preferência do sistema operacional
+        try {
+            if (global.matchMedia && global.matchMedia("(prefers-color-scheme: light)").matches) return "claro";
+        } catch (e) { /* noop */ }
+        return "escuro";
+    }
+
+    function aplicarTema(tema) {
+        var raiz = global.document.documentElement;
+        if (tema === "claro") raiz.setAttribute("data-tema", "claro");
+        else raiz.removeAttribute("data-tema");
+        atualizarBotoesDeTema(tema);
+    }
+
+    function temaAtual() {
+        return global.document.documentElement.getAttribute("data-tema") === "claro" ? "claro" : "escuro";
+    }
+
+    function alternarTema() {
+        var novo = temaAtual() === "claro" ? "escuro" : "claro";
+        try { localStorage.setItem(TEMA_KEY, novo); } catch (e) { /* noop */ }
+
+        // corta as transições durante a troca: senão cada elemento anima
+        // sozinho e a tela fica piscando por meio segundo
+        var raiz = global.document.documentElement;
+        raiz.classList.add("lar-trocando-tema");
+        aplicarTema(novo);
+        global.setTimeout(function () { raiz.classList.remove("lar-trocando-tema"); }, 60);
+        return novo;
+    }
+
+    function atualizarBotoesDeTema(tema) {
+        var claro = tema === "claro";
+        var botoes = global.document.querySelectorAll(".tema-botao");
+        for (var i = 0; i < botoes.length; i++) {
+            botoes[i].textContent = claro ? "☾" : "☀";   // lua / sol
+            botoes[i].title = claro ? "Mudar para o tema escuro" : "Mudar para o tema claro";
+            botoes[i].setAttribute("aria-label", botoes[i].title);
+        }
+    }
+
+    /** Cria o botão de tema já ligado; a página só precisa encaixar no lugar. */
+    function botaoTema() {
+        var b = global.document.createElement("button");
+        b.type = "button";
+        b.className = "tema-botao";
+        b.onclick = alternarTema;
+        // já nasce com o símbolo certo: a página pode criar o botão depois do
+        // DOMContentLoaded, quando a atualização geral já passou
+        var claro = temaAtual() === "claro";
+        b.textContent = claro ? "☾" : "☀";
+        b.title = claro ? "Mudar para o tema escuro" : "Mudar para o tema claro";
+        b.setAttribute("aria-label", b.title);
+        return b;
+    }
+
+    aplicarTema(temaSalvo());
+    global.document.addEventListener("DOMContentLoaded", function () {
+        atualizarBotoesDeTema(temaAtual());
+    });
+
     var redirecionando = false;
 
     function irParaLogin(motivo) {
@@ -291,6 +365,9 @@
         fotoUrl: fotoUrl,
         iniciais: iniciais,
         avatar: avatar,
+        temaAtual: temaAtual,
+        alternarTema: alternarTema,
+        botaoTema: botaoTema,
         abrirLightbox: abrirLightbox,
         logout: logout
     };

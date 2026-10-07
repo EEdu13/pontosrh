@@ -168,3 +168,164 @@ html { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans
     font-size: 15px;
     letter-spacing: .02em;
 }
+
+/* ==========================================================================
+   TEMA CLARO E ESCURO
+
+   Os tokens --lar-* moram aqui, e só aqui. Antes cada página repetia a paleta
+   num :root próprio, o que impedia trocar de tema: a cópia da página vencia a
+   folha compartilhada. Agora a página usa os tokens e o tema decide o valor.
+
+   O escuro é o padrão (:root). O claro entra quando o <html> ganha
+   data-tema="claro" — quem põe o atributo é o session.js, antes da primeira
+   pintura, lendo a escolha guardada no navegador.
+
+   Regra ao mexer: cor de "moldura" (fundo, superfície, linha, texto) vira
+   token; cor com significado (verde de OK, vermelho de erro, laranja de
+   alerta) pode ficar fixa, porque quer dizer a mesma coisa nos dois temas.
+   ========================================================================== */
+:root {
+    color-scheme: dark;
+
+    /* fundo da página */
+    --lar-bg-1: #0F251D;
+    --lar-bg-2: #143026;
+    --lar-bg-3: #17392B;
+    --lar-brilho: #1E4636;            /* clarão do canto superior esquerdo */
+
+    /* superfícies empilhadas sobre o fundo */
+    --lar-surface: rgba(30, 70, 54, .55);
+    --lar-surface-2: rgba(10, 26, 20, .45);
+    --lar-surface-3: rgba(234, 241, 232, .07);
+    --lar-surface-solida: #15372A;    /* menus e popovers, sem transparência */
+
+    /* traços */
+    --lar-line: rgba(234, 241, 232, .14);
+    --lar-line-forte: rgba(234, 241, 232, .22);
+    --lar-line-soft: rgba(234, 241, 232, .06);
+
+    /* texto */
+    --lar-text: #EAF1E8;
+    --lar-muted: #A9C1AC;
+    --lar-soft: #7C9484;
+    --lar-text-dim: var(--lar-muted);
+
+    /* verde da marca + a cor que fica legível em cima dele */
+    --lar-green: #6FCF7B;
+    --lar-green-sobre: #0B2016;
+    --lar-green-fraco: rgba(111, 207, 123, .16);
+    --lar-green-linha: rgba(111, 207, 123, .45);
+
+    /* véu dos diálogos e realce de hover */
+    --lar-veu: rgba(0, 0, 0, .62);
+    --lar-realce: rgba(255, 255, 255, .06);
+    --lar-realce-forte: rgba(255, 255, 255, .12);
+    --lar-sombra: 0 18px 46px rgba(0, 0, 0, .55);
+}
+
+:root[data-tema="claro"] {
+    color-scheme: light;
+
+    --lar-bg-1: #F4F8F2;
+    --lar-bg-2: #EAF1E7;
+    --lar-bg-3: #DFEADB;
+    --lar-brilho: #FFFFFF;
+
+    --lar-surface: rgba(255, 255, 255, .92);
+    --lar-surface-2: rgba(255, 255, 255, .74);
+    --lar-surface-3: rgba(20, 48, 38, .05);
+    --lar-surface-solida: #FFFFFF;
+
+    --lar-line: rgba(20, 48, 38, .16);
+    --lar-line-forte: rgba(20, 48, 38, .28);
+    --lar-line-soft: rgba(20, 48, 38, .08);
+
+    --lar-text: #14271E;
+    --lar-muted: #4C6657;
+    --lar-soft: #6B8274;
+
+    /* o verde claro some no branco; no tema claro ele escurece */
+    --lar-green: #2E8B45;
+    --lar-green-sobre: #FFFFFF;
+    --lar-green-fraco: rgba(46, 139, 69, .12);
+    --lar-green-linha: rgba(46, 139, 69, .38);
+
+    --lar-veu: rgba(18, 38, 28, .45);
+    --lar-realce: rgba(20, 48, 38, .05);
+    --lar-realce-forte: rgba(20, 48, 38, .1);
+    --lar-sombra: 0 18px 40px rgba(20, 48, 38, .18);
+}
+
+/* O fundo da página é igual em toda tela; fica aqui para não repetir. */
+body.lar-fundo {
+    background: radial-gradient(1200px 800px at 15% -10%, var(--lar-brilho) 0%, transparent 60%),
+                linear-gradient(160deg, var(--lar-bg-1) 0%, var(--lar-bg-2) 55%, var(--lar-bg-3) 100%);
+    background-attachment: fixed;
+    color: var(--lar-text);
+}
+
+/* Botão de trocar o tema — mesmo desenho em todas as telas. */
+.tema-botao {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    flex-shrink: 0;
+    padding: 0;
+    border-radius: 999px;
+    border: 1px solid var(--lar-line);
+    background: var(--lar-surface-2);
+    color: var(--lar-text);
+    font: inherit;
+    font-size: 15px;
+    line-height: 1;
+    cursor: pointer;
+    transition: background .15s, border-color .15s;
+}
+.tema-botao:hover { background: var(--lar-realce); border-color: var(--lar-line-forte); }
+
+/* Enquanto o tema troca, o navegador não precisa animar cada transição. */
+.lar-trocando-tema * { transition: none !important; }
+
+/* --------------------------------------------------------------------------
+   O CABEÇALHO É SEMPRE VERDE
+
+   A marca da Larsil é arte branca: em cabeçalho claro ela sumia. Em vez de
+   recolorir a imagem, a faixa de cima fica verde nos dois temas — é a cor da
+   empresa e dá o mesmo ponto de referência em qualquer tela.
+
+   O truque: a faixa REDEFINE os tokens dentro dela. Assim cada botão, chip e
+   texto lá dentro continua usando var(--lar-...) e já sai na versão escura,
+   sem precisar de uma regra para cada filho.
+   -------------------------------------------------------------------------- */
+.topbar,
+.topo {
+    --lar-text: #EAF1E8;
+    --lar-muted: #A9C1AC;
+    --lar-soft: #7C9484;
+    --lar-line: rgba(234, 241, 232, .16);
+    --lar-line-forte: rgba(234, 241, 232, .28);
+    --lar-line-soft: rgba(234, 241, 232, .08);
+    --lar-surface: rgba(30, 70, 54, .5);
+    --lar-surface-2: rgba(10, 26, 20, .38);
+    --lar-surface-3: rgba(234, 241, 232, .08);
+    --lar-surface-solida: #15372A;
+    --lar-realce: rgba(255, 255, 255, .08);
+    --lar-realce-forte: rgba(255, 255, 255, .15);
+    --lar-green: #6FCF7B;
+    --lar-green-sobre: #0B2016;
+    --lar-green-fraco: rgba(111, 207, 123, .16);
+    --lar-green-linha: rgba(111, 207, 123, .45);
+    --lar-veu: rgba(0, 0, 0, .55);
+
+    background: linear-gradient(135deg, #16422F 0%, #123726 58%, #0F2C1F 100%) !important;
+    color: var(--lar-text);
+}
+
+/* No tema claro a faixa verde precisa se descolar do fundo claro. */
+:root[data-tema="claro"] .topbar,
+:root[data-tema="claro"] .topo {
+    border-color: rgba(10, 30, 20, .28);
+    box-shadow: 0 10px 28px -14px rgba(12, 40, 26, .5);
+}
