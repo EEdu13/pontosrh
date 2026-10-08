@@ -2188,6 +2188,11 @@
 
         /* Form Page A4 Landscape */
         .form-page {
+            /* Folha de papel: nada aqui segue o tema do sistema. O color-scheme
+               é o que faz o navegador desenhar <input type="radio"> como um
+               círculo VAZIO — com o esquema escuro ele vem preenchido. */
+            color-scheme: light;
+            color: #1f2937;
             width: 297mm;
             height: 210mm;
             background: white;
@@ -2206,6 +2211,14 @@
         }
 
         @media print {
+            /* O papel é branco em qualquer tema, e os controles nativos só
+               saem certos na impressora com o esquema claro declarado. */
+            :root, body, .form-page {
+                color-scheme: light !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+
             body { 
                 margin: 0 !important; 
                 padding: 0 !important;
@@ -2333,22 +2346,22 @@
             text-align: center;
             font-weight: bold;
             font-size: 16px;
-            color: var(--lar-surface);
+            color: #1f2937;
         }
 
         .form-orientation {
             font-size: 12px;
             padding: 8px 16px;
             background: #f3f4f6;
-            border-bottom: 2px solid var(--lar-muted);
-            color: var(--lar-surface);
+            border-bottom: 2px solid #9ca3af;
+            color: #1f2937;
         }
 
         .form-employee-data {
             padding: 12px 16px;
-            border-bottom: 2px solid var(--lar-muted);
+            border-bottom: 2px solid #9ca3af;
             font-size: 16px;
-            color: var(--lar-surface);
+            color: #1f2937;
         }
 
         .form-row {
@@ -2376,7 +2389,7 @@
 
         .form-field-value {
             font-weight: bold;
-            color: var(--lar-surface);
+            color: #1f2937;
         }
 
         .section-header {
@@ -2393,7 +2406,7 @@
             flex: 1;
             padding: 24px;
             background: #f9fafb;
-            border-bottom: 2px solid var(--lar-muted);
+            border-bottom: 2px solid #9ca3af;
         }
 
         .times-grid {
@@ -2455,7 +2468,7 @@
         .form-justification {
             padding: 12px 16px;
             background: #f9fafb;
-            border-bottom: 2px solid var(--lar-muted);
+            border-bottom: 2px solid #9ca3af;
         }
 
         .justification-grid {
@@ -2464,14 +2477,14 @@
             gap: 16px;
             font-size: 14px;
             margin-bottom: 8px;
-            color: var(--lar-surface);
+            color: #1f2937;
         }
 
         .checkbox-item {
             display: flex;
             align-items: center;
             gap: 8px;
-            color: var(--lar-surface);
+            color: #1f2937;
         }
 
         .checkbox-item input {
@@ -2482,7 +2495,7 @@
         .obs-field {
             margin-top: 8px;
             font-size: 12px;
-            color: var(--lar-surface);
+            color: #1f2937;
         }
 
         .obs-field .obs-label {
@@ -2490,7 +2503,7 @@
         }
 
         .obs-line {
-            border-bottom: 2px solid var(--lar-muted);
+            border-bottom: 2px solid #9ca3af;
             margin-top: 4px;
             padding-bottom: 8px;
         }
@@ -2504,12 +2517,12 @@
 
         .signature-box {
             text-align: center;
-            color: var(--lar-surface);
+            color: #1f2937;
         }
 
         .signature-box.left {
             padding-right: 32px;
-            border-right: 2px solid var(--lar-muted);
+            border-right: 2px solid #9ca3af;
         }
 
         .signature-box.right {
@@ -2529,7 +2542,7 @@
             font-weight: bold;
             font-size: 16px;
             margin-bottom: 4px;
-            color: var(--lar-surface);
+            color: #1f2937;
         }
 
         .signature-label {
@@ -7623,7 +7636,7 @@
                                     background: rgba(30, 41, 59, 0.95);
                                     border-radius: 15px;
                                     padding: 20px;
-                                    box-shadow: 0 10px 30px var(--lar-veu);
+                                    box-shadow: 0 10px 30px rgba(0, 0, 0, .35);
                                 }
                                 h1 { 
                                     color: #e2e8f0; 
