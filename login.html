@@ -7,14 +7,18 @@
     <link rel="stylesheet" href="/assets/theme.css">
     <link rel="stylesheet" href="/assets/login.css">
     <script src="/assets/session.js"></script>
-    <title>Entrar - Sistema de Gestão Larsil</title>
+    <title>Entrar · Controle de Ponto · PlantSil</title>
+    <link rel="icon" type="image/svg+xml" href="/assets/plantsil-emblema.svg?v=25">
+    <link rel="alternate icon" href="/assets/favicon.ico?v=plantsil25">
+    <link rel="apple-touch-icon" href="/assets/plantsil-emblema-180.png">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
     </style>
 </head>
 <body>
-    <div class="login-page">
+    <div class="login-page lx">
+      <section class="lx-arte">
         <!-- Cena de fundo: o dia de quem usa o sistema. Chega e bate o ponto,
              esquece a saída no fim da tarde e volta com a justificativa.
              Decorativa: aria-hidden e sem interação. -->
@@ -277,9 +281,26 @@
             </svg>
         </div>
 
+        <span class="lx-placa"><img src="/assets/plantsil-25anos-cor.svg" alt="PlantSil Florestal · 25 anos"></span>
+
+        <div class="lx-chamada">
+            <span class="lx-selo">SGL · CONTROLE DE PONTO</span>
+            <h1>Ponto esquecido,<br><em>justificado sem papelada.</em></h1>
+            <p>Batidas da Secullum, justificativas assinadas e cobrança da equipe — tudo no mesmo lugar, do campo ao RH.</p>
+            <ul class="lx-numeros">
+                <li><b>Batidas</b><span>direto da Secullum</span></li>
+                <li><b>Justificativas</b><span>assinadas e guardadas</span></li>
+                <li><b>Cobrança</b><span>por equipe e líder</span></li>
+            </ul>
+        </div>
+      </section>
+
+      <section class="lx-lado">
+        <div class="lx-tema" id="lugarDoTema"></div>
         <div class="login-card">
-            <img src="/assets/larsil-logo.png" alt="Larsil Serviços Florestais" class="login-logo">
-            <p class="login-eyebrow">SGL - Controle de Ponto</p>
+            <img src="/assets/plantsil-emblema.svg" alt="" class="lx-emblema">
+            <h2 class="lx-titulo">Bem-vindo de volta</h2>
+            <p class="lx-sub">Entre com o seu usuário da <b>identidade PlantSil</b> — o mesmo do PCP e dos outros sistemas.</p>
 
             <form id="loginForm" novalidate>
                 <div class="login-field">
@@ -322,10 +343,12 @@
             </form>
 
             <div class="login-footer">
-                Larsil Serviços Florestais<br>
-                Identidade única — <a href="https://painelgestor.up.railway.app" target="_blank" rel="noopener">IAM Larsil</a>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>
+                <span>Acesso protegido pela <a href="https://painelgestor.up.railway.app" target="_blank" rel="noopener">identidade única</a>. Esqueceu a senha? Fale com o RH ou a TI.</span>
             </div>
         </div>
+        <div class="lx-rodape">PLANTSIL FLORESTAL · 25 ANOS</div>
+      </section>
     </div>
 
     <script>
@@ -337,6 +360,8 @@
             .then(r => r.ok ? r.json() : null)
             .then(c => { if (c) FOTO_BASE = c.fotoBaseUrl; })
             .catch(() => {});
+
+        document.getElementById('lugarDoTema').appendChild(SESSION.botaoTema());
 
         // Já logado? vai direto pro sistema
         if (SESSION.getJwt() && SESSION.sessaoValida()) {
@@ -542,7 +567,7 @@
             const marca = document.createElement('div');
             marca.className = 'entrada-marca';
             marca.innerHTML = `
-                <img src="/assets/larsil-marca.png" alt="" class="entrada-marca-img">
+                <img src="/assets/plantsil-emblema.svg" alt="" class="entrada-marca-img">
                 <svg viewBox="0 0 40 30" class="entrada-pingos-svg" aria-hidden="true">
                     <g class="entrada-pingos">
                         <circle cx="10" cy="4" r="1.6" fill="#6FCF7B" />

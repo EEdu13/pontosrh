@@ -329,3 +329,55 @@ body.lar-fundo {
     border-color: rgba(10, 30, 20, .28);
     box-shadow: 0 10px 28px -14px rgba(12, 40, 26, .5);
 }
+
+/* ==========================================================================
+   IDENTIDADE PLANTSIL · 25 ANOS (16/11/2026)
+
+   Camada por cima do tema: o verde da faixa vira o verde-floresta da
+   PlantSil, ganha o fio dourado dos 25 anos, e o logo é SEMPRE o colorido,
+   numa placa creme (o branco ficava apagado). O tema claro puxa para o
+   creme da marca em vez do verde-água.
+   ========================================================================== */
+:root {
+    --ps-verde: #2D6A4F;
+    --ps-floresta: #1E3D2F;
+    --ps-dourado: #B48A3C;
+    --ps-dourado-claro: #ECD08F;
+    --ps-creme: #FBF8F1;
+    --ps-fio: linear-gradient(90deg, transparent, #B48A3C 18%, #ECD08F 50%, #B48A3C 82%, transparent);
+}
+:root[data-tema="claro"] {
+    --lar-bg-1: #F7F4EC;
+    --lar-bg-2: #EFEBE0;
+    --lar-bg-3: #E6E6D8;
+    --lar-brilho: #FFFFFF;
+    --lar-green: #2D6A4F;
+    --lar-green-fraco: rgba(45, 106, 79, .12);
+    --lar-green-linha: rgba(45, 106, 79, .38);
+}
+
+/* Faixa do topo: verde-floresta + fio dourado no alto */
+.topbar,
+.topo {
+    background:
+        var(--ps-fio) top / 100% 2px no-repeat,
+        radial-gradient(120% 160% at 0% 0%, #2A5A43 0%, transparent 55%),
+        linear-gradient(135deg, #24503C 0%, #1E3D2F 60%, #17301F 100%) !important;
+    border-color: rgba(180, 138, 60, .32);
+    --lar-text-dim: #A9C1AC;   /* o token da raiz vinha com o valor do tema claro */
+}
+
+/* Placa creme onde o logo colorido mora */
+.placa-logo {
+    display: inline-flex;
+    align-items: center;
+    flex-shrink: 0;
+    padding: 4px 10px;
+    border-radius: 10px;
+    background: var(--ps-creme);
+    box-shadow: inset 0 0 0 1px rgba(180, 138, 60, .45), 0 4px 14px -6px rgba(0, 0, 0, .45);
+}
+.placa-logo img { display: block; height: 32px; width: auto; }
+
+/* Foco visível com o dourado da marca */
+:focus-visible { outline-color: var(--ps-dourado); }

@@ -7,18 +7,33 @@
     <link rel="stylesheet" href="/assets/theme.css">
     <link rel="stylesheet" href="/assets/login.css">
     <script src="/assets/session.js"></script>
-    <title>Primeiro acesso - Sistema de Gestão Larsil</title>
+    <title>Primeiro acesso · Controle de Ponto · PlantSil</title>
+    <link rel="icon" type="image/svg+xml" href="/assets/plantsil-emblema.svg?v=25">
+    <link rel="alternate icon" href="/assets/favicon.ico?v=plantsil25">
+    <link rel="apple-touch-icon" href="/assets/plantsil-emblema-180.png">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
-        .login-intro { color: #A9C1AC; font-size: 12.5px; line-height: 1.6; margin-bottom: 1.4rem; text-align: center; }
+        .login-intro { color: var(--lar-muted); font-size: 13.5px; line-height: 1.6; margin-bottom: 1.5rem; }
     </style>
 </head>
 <body>
-    <div class="login-page">
+    <div class="login-page lx">
+      <section class="lx-arte">
+        <span class="lx-placa"><img src="/assets/plantsil-25anos-cor.svg" alt="PlantSil Florestal · 25 anos"></span>
+        <div class="lx-chamada">
+            <span class="lx-selo">PRIMEIRO ACESSO</span>
+            <h1>Sua senha,<br><em>sua assinatura.</em></h1>
+            <p>A senha provisória é só para entrar a primeira vez. Defina a sua e confirme os contatos — vale para todos os sistemas da PlantSil.</p>
+        </div>
+        <svg class="lx-floresta" viewBox="0 0 1200 90" preserveAspectRatio="none" aria-hidden="true"><path d="M0 90V62l30-34 22 26 26-44 30 40 24-22 30 30 28-50 26 36 22-18 30 34 26-40 30 30 24-26 28 38 26-46 30 42 22-20 28 30 26-38 30 34 24-24 28 32 26-44 30 40 22-18 30 30 26-36 28 34 24-28 30 36 26-42 28 38 24-22 30 30 26-40 28 36 24-20 30 32 26-34 28 30 22-18 30 30V90z"/></svg>
+      </section>
+
+      <section class="lx-lado">
+        <div class="lx-tema" id="lugarDoTema"></div>
         <div class="login-card">
-            <img src="/assets/larsil-logo.png" alt="Larsil Serviços Florestais" class="login-logo">
-            <p class="login-eyebrow">Primeiro acesso</p>
+            <img src="/assets/plantsil-emblema.svg" alt="" class="lx-emblema">
+            <h2 class="lx-titulo">Primeiro acesso</h2>
 
             <p class="login-intro">
                 Sua senha atual é provisória. Defina uma senha própria e confirme
@@ -62,11 +77,14 @@
                 </button>
             </form>
 
-            <div class="login-footer">Larsil Serviços Florestais</div>
         </div>
+        <div class="lx-rodape">PLANTSIL FLORESTAL · 25 ANOS</div>
+      </section>
     </div>
 
     <script>
+        document.getElementById('lugarDoTema').appendChild(SESSION.botaoTema());
+
         // Sem sessão aqui não há o que concluir
         if (!SESSION.getJwt()) window.location.href = '/login.html';
 
